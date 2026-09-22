@@ -24,8 +24,10 @@ THE FLOW (as agreed in the meeting)
    On a match, a one-time code goes to the email on record. Verify -> gate pass.
 
 3  REGISTRATION     register.html        <-- opens only after the gate
-   First name / last name / email / ID come PRE-FILLED from the verified record
-   (email and ID stay locked).
+   The student fills everything themselves - name, department, programme,
+   course, session, phone. Nothing is pre-filled from the master list.
+   Only the EMAIL and the UNIVERSITY ID carry over and stay locked, because
+   step 2 already verified them.
    Dependent chain:    Department -> Programme -> Course -> Session
                        (Chitkara: Course depends on Programme;
                         other campuses: Course depends on Department)
@@ -72,6 +74,9 @@ Access code       on/off, THE CODE ITSELF (what you hand each client),
                   field label, helper text
 Step 2 gate       ID field label, placeholder, helper text, OTP length, resend timer
 Master list       moved to its own page: admin-roster.html
+                  Only ID + email are actually required. Department, programme,
+                  course and session are optional reference columns now that
+                  nothing is pre-filled into the form.
                      - table of every ID with Registered / Pending status
                      - search, campus switch, add / edit / remove a row
                      - Upload CSV, Download CSV, bulk paste
@@ -91,8 +96,8 @@ Form fields       add / edit / delete / reorder, and per field:
                     - label, backend id, type, section heading
                     - placeholder, helper text, options
                     - PRE-FILL FROM VERIFIED ID
-                        firstName / lastName / name / email / uid /
-                        department / programme / course / session
+                        email / uid  (what step 2 verified). Everything else is
+                        typed by the student, so leave this on "none".
                     - LOCKED (read-only)
                     - DEPENDENT FIELD: parent field + "options by parent value"
                          Institute of Engineering & Technology > B.E. CSE, B.E. ECE

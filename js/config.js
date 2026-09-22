@@ -8,7 +8,8 @@
      type       text | email | tel | number | date | select | radio | checkbox | textarea
      required   true / false
      half       true = half width
-     prefill    name | email | uid | department | programme | course | session
+     prefill    email | uid   (only the values verified in step 2; the student
+                types everything else)
      lock       true = read-only (comes from the verified campus record)
      dependsOn  parent field id  -> DEPENDENT field
      optionsMap { "<parent value>": [...], "*": [...fallback] }
@@ -33,7 +34,7 @@ var HBE_DEFAULT_CONFIG = {
       { icon:"mail",   title:"Verify your University ID",
         text:"We match your ID with our records and email a one-time code." },
       { icon:"file",   title:"Fill the short form",
-        text:"Department, programme and course — most of it is pre-filled." },
+        text:"Your details, department, programme and course — takes two minutes." },
       { icon:"target", title:"Attempt the test",
         text:"Your report is ready the moment you submit." }
     ],
@@ -151,9 +152,9 @@ var HBE_DEFAULT_CONFIG = {
 
       fields: [
         { id:"firstName", label:"First Name", type:"text", required:true, half:true,
-          prefill:"firstName", placeholder:"As per campus record", section:"Your Details" },
+          placeholder:"As per campus record", section:"Your Details" },
         { id:"lastName", label:"Last Name", type:"text", required:true, half:true,
-          prefill:"lastName", placeholder:"Surname", section:"Your Details" },
+          placeholder:"Surname", section:"Your Details" },
         { id:"email", label:"Email Address", type:"email", required:true, half:true,
           prefill:"email", lock:true, section:"Your Details" },
         { id:"universityId", label:"University Roll Number", type:"text", required:true, half:true,
@@ -162,13 +163,13 @@ var HBE_DEFAULT_CONFIG = {
           placeholder:"10-digit number", help:"For test reminders", section:"Your Details" },
 
         { id:"department", label:"Department / School", type:"select", required:true, half:true,
-          prefill:"department", section:"Academic Details",
+          section:"Academic Details",
           options:["Institute of Engineering & Technology","Chitkara Business School",
                    "School of Computer Applications","Chitkara College of Pharmacy",
                    "School of Mass Communication"] },
 
         { id:"programme", label:"Programme", type:"select", required:true, half:true,
-          prefill:"programme", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "Institute of Engineering & Technology":["B.E.","B.Tech (Lateral Entry)","M.Tech"],
             "Chitkara Business School":["BBA","MBA","B.Com (Hons)"],
@@ -178,7 +179,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"course", label:"Course / Branch", type:"select", required:true, half:true,
-          prefill:"course", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{
             "B.E.":["Computer Science & Engineering","Electronics & Communication","Mechanical Engineering","Civil Engineering","Electrical Engineering"],
             "B.Tech (Lateral Entry)":["Computer Science & Engineering","Mechanical Engineering"],
@@ -196,7 +197,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"session", label:"Session", type:"select", required:true, half:true,
-          prefill:"session", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{
             "B.E.":["2022-2026","2023-2027"],
             "B.Tech (Lateral Entry)":["2023-2026","2024-2027"],
@@ -325,9 +326,9 @@ var HBE_DEFAULT_CONFIG = {
 
       fields: [
         { id:"firstName", label:"First Name", type:"text", required:true, half:true,
-          prefill:"firstName", placeholder:"As per campus record", section:"Your Details" },
+          placeholder:"As per campus record", section:"Your Details" },
         { id:"lastName", label:"Last Name", type:"text", required:true, half:true,
-          prefill:"lastName", placeholder:"Surname", section:"Your Details" },
+          placeholder:"Surname", section:"Your Details" },
         { id:"email", label:"Email Address", type:"email", required:true, half:true,
           prefill:"email", lock:true, section:"Your Details" },
         { id:"universityId", label:"LPU Registration Number", type:"text", required:true, half:true,
@@ -336,12 +337,12 @@ var HBE_DEFAULT_CONFIG = {
           placeholder:"10-digit number", section:"Your Details" },
 
         { id:"department", label:"School", type:"select", required:true, half:true,
-          prefill:"department", section:"Academic Details",
+          section:"Academic Details",
           options:["School of Computer Science & Engineering","Mittal School of Business",
                    "School of Mechanical Engineering","School of Pharmaceutical Sciences"] },
 
         { id:"programme", label:"Programme", type:"select", required:true, half:true,
-          prefill:"programme", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "School of Computer Science & Engineering":["B.Tech","M.Tech","MCA"],
             "Mittal School of Business":["BBA","MBA","B.Com (Hons)"],
@@ -350,7 +351,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"course", label:"Course / Specialisation", type:"select", required:true, half:true,
-          prefill:"course", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "School of Computer Science & Engineering":["Computer Science & Engineering","Information Technology","Data Science","Cyber Security"],
             "Mittal School of Business":["Marketing","Finance","Human Resources","Operations"],
@@ -359,7 +360,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"session", label:"Session", type:"select", required:true, half:true,
-          prefill:"session", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{ "B.Tech":["2022-2026","2023-2027"], "M.Tech":["2024-2026"],
                        "MCA":["2024-2026"], "MBA":["2024-2026","2025-2027"],
                        "M.Pharm":["2024-2026"], "*":["2023-2026","2024-2027"] } },
@@ -473,9 +474,9 @@ var HBE_DEFAULT_CONFIG = {
 
       fields: [
         { id:"firstName", label:"First Name", type:"text", required:true, half:true,
-          prefill:"firstName", placeholder:"As per campus record", section:"Your Details" },
+          placeholder:"As per campus record", section:"Your Details" },
         { id:"lastName", label:"Last Name", type:"text", required:true, half:true,
-          prefill:"lastName", placeholder:"Surname", section:"Your Details" },
+          placeholder:"Surname", section:"Your Details" },
         { id:"email", label:"Email Address", type:"email", required:true, half:true,
           prefill:"email", lock:true, section:"Your Details" },
         { id:"universityId", label:"SAP ID", type:"text", required:true, half:true,
@@ -484,12 +485,12 @@ var HBE_DEFAULT_CONFIG = {
           placeholder:"10-digit number", section:"Your Details" },
 
         { id:"department", label:"School", type:"select", required:true, half:true,
-          prefill:"department", section:"Academic Details",
+          section:"Academic Details",
           options:["School of Computer Science","School of Advanced Engineering","School of Business",
                    "School of Law","School of Design","School of Health Sciences"] },
 
         { id:"programme", label:"Programme", type:"select", required:true, half:true,
-          prefill:"programme", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "School of Computer Science":["B.Tech","BCA","MCA"],
             "School of Advanced Engineering":["B.Tech","M.Tech"],
@@ -500,7 +501,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"course", label:"Specialisation", type:"select", required:true, half:true,
-          prefill:"course", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "School of Computer Science":["Computer Science & Engineering","Artificial Intelligence & ML","Cyber Security","Full Stack Development"],
             "School of Advanced Engineering":["Mechanical","Electrical","Chemical","Aerospace"],
@@ -511,7 +512,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"session", label:"Session", type:"select", required:true, half:true,
-          prefill:"session", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{ "B.Tech":["2022-2026","2023-2027"], "M.Tech":["2024-2026"],
                        "MCA":["2024-2026"], "MBA":["2024-2026","2025-2027"], "M.Des":["2024-2026"],
                        "LLM":["2024-2026"], "BA LLB":["2021-2026","2022-2027"], "BBA LLB":["2021-2026","2022-2027"],
@@ -638,9 +639,9 @@ var HBE_DEFAULT_CONFIG = {
 
       fields: [
         { id:"firstName", label:"First Name", type:"text", required:true, half:true,
-          prefill:"firstName", placeholder:"As per campus record", section:"Your Details" },
+          placeholder:"As per campus record", section:"Your Details" },
         { id:"lastName", label:"Last Name", type:"text", required:true, half:true,
-          prefill:"lastName", placeholder:"Surname", section:"Your Details" },
+          placeholder:"Surname", section:"Your Details" },
         { id:"email", label:"Thapar Email ID", type:"email", required:true, half:true,
           prefill:"email", lock:true, section:"Your Details" },
         { id:"universityId", label:"Roll Number", type:"text", required:true, half:true,
@@ -649,12 +650,12 @@ var HBE_DEFAULT_CONFIG = {
           placeholder:"10-digit number", section:"Your Details" },
 
         { id:"department", label:"Department", type:"select", required:true, half:true,
-          prefill:"department", section:"Academic Details",
+          section:"Academic Details",
           options:["Computer Science & Engineering","Electronics & Communication","Mechanical Engineering",
                    "Civil Engineering","Chemical Engineering","Biotechnology","LM Thapar School of Management"] },
 
         { id:"programme", label:"Programme", type:"select", required:true, half:true,
-          prefill:"programme", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "Computer Science & Engineering":["B.E.","M.E."],
             "Electronics & Communication":["B.E.","M.E."],
@@ -666,7 +667,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"course", label:"Course / Branch", type:"select", required:true, half:true,
-          prefill:"course", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "Computer Science & Engineering":["Computer Engineering","Computer Science & Business Systems","Artificial Intelligence"],
             "Electronics & Communication":["Electronics & Communication","Electronics & Computer Engineering"],
@@ -678,7 +679,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"session", label:"Session", type:"select", required:true, half:true,
-          prefill:"session", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{ "B.E.":["2022-2026","2023-2027"], "M.E.":["2024-2026"], "M.Sc":["2024-2026"],
                        "MBA":["2024-2026","2025-2027"], "MBA (Business Analytics)":["2024-2026"],
                        "*":["2022-2026","2023-2027"] } },
@@ -794,9 +795,9 @@ var HBE_DEFAULT_CONFIG = {
 
       fields: [
         { id:"firstName", label:"First Name", type:"text", required:true, half:true,
-          prefill:"firstName", placeholder:"As per campus record", section:"Your Details" },
+          placeholder:"As per campus record", section:"Your Details" },
         { id:"lastName", label:"Last Name", type:"text", required:true, half:true,
-          prefill:"lastName", placeholder:"Surname", section:"Your Details" },
+          placeholder:"Surname", section:"Your Details" },
         { id:"email", label:"Amity Email ID", type:"email", required:true, half:true,
           prefill:"email", lock:true, section:"Your Details" },
         { id:"universityId", label:"Enrolment Number", type:"text", required:true, half:true,
@@ -805,11 +806,11 @@ var HBE_DEFAULT_CONFIG = {
           placeholder:"10-digit number", section:"Your Details" },
 
         { id:"department", label:"School / Institute", type:"select", required:true, half:true,
-          prefill:"department", section:"Academic Details",
+          section:"Academic Details",
           options:["ASET","Amity Business School","AIIT","Amity Law School","AIBAS"] },
 
         { id:"programme", label:"Programme", type:"select", required:true, half:true,
-          prefill:"programme", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "ASET":["B.Tech","M.Tech"],
             "Amity Business School":["BBA","MBA"],
@@ -819,7 +820,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"course", label:"Specialisation", type:"select", required:true, half:true,
-          prefill:"course", dependsOn:"department", section:"Academic Details",
+          dependsOn:"department", section:"Academic Details",
           optionsMap:{
             "ASET":["Computer Science & Engineering","Electronics & Communication","Mechanical Engineering"],
             "Amity Business School":["Marketing","Finance","Human Resources"],
@@ -829,7 +830,7 @@ var HBE_DEFAULT_CONFIG = {
           } },
 
         { id:"session", label:"Session", type:"select", required:true, half:true,
-          prefill:"session", dependsOn:"programme", section:"Academic Details",
+          dependsOn:"programme", section:"Academic Details",
           optionsMap:{ "B.Tech":["2022-2026","2023-2027"], "M.Tech":["2024-2026"], "MCA":["2024-2026"],
                        "MBA":["2024-2026","2025-2027"], "LLM":["2024-2026"], "MA":["2024-2026"],
                        "BA LLB":["2021-2026","2022-2027"], "BBA LLB":["2021-2026","2022-2027"],
