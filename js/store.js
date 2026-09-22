@@ -87,8 +87,9 @@ function ico(n, cls){
 
 /* ---------------- navbar ---------------- */
 /* some lockups are wide and thin, others square — each campus can set its own height */
-function hbeLogoStyle(college, plus){
+function hbeLogoStyle(college, plus, cap){
   var h = (+college.logoHeight || 34) + (plus || 0);
+  if(cap) h = Math.min(h, cap);           /* navbar: one height for every campus */
   return ' style="max-height:' + h + 'px"';
 }
 
@@ -96,7 +97,7 @@ function hbeNav(college, links){
   var cfg = hbeGetConfig();
   return '<nav class="nav"><div class="nav-in">' +
     '<a class="logo-plate" href="index.html?college=' + college.id + '" title="' + hbeEsc(college.name) + '">' +
-      '<img src="' + college.logo + '" alt="' + hbeEsc(college.name) + '"' + hbeLogoStyle(college) + '></a>' +
+      '<img src="' + college.logo + '" alt="' + hbeEsc(college.name) + '"' + hbeLogoStyle(college, 0, 34) + '></a>' +
     '<div class="co">' + hbeEsc(college.shortName || college.name) +
       '<small>Assessment Portal</small></div>' +
     '<div class="sep"></div>' +
