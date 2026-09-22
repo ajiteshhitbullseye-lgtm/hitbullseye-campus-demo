@@ -1,0 +1,3 @@
+# Prototype build - keep it out of search results
+User-agent: *
+Disallow: /
