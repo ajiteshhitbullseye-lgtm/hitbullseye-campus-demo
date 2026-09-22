@@ -99,13 +99,16 @@ across the top of every page.
 
 ## Notes
 
-- Commits are authored as `ranganadh-hbe <ranganadh.hitbullseye@gmail.com>`
-  (the git identity set on this machine). To change it for this repo only:
+- This repo commits as `Ajitesh <ajitesh.hitbullseye@gmail.com>` (set locally,
+  so the machine-wide identity `ranganadh-hbe` is not used here). To change the
+  display name:
 
   ```bash
-  git config user.name  "Your Name"
-  git config user.email "you@example.com"
+  git config user.name "Your Name"       # inside this folder only
   ```
+
+  Use the same email on GitHub (Settings → Emails) so the commits show up
+  against your profile.
 
 - Prototype data (registrations, attempts, config edits) lives in the browser's
   localStorage, not in the repo — every visitor starts with the seeded demo data.
