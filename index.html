@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <div class="wrap hero-grid">
+
+    <div class="rise">
+      <span class="eyebrow"><span class="dot"></span><span id="eyebrow"></span></span>
+      <h1 id="title"></h1>
+      <p class="lede" id="lede"></p>
+
+      <ul class="ticks" id="points"></ul>
+
+      <div class="hero-cta">
+        <a class="btn btn-lg btn-accent" id="cta" href="#"></a>
+        <a class="btn btn-lg btn-line" href="login.html">Sign in</a>
+      </div>
+
+      <div class="hero-stats" id="stats"></div>
+    </div>
+
+    <div class="hero-side rise d2">
+      <figure class="shot shot-hero">
+        <img id="heroPhoto" src="" alt="">
+        <figcaption>
+          <span class="plate"><img id="heroLogo" src="" alt=""></span>
+          <span><b id="heroName"></b><em id="heroCity"></em></span>
+        </figcaption>
+      </figure>
+
+      <div class="glass">
+        <div class="row-b" style="margin-bottom:4px">
+          <h3>Your assessment</h3>
+          <span class="badge brand" id="openBadge">Open</span>
+        </div>
+        <p class="sm mut" style="margin-bottom:14px" id="testName"></p>
+
+        <div class="kv"><span>Duration</span><b id="kDur"></b></div>
+        <div class="kv"><span>Questions</span><b id="kQs"></b></div>
+        <div class="kv"><span>Window</span><b id="kWin"></b></div>
+        <div class="kv"><span>Attempts</span><b id="kAtt"></b></div>
+        <div class="kv" style="align-items:flex-start"><span>Sections</span><div class="chips" id="kSec"></div></div>
+
+        <div class="divider"></div>
+        <a class="btn btn-block btn-lg" id="cta2" href="#"></a>
+        <div class="secure" id="secure"></div>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+<main>
+  <!-- ==================== HOW TO REGISTER ==================== -->
+  <section class="wrap pull">
+    <div class="howto" id="howto"></div>
+  </section>
+
+  <section class="wrap mt reveal">
+    <div class="alert info" id="gateNote"></div>
+  </section>
+
+  <!-- ==================== CAMPUS BAND ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="media-split">
+      <figure class="shot shot-tall">
+        <img id="bandPhoto" src="" alt="">
+        <figcaption>
+          <span class="plate"><img id="bandLogo" src="" alt=""></span>
+          <span><b id="bandName"></b><em id="bandCity"></em></span>
+        </figcaption>
+      </figure>
+      <div>
+        <span class="eyebrow">Built for your campus</span>
+        <h2 style="margin:14px 0 16px" id="bandH"></h2>
+        <ul class="plist" id="bandPoints"></ul>
+        <div class="pill-row" id="bandPills"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ASSESSMENTS ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="section-title">
+      <span class="eyebrow">This cycle</span>
+      <h2 style="margin-top:14px">Assessments on your campus</h2>
+      <p>Each paper opens for the departments your placement cell picks.</p>
+    </div>
+    <div class="tcards" id="testList"></div>
+  </section>
+
+  <!-- ==================== TESTIMONIALS ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="section-title">
+      <span class="eyebrow">In their words</span>
+      <h2 style="margin-top:14px">What your seniors say</h2>
+    </div>
+    <div class="quotes" id="quotes"></div>
+  </section>
+
+  <!-- ==================== CAMPUS CARDS ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="section-title">
+      <span class="eyebrow">Partner campuses</span>
+      <h2 style="margin-top:14px">Running on campuses like yours</h2>
+    </div>
+    <div class="campus-cards" id="campuses"></div>
+  </section>
+
+  <!-- ==================== FAQ ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="section-title">
+      <span class="eyebrow">Good to know</span>
+      <h2 style="margin-top:14px">Quick answers</h2>
+    </div>
+    <div class="faq" id="faq"></div>
+  </section>
+
+  <!-- ==================== CTA BAND ==================== -->
+  <section class="wrap mt-l reveal">
+    <div class="band">
+      <h2>Your batch is already <em>registering</em>.</h2>
+      <p id="bandP"></p>
+      <a class="btn btn-lg btn-accent" id="cta3" href="#"></a>
+    </div>
+  </section>
+
+  <!-- ==================== PROTOTYPE BAR ==================== -->
+  <section class="wrap mt-l">
+    <div class="card" style="border-style:dashed;background:transparent;box-shadow:none">
+      <div class="row-b">
+        <div>
+          <span class="badge">Prototype controls</span>
+          <p class="sm mut" style="margin-top:8px">Switch campus, or sign in as admin to edit the form and see every report.</p>
+        </div>
+        <div class="row" style="gap:10px;flex-wrap:wrap">
+          <select id="colSel" style="width:auto;min-width:238px"></select>
+          <a class="btn btn-ghost" href="login.html?as=admin">Admin sign in</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div>
+          <div class="logo-plate bare" style="margin-bottom:14px">
+            <img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:30px">
+          </div>
+          <p class="sm mut" style="max-width:270px">Campus assessment and placement-readiness platform.</p>
+        </div>
+        <div>
+          <h4>Students</h4>
+          <a href="#" id="fReg">Verify &amp; register</a>
+          <a href="login.html">Sign in</a>
+          <a href="login.html">My report</a>
+        </div>
+        <div>
+          <h4>Placement cells</h4>
+          <a href="login.html?as=admin">Admin console</a>
+          <a href="login.html?as=admin">Student reports</a>
+          <a href="login.html?as=admin">Form builder</a>
+        </div>
+        <div>
+          <h4>Support</h4>
+          <span class="li" id="fMail"></span>
+          <span class="li">Mon – Sat, 9am – 7pm</span>
+        </div>
+      </div>
+      <div class="foot-bottom row-b">
+        <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+        <span>Prototype · campus photos via Wikimedia Commons</span>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+(function(){
+  var cfg = hbeGetConfig();
+  var id  = hbeCollegeId(cfg);
+  var c   = cfg.colleges[id];
+  var w   = c.welcome, tests = hbeTests(c), t = hbePrimaryTest(c);
+  var g   = function(x){ return document.getElementById(x); };
+
+  hbeApplyTheme(c);
+
+  g("nav").innerHTML = hbeNav(c,
+    '<a class="nav-link on" href="index.html?college='+id+'">Home</a>' +
+    '<a class="nav-link" href="verify.html?college='+id+'">Register</a>' +
+    '<a class="btn btn-ghost btn-sm" href="login.html">'+ico("user")+' Sign in</a>');
+
+  /* ---------- hero ---------- */
+  g("eyebrow").textContent = w.eyebrow;
+  var ttl = hbeEsc(w.title);
+  g("title").innerHTML = w.highlight ? ttl.replace(w.highlight, "<em>"+hbeEsc(w.highlight)+"</em>") : ttl;
+  g("lede").textContent = w.subtitle;
+
+  g("points").innerHTML = (w.points||[]).map(function(p){
+    return "<li>"+ico("check")+"<span>"+hbeEsc(p)+"</span></li>"; }).join("");
+
+  g("stats").innerHTML = (w.stats||[]).map(function(s){
+    return "<div><b>"+hbeEsc(s.value)+"</b><span>"+hbeEsc(s.label)+"</span></div>"; }).join("");
+
+  ["hero","band"].forEach(function(k){
+    g(k+"Photo").src = c.photo || "";
+    g(k+"Photo").alt = c.name + " campus";
+    g(k+"Logo").src  = c.logo;
+    g(k+"Logo").style.maxHeight = ((+c.logoHeight || 34) - 4) + "px";
+    g(k+"Name").textContent = c.name;
+    g(k+"City").textContent = c.campus || "";
+  });
+
+  /* ---------- assessment card ---------- */
+  g("testName").textContent = t.name;
+  g("kDur").textContent = t.durationMin + " min";
+  g("kQs").textContent  = t.questions + " questions";
+  g("kWin").textContent = t.window;
+  g("kAtt").textContent = t.attempts || "1 attempt";
+  g("kSec").innerHTML = (t.sections||[]).map(function(s){
+    return '<span class="chip">'+hbeEsc(s)+"</span>"; }).join("");
+
+  var v = c.verification || {};
+  g("secure").innerHTML = ico("shield") + "<span>ID verified registration" +
+    (v.securityCode ? " · security code" : "") + "</span>";
+
+  /* ---------- CTAs ---------- */
+  var href = "verify.html?college=" + encodeURIComponent(id);
+  ["cta","cta2","cta3"].forEach(function(x){
+    g(x).href = href; g(x).innerHTML = hbeEsc(w.cta) + ico("arrow");
+  });
+  g("fReg").href = href;
+  g("fMail").textContent = cfg.brand.supportEmail;
+  g("bandP").textContent = "Registration closes with the test window on " +
+      String(t.window).split("–").pop().trim() + ".";
+
+  /* ---------- how to register ---------- */
+  g("howto").innerHTML = (cfg.brand.steps||[]).map(function(s, i){
+    return '<div class="st rise"><span class="n">'+(i+1)+"</span>" +
+      '<div class="ic">'+ico(s.icon||"check")+"</div>" +
+      "<h3>"+hbeEsc(s.title)+"</h3><p>"+hbeEsc(s.text)+"</p></div>";
+  }).join("");
+
+  var G = c.gate || {};
+  g("gateNote").innerHTML = ico("info") +
+    "<div><b>Before you start:</b> keep your <b>" + hbeEsc(G.idLabel || "University ID") +
+    "</b> handy. Only IDs shared by the " + hbeEsc(c.shortName || c.name) +
+    " placement cell can register, and the one-time code goes to the email on that record.</div>";
+
+  /* ---------- campus band ---------- */
+  g("bandH").textContent = "Made for " + (c.shortName || c.name) + " students";
+  g("bandPoints").innerHTML = (c.campusPoints||[]).map(function(p){
+    return "<li>"+ico("check")+"<span>"+hbeEsc(p)+"</span></li>"; }).join("");
+  g("bandPills").innerHTML = (w.stats||[]).map(function(s){
+    return '<div class="pill"><b>'+hbeEsc(s.value)+"</b><span>"+hbeEsc(s.label)+"</span></div>"; }).join("");
+
+  /* ---------- assessments in this cycle ---------- */
+  if(tests.length > 1) g("openBadge").textContent = "1 of " + tests.length;
+
+  g("testList").innerHTML = tests.map(function(x){
+    var restricted = (x.audience && ((x.audience.departments||[]).length ||
+                      (x.audience.programmes||[]).length || (x.audience.sessions||[]).length));
+    return '<div class="tcard">' +
+      '<div class="top"><h3>'+hbeEsc(x.name)+"</h3>" +
+        '<span class="badge '+(restricted ? "warn" : "brand")+'">'+hbeEsc(x.tag || "Assessment")+"</span></div>" +
+      '<div class="meta">' +
+        '<span class="chip">'+x.durationMin+" min</span>" +
+        '<span class="chip">'+x.questions+" questions</span>" +
+        '<span class="chip">'+hbeEsc(x.window)+"</span>" +
+        '<span class="chip">'+hbeEsc(x.attempts||"1 attempt")+"</span></div>" +
+      '<div class="aud">'+ico("users")+"<span><b>Who can attempt:</b> "+hbeEsc(hbeAudienceText(x))+"</span></div>" +
+      '<div class="aud">'+ico("file")+"<span>"+ (x.sections||[]).join(" · ") +"</span></div>" +
+    "</div>";
+  }).join("");
+
+  /* ---------- testimonials ---------- */
+  g("quotes").innerHTML = (c.testimonials||[]).map(function(q){
+    return '<div class="quote"><span class="mark">&ldquo;</span><p>'+hbeEsc(q.quote)+"</p>" +
+      '<div class="who"><span class="avatar">'+hbeInitials(q.name)+"</span>" +
+      "<span><b>"+hbeEsc(q.name)+"</b><span>"+hbeEsc(q.meta)+"</span></span></div></div>";
+  }).join("");
+
+  /* ---------- campus cards ---------- */
+  g("campuses").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    var x = cfg.colleges[k];
+    return '<a class="ccard'+(k===id?" on":"")+'" href="index.html?college='+k+'">' +
+      '<span class="ph"><img src="'+(x.photo||"")+'" alt="'+hbeEsc(x.name)+' campus"></span>' +
+      '<span class="bd"><img src="'+x.logo+'" alt="" style="max-height:'+((+x.logoHeight||34)-8)+'px">' +
+      "<span><b>"+hbeEsc(x.shortName||x.name)+"</b><em>"+hbeEsc(x.campus||"")+"</em></span></span></a>";
+  }).join("");
+
+  /* ---------- faq ---------- */
+  g("faq").innerHTML = (cfg.brand.faq||[]).map(function(f,i){
+    return "<details"+(i===0?" open":"")+"><summary>"+hbeEsc(f.q)+"</summary>" +
+           '<div class="a">'+hbeEsc(f.a)+"</div></details>";
+  }).join("");
+
+  /* ---------- campus switcher ---------- */
+  var sel = g("colSel");
+  sel.innerHTML = Object.keys(cfg.colleges).map(function(k){
+    return '<option value="'+k+'"'+(k===id?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+  sel.onchange = function(){ location.href = "index.html?college=" + this.value; };
+
+  hbeReveal();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Performance Report · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  @media print{ .nav,.no-print{display:none!important} body{background:#fff} .card{box-shadow:none;border-color:#ddd} }
+</style>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+  <div id="page"></div>
+
+  <footer class="foot row-b no-print">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Report generated automatically from the student's attempt.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+(function(){
+  var s = hbeSession();
+  if(!s){ location.href = "login.html?next=report.html"; return; }
+
+  var qid = hbeParam("id");
+  var st  = qid ? hbeStudentById(qid) : hbeStudentById(s.id);
+  if(!st){ document.getElementById("page").innerHTML = '<div class="card center"><h2>Report not found</h2></div>'; return; }
+  if(s.role === "student" && st.id !== s.id){ st = hbeStudentById(s.id); }   /* students only see their own */
+
+  var cfg = hbeGetConfig();
+  var c   = cfg.colleges[st.collegeId];
+  hbeApplyTheme(c);
+
+  var isAdmin = s.role === "admin";
+  document.getElementById("nav").innerHTML = hbeNav(c,
+    (isAdmin
+      ? '<a class="nav-link" href="admin-reports.html">All students</a><a class="nav-link" href="admin.html">Form builder</a>'
+      : '<a class="nav-link" href="dashboard.html">My dashboard</a>') +
+    '<a class="nav-link on" href="#">Report</a>' +
+    '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+
+  /* which attempt are we showing? */
+  var all   = hbeResultList(st);
+  var wanted = hbeParam("test");
+  var r     = (wanted && hbeResults(st)[wanted]) || all[0] || null;
+
+  if(!r){
+    document.getElementById("page").innerHTML =
+      '<div class="card center" style="padding:60px 26px">' +
+      '<div class="f-ico" style="margin:0 auto;background:var(--warn-bg);color:var(--warn)">' + ico("alert") + "</div>" +
+      '<h2 style="margin-top:14px">No attempt yet</h2>' +
+      '<p class="mut" style="margin-top:8px">'+hbeEsc(st.name)+' has not attempted any assessment so far.</p>' +
+      (isAdmin ? '<a class="btn btn-ghost mt" href="admin-reports.html">Back to all students</a>'
+               : '<a class="btn mt" href="test.html">Start the assessment</a>') + "</div>";
+    return;
+  }
+
+  var band = hbeBand(r.pct);
+  /* rank is computed inside the same test only */
+  var peers = hbeStudents().filter(function(x){
+        return x.collegeId === st.collegeId && hbeResults(x)[r.testId]; })
+      .sort(function(a,b){ return hbeResults(b)[r.testId].score - hbeResults(a)[r.testId].score; });
+  var rank = peers.map(function(x){ return x.id; }).indexOf(st.id) + 1;
+  var avg  = Math.round(peers.reduce(function(a,b){ return a + hbeResults(b)[r.testId].pct; },0) / (peers.length||1));
+
+  /* switcher when the student has more than one attempt */
+  var switcher = all.length > 1
+    ? '<div class="test-tabs no-print">' + all.map(function(x){
+        return '<a class="tt' + (x.testId === r.testId ? " on" : "") + '" href="report.html?' +
+               (isAdmin ? "id=" + encodeURIComponent(st.id) + "&" : "") +
+               "test=" + encodeURIComponent(x.testId) + '">' + hbeEsc(x.testName || "Attempt") +
+               '<span>' + x.pct + "%</span></a>"; }).join("") + "</div>"
+    : "";
+
+  if(hbeParam("new")) setTimeout(function(){ hbeToast("Your report is ready. Well done on completing the test!","check",6000); }, 400);
+
+  var tips = {
+    "Quantitative Aptitude":"Drill percentages, ratio and time-speed-distance with a 90-second per question target.",
+    "Logical Reasoning":"Practise series, coding-decoding and blood relations daily — 15 questions a day is enough.",
+    "Verbal Ability":"Build vocabulary with 10 new words a day and revise subject-verb agreement rules.",
+    "Data Interpretation":"Work on approximation techniques so you can read charts without long calculations.",
+    "Domain Knowledge":"Revise core subject fundamentals and solve previous years' company papers."
+  };
+
+  document.getElementById("page").innerHTML =
+
+  /* ---- header ---- */
+  '<div class="row-b rise">' +
+    '<div class="row" style="gap:14px">' +
+      '<div class="avatar" style="width:54px;height:54px;border-radius:15px;font-size:18px">'+hbeInitials(st.name)+"</div>" +
+      "<div><h1 style=\"font-size:26px\">"+hbeEsc(st.name)+"</h1>" +
+      '<p class="sm mut">'+hbeEsc(st.regNo)+" · "+hbeEsc(c.name)+" · "+hbeEsc(st.course||"")+"</p></div>" +
+    "</div>" +
+    '<div class="row no-print" style="gap:10px">' +
+      (isAdmin ? '<a class="btn btn-ghost btn-sm" href="admin-reports.html">'+ico("back")+" All students</a>" : "") +
+      '<button class="btn btn-sm" onclick="window.print()">'+ico("file")+" Download / print</button>" +
+    "</div>" +
+  "</div>" +
+
+  switcher +
+  /* ---- summary ---- */
+  '<section class="card mt rise">' +
+    '<div class="row-b sec-head">' +
+      "<div><h2>"+hbeEsc(r.testName || "Assessment")+"</h2>" +
+      '<p class="sm mut">Attempted on '+hbeDate(r.attemptedAt)+" · completed in "+r.timeMin+" minutes</p></div>" +
+      '<span class="badge '+band.cls+'">'+band.label+"</span>" +
+    "</div>" +
+    '<div class="row" style="gap:36px;flex-wrap:wrap;align-items:center">' +
+      '<div class="donut" style="--p:'+r.pct+'"><div class="in"><b>'+r.pct+'%</b><span>OVERALL SCORE</span></div></div>' +
+      '<div class="grow stats" style="min-width:300px;grid-template-columns:repeat(2,1fr)">' +
+        st_("Marks scored", r.score + '<span style="font-size:16px;color:var(--muted)">/'+r.max+"</span>", "1 mark per question") +
+        st_("All India percentile", r.percentile, "Across partner campuses") +
+        st_("Accuracy", r.accuracy + "%", r.attempted + " questions attempted") +
+        st_("Campus rank", rank + '<span style="font-size:16px;color:var(--muted)">/'+peers.length+"</span>", c.shortName + " cohort") +
+      "</div>" +
+    "</div>" +
+    '<div class="alert info" style="margin-top:22px">'+ico("info") +
+      "<div>You scored <b>"+r.pct+"%</b> against a campus average of <b>"+avg+"%</b>" +
+      (r.pct>=avg ? " — that is <b>"+(r.pct-avg)+" points above</b> your cohort." : " — that is <b>"+(avg-r.pct)+" points below</b> your cohort.") +
+    "</div></div>" +
+  "</section>" +
+
+  /* ---- sections ---- */
+  '<section class="card mt">' +
+    '<div class="sec-head"><h2>Section-wise performance</h2>' +
+    '<p class="sm mut">Where the marks came from, and where they leaked.</p></div>' +
+    '<div class="tbl-wrap"><table><thead><tr>' +
+      "<th>Section</th><th>Score</th><th>Correct</th><th>Incorrect</th><th>Skipped</th><th>Accuracy</th><th style=\"width:180px\">Performance</th>" +
+    "</tr></thead><tbody>" +
+    r.sections.map(function(x){
+      var b = hbeBand(x.pct);
+      return "<tr><td class=\"nm\">"+hbeEsc(x.name)+"</td>" +
+        "<td><b>"+x.score+"</b>/"+x.max+"</td>" +
+        '<td><span class="badge ok">'+x.correct+"</span></td>" +
+        '<td><span class="badge err">'+x.wrong+"</span></td>" +
+        '<td><span class="badge">'+x.skipped+"</span></td>" +
+        "<td>"+x.accuracy+"%</td>" +
+        '<td><div class="bar '+(b.cls==="brand"?"mid":b.cls)+'"><i style="width:'+x.pct+'%"></i></div>' +
+        '<span class="xs mut">'+x.pct+"% · "+b.label+"</span></td></tr>";
+    }).join("") +
+    "</tbody></table></div>" +
+  "</section>" +
+
+  /* ---- strengths / improvements ---- */
+  '<div class="feature-grid mt" style="grid-template-columns:1fr 1fr">' +
+    '<div class="card"><div class="f-ico" style="background:var(--ok-bg);color:var(--ok)">'+ico("medal")+"</div>" +
+      "<h3>Your strengths</h3>" +
+      '<p class="sm mut" style="margin:6px 0 14px">Keep these sharp with light weekly revision.</p>' +
+      r.strengths.map(function(n){ return '<div class="kv"><span>'+hbeEsc(n)+'</span><b><span class="badge ok">Strong</span></b></div>'; }).join("") +
+    "</div>" +
+    '<div class="card"><div class="f-ico" style="background:var(--warn-bg);color:var(--warn)">'+ico("target")+"</div>" +
+      "<h3>Focus areas</h3>" +
+      '<p class="sm mut" style="margin:6px 0 14px">Fixing these two moves your percentile the most.</p>' +
+      r.improve.map(function(n){ return '<div class="kv"><span>'+hbeEsc(n)+'</span><b><span class="badge warn">Improve</span></b></div>'; }).join("") +
+    "</div>" +
+  "</div>" +
+
+  /* ---- plan ---- */
+  '<section class="card mt">' +
+    '<div class="sec-head"><h2>Your improvement plan</h2>' +
+    '<p class="sm mut">Generated from this attempt — updated after every test.</p></div>' +
+    '<div class="flow" style="grid-template-columns:repeat(2,1fr)">' +
+      r.improve.map(function(n){
+        return "<div><b>"+hbeEsc(n)+"</b><span>"+hbeEsc(tips[n] || "Revisit the fundamentals and attempt one timed sectional test this week.")+"</span></div>"; }).join("") +
+    "</div>" +
+    '<div class="divider"></div>' +
+    '<div class="row no-print" style="gap:12px;flex-wrap:wrap">' +
+      (isAdmin ? '<a class="btn" href="admin-reports.html">'+ico("users")+" Back to cohort view</a>"
+               : '<a class="btn" href="dashboard.html">'+ico("back")+" Back to dashboard</a>" +
+                 '<button class="btn btn-ghost" onclick="hbeToast(\'Prototype: practice sets live in the main Hitbullseye portal.\',\'info\')">Start practice on weak areas</button>') +
+    "</div>" +
+  "</section>";
+
+  function st_(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+sub+"</div></div>";
+  }
+})();
+</script>
+</body>
+</html>

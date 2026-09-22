@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registration confirmed · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap-narrow" style="padding-top:8px;padding-bottom:60px">
+
+  <div class="stepper" id="steps"></div>
+
+  <div class="card rise center">
+    <div class="tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h1 style="font-size:30px" id="title"></h1>
+    <p class="mut" style="max-width:560px;margin:10px auto 0" id="msg"></p>
+
+    <div style="margin:26px 0 8px">
+      <div class="xs mut" style="letter-spacing:.09em;text-transform:uppercase;font-weight:700;margin-bottom:8px">
+        Your registration number
+      </div>
+      <div class="code-box" id="regno"></div>
+    </div>
+    <p class="xs mut">Keep this number handy — you will need it for your test and reports.</p>
+
+    <div class="divider"></div>
+
+    <div style="text-align:left">
+      <div class="group-title first">Submitted details</div>
+      <div id="sum"></div>
+    </div>
+
+    <div class="row" style="justify-content:center;gap:12px;margin-top:28px;flex-wrap:wrap">
+      <a class="btn btn-lg" id="go" href="dashboard.html"></a>
+      <button class="btn btn-ghost btn-lg" onclick="window.print()">Print this page</button>
+    </div>
+    <p class="xs mut" style="margin-top:14px" id="cdWrap">
+      Redirecting to your dashboard in <b id="cd">8</b> seconds ·
+      <a href="#" id="stop">stay on this page</a>
+    </p>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+(function(){
+  var cfg = hbeGetConfig(), id = hbeCollegeId(cfg), c = cfg.colleges[id];
+  hbeApplyTheme(c);
+  document.getElementById("steps").innerHTML = hbeSteps(3);
+  document.getElementById("nav").innerHTML = hbeNav(c, '<span class="badge ok">'+ico("check")+' Registered</span>');
+
+  var s  = hbeSession();
+  var st = s && s.id ? hbeStudentById(s.id) : hbeStudents()[0];
+  var ty = c.thankyou || {};
+
+  document.getElementById("title").textContent = ty.title || "You're all set!";
+  document.getElementById("msg").textContent   =
+      (st ? st.name.split(" ")[0] + ", " : "") + (ty.message || "Your registration is confirmed.");
+  document.getElementById("regno").textContent = st ? st.regNo : "HB-DEMO-26-0000";
+
+  var rows = "";
+  if(st && st.data){
+    Object.keys(st.data).forEach(function(k){
+      var d = st.data[k];
+      if(!d.value) return;
+      rows += '<div class="kv"><span>'+hbeEsc(d.label)+"</span><b>"+hbeEsc(d.value)+"</b></div>";
+    });
+    rows += '<div class="kv"><span>Email verification</span><b>' +
+            (st.verifiedEmail ? '<span class="badge ok">Verified</span>' : '<span class="badge warn">Pending</span>') + "</b></div>";
+    if(st.phone) rows += '<div class="kv"><span>Mobile verification</span><b>' +
+            (st.verifiedPhone ? '<span class="badge ok">Verified</span>' : '<span class="badge">Not verified</span>') + "</b></div>";
+    if(st.declaration){
+      rows += '<div class="kv"><span>Declaration</span><b><span class="badge ok">' +
+              st.declaration.rows + " details self-verified</span></b></div>";
+    }
+    var mine = hbeTestsFor(c, st);
+    rows += '<div class="kv"><span>Assessments unlocked</span><b>' +
+            mine.map(function(t){ return hbeEsc(t.name); }).join("<br>") + "</b></div>";
+  }
+  document.getElementById("sum").innerHTML = rows || '<p class="sm mut">No registration found. Please fill the form again.</p>';
+
+  var url = (ty.dashboardUrl || "dashboard.html");
+  url += (url.indexOf("?")>-1?"&":"?") + "college=" + encodeURIComponent(id);
+  var go = document.getElementById("go");
+  go.href = url; go.innerHTML = hbeEsc(ty.dashboardLabel||"Go to my dashboard") + ico("arrow");
+
+  var left = ty.redirectSeconds || 8, cd = document.getElementById("cd"), t;
+  cd.textContent = left;
+  t = setInterval(function(){
+    left--; cd.textContent = left;
+    if(left<=0){ clearInterval(t); location.href = url; }
+  },1000);
+  document.getElementById("stop").onclick = function(e){
+    e.preventDefault(); clearInterval(t);
+    document.getElementById("cdWrap").innerHTML = "Automatic redirect cancelled.";
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Dashboard · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div class="row" style="gap:14px">
+      <div class="avatar" id="av" style="width:52px;height:52px;border-radius:14px;font-size:17px"></div>
+      <div>
+        <h1 style="font-size:26px" id="hi"></h1>
+        <p class="sm mut" id="sub"></p>
+      </div>
+    </div>
+    <div class="row" style="gap:10px">
+      <span class="badge ok">Registered</span>
+      <span class="badge brand" id="regno"></span>
+    </div>
+  </div>
+
+  <div id="stats" class="mt"></div>
+
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div>
+        <h2>My assessments</h2>
+        <p class="sm mut" id="audLine"></p>
+      </div>
+      <span class="badge brand" id="count"></span>
+    </div>
+    <div class="tcards" id="tests"></div>
+  </section>
+
+  <section class="card mt-l">
+    <div class="sec-head"><h2>My registration details</h2>
+      <p class="sm mut">Submitted through the campus registration form.</p></div>
+    <div class="form-grid" id="profile"></div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span id="support"></span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+(function(){
+  var s = hbeSession();
+  if(!s){ location.href = "login.html?next=dashboard.html"; return; }
+  if(s.role === "admin"){ location.href = "admin-reports.html"; return; }
+
+  var cfg = hbeGetConfig();
+  var st  = hbeStudentById(s.id) || hbeStudents()[0];
+  var c   = cfg.colleges[st.collegeId] || cfg.colleges[hbeCollegeId(cfg)];
+  var g   = function(x){ return document.getElementById(x); };
+  hbeSet("hbe_last_college_v2", st.collegeId);
+  hbeApplyTheme(c);
+
+  var results = hbeResults(st);
+  var done    = hbeResultList(st);
+  var mine    = hbeTestsFor(c, st);
+
+  g("nav").innerHTML = hbeNav(c,
+    '<a class="nav-link on" href="dashboard.html">My dashboard</a>' +
+    (done.length ? '<a class="nav-link" href="report.html">My reports</a>' : '') +
+    '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+
+  g("av").textContent  = hbeInitials(st.name);
+  g("hi").textContent  = "Welcome back, " + st.name.split(" ")[0];
+  g("sub").textContent = [c.name, st.department, st.programme, st.batch].filter(Boolean).join(" · ");
+  g("regno").textContent = st.regNo;
+  g("support").innerHTML = "Need help? " + hbeEsc(cfg.brand.supportEmail);
+  g("count").textContent = mine.length + (mine.length === 1 ? " assessment" : " assessments");
+  g("audLine").textContent = "Shown to you because of your department, programme and session.";
+
+  /* ---------------- top stats (from the latest attempt) ---------------- */
+  if(done.length){
+    var r = done[0];
+    var peers = hbeStudents().filter(function(x){
+      return x.collegeId === st.collegeId && hbeResults(x)[r.testId]; })
+      .sort(function(a,b){ return hbeResults(b)[r.testId].score - hbeResults(a)[r.testId].score; });
+    var rank = peers.map(function(x){ return x.id; }).indexOf(st.id) + 1;
+
+    g("stats").innerHTML = '<div class="stats">' +
+      stat("Latest score", r.score + '<span style="font-size:16px;color:var(--muted)">/'+r.max+"</span>", r.pct + "% · " + (r.testName||"")) +
+      stat("Percentile", r.percentile, "All India, this test") +
+      stat("Accuracy", r.accuracy + "%", r.attempted + " of " + r.max + " attempted") +
+      stat("Campus rank", rank + '<span style="font-size:16px;color:var(--muted)">/'+peers.length+"</span>", c.shortName + " cohort") +
+    "</div>";
+  } else {
+    g("stats").innerHTML =
+      '<div class="alert info">' + ico("info") +
+      "<div><b>Nothing attempted yet.</b> Pick an assessment below — your report is generated the moment you submit.</div></div>";
+  }
+
+  /* ---------------- assessment cards ---------------- */
+  g("tests").innerHTML = mine.map(function(t){
+    var res  = results[t.id];
+    var band = res ? hbeBand(res.pct) : null;
+
+    var head = '<div class="top"><h3>'+hbeEsc(t.name)+"</h3>" +
+      '<span class="badge '+(res ? "ok" : "brand")+'">'+(res ? "Attempted" : (t.tag || "Open"))+"</span></div>";
+
+    var meta = '<div class="meta">' +
+      '<span class="chip">'+t.durationMin+" min</span>" +
+      '<span class="chip">'+t.questions+" questions</span>" +
+      '<span class="chip">'+hbeEsc(t.window)+"</span>" +
+      '<span class="chip">'+hbeEsc(t.attempts||"1 attempt")+"</span></div>";
+
+    var aud = '<div class="aud">'+ico("users")+"<span>"+hbeEsc(hbeAudienceText(t))+"</span></div>";
+
+    var body = res
+      ? '<div class="res">' +
+          "<div><b>"+res.pct+'%</b><span>Score</span></div>' +
+          "<div><b>"+res.percentile+'</b><span>Percentile</span></div>' +
+          "<div><b>"+res.accuracy+'%</b><span>Accuracy</span></div>' +
+          '<span class="badge '+band.cls+'" style="margin-left:auto">'+band.label+"</span></div>"
+      : '<div class="aud">'+ico("clock")+"<span>Sections: "+ (t.sections||[]).join(", ") +"</span></div>";
+
+    var foot = res
+      ? '<div class="foot"><a class="btn btn-sm" href="report.html?test='+encodeURIComponent(t.id)+'">View report'+ico("arrow")+"</a>" +
+        '<a class="btn btn-ghost btn-sm" href="test.html?test='+encodeURIComponent(t.id)+'">Re-attempt (demo)</a></div>'
+      : '<div class="foot"><a class="btn btn-sm" href="test.html?test='+encodeURIComponent(t.id)+'">Start assessment'+ico("arrow")+"</a></div>";
+
+    return '<div class="tcard">' + head + meta + aud + body + foot + "</div>";
+  }).join("") || '<div class="empty">'+ico("file")+"<h3>No assessment is open for your department yet</h3>" +
+                 '<p class="sm mut">Your placement cell will publish one shortly.</p></div>';
+
+  /* ---------------- profile ---------------- */
+  var rows = "";
+  Object.keys(st.data||{}).forEach(function(k){
+    var d = st.data[k]; if(!d.value) return;
+    rows += '<div class="f"><label>'+hbeEsc(d.label)+'</label><input type="text" value="'+hbeEsc(d.value)+'" readonly></div>';
+  });
+  g("profile").innerHTML = rows;
+
+  function stat(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+})();
+</script>
+</body>
+</html>

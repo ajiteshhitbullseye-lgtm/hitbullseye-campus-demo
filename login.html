@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="auth">
+
+  <!-- ---------- left art panel ---------- -->
+  <aside class="auth-art">
+    <div class="row" style="gap:14px">
+      <span class="logo-plate" id="plate"><img id="cLogo" src="" alt=""></span>
+      <span class="logo-plate" style="background:#fff"><img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:24px"></span>
+    </div>
+
+    <h2>One platform.<br>Two <em>points of view</em>.</h2>
+    <p>Students track their own progress and get a personalised improvement plan. Placement teams see every student, every attempt and every report in one place.</p>
+
+    <ul class="ticks" style="margin-top:26px">
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Students</b> — attempt the test, view your score card, percentile and what to practise next.</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Admins</b> — monitor the whole cohort, open any student's report and export the data.</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Admins</b> — edit the registration form and campus branding without writing code.</span></li>
+    </ul>
+
+    <div class="hero-stats" id="stats" style="margin-top:auto"></div>
+  </aside>
+
+  <!-- ---------- right form ---------- -->
+  <section class="auth-form">
+    <div class="auth-box">
+      <h2 style="margin-bottom:6px">Sign in</h2>
+      <p class="sm mut" style="margin-bottom:22px">Choose how you want to continue.</p>
+
+      <div class="tabs">
+        <button id="tabS" class="on" onclick="L.tab('student')">I'm a student</button>
+        <button id="tabA" onclick="L.tab('admin')">I'm an admin</button>
+      </div>
+
+      <!-- student -->
+      <div id="paneS">
+        <div class="f" style="margin-bottom:16px">
+          <label>Registered email address</label>
+          <div class="inline">
+            <input type="email" id="sEmail" placeholder="you@college.edu">
+            <button class="btn btn-soft" id="sSend" onclick="L.send()">Send code</button>
+          </div>
+          <div class="err" id="sErr"></div>
+        </div>
+
+        <div class="otp" id="sOtp" style="border-radius:var(--r-lg)">
+          <div class="ttl">Enter the code sent to your email</div>
+          <div class="otp-row">
+            <input class="otp-in" type="text" maxlength="6" id="sCode" placeholder="••••••">
+            <button class="btn" onclick="L.studentIn()">Verify &amp; sign in</button>
+          </div>
+        </div>
+
+        <p class="xs mut" style="margin-top:16px">
+          Not registered yet? <a href="index.html">Start registration</a>
+        </p>
+        <div class="cred" id="hintS"></div>
+      </div>
+
+      <!-- admin -->
+      <div id="paneA" style="display:none">
+        <div class="f" style="margin-bottom:16px">
+          <label>Admin email</label>
+          <input type="email" id="aEmail" placeholder="admin@hitbullseye.com">
+          <div class="err" id="aErr"></div>
+        </div>
+        <div class="f" style="margin-bottom:16px">
+          <label>Password</label>
+          <input type="password" id="aPass" placeholder="Enter password">
+        </div>
+        <div class="f" style="margin-bottom:20px">
+          <label>Campus</label>
+          <select id="aCol"></select>
+          <div class="hint">Admins can switch campus after signing in.</div>
+        </div>
+        <button class="btn btn-block btn-lg" onclick="L.adminIn()">Sign in as admin</button>
+        <div class="cred">
+          Demo credentials — <b id="credMail"></b> / <b id="credPass"></b>
+        </div>
+      </div>
+
+      <p class="xs mut center" style="margin-top:26px">
+        <a href="index.html">&#8592; Back to welcome page</a>
+      </p>
+    </div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var L = (function(){
+  var cfg = hbeGetConfig(), id = hbeCollegeId(cfg), c = cfg.colleges[id];
+  hbeApplyTheme(c);
+  hbeStudents();                                   /* make sure demo data exists */
+
+  var cl = document.getElementById("cLogo");
+  cl.src = c.logo;
+  cl.style.maxHeight = ((+c.logoHeight || 34) + 2) + "px";
+  document.getElementById("stats").innerHTML =
+    (c.welcome.stats||[]).map(function(s){ return "<div><b>"+hbeEsc(s.value)+"</b><span>"+hbeEsc(s.label)+"</span></div>"; }).join("");
+
+  document.getElementById("aCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    return '<option value="'+k+'"'+(k===id?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+  document.getElementById("credMail").textContent = cfg.brand.admin.email;
+  document.getElementById("credPass").textContent = cfg.brand.admin.password;
+
+  var sample = hbeStudents().filter(function(s){ return s.collegeId===id; })[0];
+  document.getElementById("hintS").innerHTML =
+    "Demo student — <b>" + hbeEsc(sample ? sample.email : "aarav.mehta@chitkara.edu.in") + "</b>" +
+    "<br>The one-time code is shown on screen in this prototype.";
+
+  var code = null, next = hbeParam("next");
+  if(hbeParam("as") === "admin") setTimeout(function(){ tab("admin"); }, 0);
+
+  function g(i){ return document.getElementById(i); }
+  function err(el,m){ var e=g(el); e.textContent=m||""; e.className="err"+(m?" on":""); }
+
+  function tab(which){
+    var s = which==="student";
+    g("tabS").className = s ? "on" : "";
+    g("tabA").className = s ? "" : "on";
+    g("paneS").style.display = s ? "" : "none";
+    g("paneA").style.display = s ? "none" : "";
+  }
+
+  function send(){
+    var e = g("sEmail").value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(e)){ err("sErr","Enter a valid email address"); return; }
+    var st = hbeStudentByEmail(e);
+    if(!st){ err("sErr","No registration found for this email. Please register first."); return; }
+    err("sErr","");
+    code = String(Math.floor(100000 + Math.random()*899999));
+    g("sOtp").className = "otp on";
+    g("sSend").textContent = "Code sent";
+    g("sCode").focus();
+    hbeToast("Sign-in code for <b>"+hbeEsc(e)+"</b><br><b>"+code+"</b>", "mail", 12000);
+  }
+
+  function studentIn(){
+    if(g("sCode").value.trim() !== code){ hbeToast("That code is not correct.","alert"); return; }
+    var st = hbeStudentByEmail(g("sEmail").value.trim());
+    hbeLogin({ role:"student", id:st.id, name:st.name, email:st.email, collegeId:st.collegeId });
+    hbeSet("hbe_last_college_v2", st.collegeId);
+    location.href = next || ("dashboard.html?college=" + st.collegeId);
+  }
+
+  function adminIn(){
+    var e = g("aEmail").value.trim().toLowerCase(), p = g("aPass").value;
+    if(e !== cfg.brand.admin.email.toLowerCase() || p !== cfg.brand.admin.password){
+      err("aErr","Incorrect email or password"); return;
+    }
+    err("aErr","");
+    var col = g("aCol").value;
+    hbeLogin({ role:"admin", name:"Placement Admin", email:e, collegeId:col });
+    hbeSet("hbe_last_college_v2", col);
+    location.href = next || ("admin-reports.html?college=" + col);
+  }
+
+  return { tab:tab, send:send, studentIn:studentIn, adminIn:adminIn };
+})();
+</script>
+</body>
+</html>

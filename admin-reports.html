@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Student Reports · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Placement cell console</span>
+      <h1 style="font-size:28px;margin-top:12px">Student reports</h1>
+      <p class="sm mut" id="sub"></p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <a class="btn btn-ghost btn-sm" href="admin.html" id="fbLink"></a>
+      <button class="btn btn-sm" onclick="A.csv()"></button>
+    </div>
+  </div>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <section class="card mt">
+    <div class="sec-head row-b">
+      <div>
+        <h2>Cohort</h2>
+        <p class="sm mut">Click any row to open that student's full report.</p>
+      </div>
+      <span class="badge brand" id="count"></span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        <input id="q" placeholder="Search by name, email or roll number" oninput="A.draw()">
+      </div>
+      <select id="fCol" onchange="A.draw()"></select>
+      <select id="fTest" onchange="A.draw()"></select>
+      <select id="fDept" onchange="A.draw()"></select>
+      <select id="fCourse" onchange="A.draw()"></select>
+      <select id="fBatch" onchange="A.draw()"></select>
+      <select id="fStatus" onchange="A.draw()">
+        <option value="">All statuses</option>
+        <option value="done">Test attempted</option>
+        <option value="pending">Not attempted</option>
+      </select>
+      <select id="fSort" onchange="A.draw()">
+        <option value="score">Sort: highest score</option>
+        <option value="low">Sort: lowest score</option>
+        <option value="name">Sort: name (A–Z)</option>
+        <option value="new">Sort: newest registration</option>
+      </select>
+    </div>
+
+    <div id="table"></div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Prototype data is stored locally in this browser.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var A = (function(){
+  var s = hbeSession();
+  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-reports.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
+  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var c   = cfg.colleges[cid];
+
+  function brand(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    document.getElementById("nav").innerHTML = hbeNav(c,
+      '<a class="nav-link on" href="admin-reports.html">Reports</a>' +
+      '<a class="nav-link" href="admin.html">Form builder</a>' +
+      '<span class="badge brand">'+ico("shield")+' Admin</span>' +
+      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+  }
+  brand();
+
+  document.getElementById("sub").textContent =
+    "Every registration and every attempt across your campuses, in one place.";
+  document.getElementById("fbLink").innerHTML = ico("settings") + " Edit registration form";
+  document.querySelector('button[onclick="A.csv()"]').innerHTML = ico("down") + " Export CSV";
+
+  /* filters */
+  var fc = document.getElementById("fCol");
+  fc.innerHTML = '<option value="">All campuses</option>' + Object.keys(cfg.colleges).map(function(k){
+    return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+  function campusTests(){
+    var col = document.getElementById("fCol").value;
+    var keys = col ? [col] : Object.keys(cfg.colleges), out = [];
+    keys.forEach(function(k){
+      hbeTests(cfg.colleges[k]).forEach(function(t){
+        out.push({ id:t.id, name:t.name, college:k, test:t });
+      });
+    });
+    return out;
+  }
+  function fillTests(){
+    var cur = document.getElementById("fTest").value;
+    var list = campusTests();
+    document.getElementById("fTest").innerHTML = '<option value="">All assessments</option>' +
+      list.map(function(t){
+        return '<option value="'+t.id+'"'+(t.id===cur?" selected":"")+">"+hbeEsc(t.name)+"</option>"; }).join("");
+  }
+  fillTests();
+
+  var all = hbeStudents();
+  function uniq(key){
+    var o = {}; all.forEach(function(x){ if(x[key]) o[x[key]] = 1; });
+    return Object.keys(o).sort();
+  }
+  document.getElementById("fDept").innerHTML = '<option value="">All departments</option>' +
+    uniq("department").map(function(v){ return "<option>"+hbeEsc(v)+"</option>"; }).join("");
+  document.getElementById("fCourse").innerHTML = '<option value="">All courses</option>' +
+    uniq("course").map(function(v){ return "<option>"+hbeEsc(v)+"</option>"; }).join("");
+  document.getElementById("fBatch").innerHTML = '<option value="">All sessions</option>' +
+    uniq("batch").map(function(v){ return "<option>"+hbeEsc(v)+"</option>"; }).join("");
+
+  /* which result do we show for this student? */
+  function pick(x){
+    var t = document.getElementById("fTest").value;
+    return t ? (hbeResults(x)[t] || null) : hbeLatestResult(x);
+  }
+
+  function filtered(){
+    var q  = document.getElementById("q").value.trim().toLowerCase();
+    var col= document.getElementById("fCol").value;
+    var tst= document.getElementById("fTest").value;
+    var dp = document.getElementById("fDept").value;
+    var cr = document.getElementById("fCourse").value;
+    var ba = document.getElementById("fBatch").value;
+    var stt= document.getElementById("fStatus").value;
+    var so = document.getElementById("fSort").value;
+
+    var l = hbeStudents().filter(function(x){
+      if(col && x.collegeId !== col) return false;
+      if(dp && x.department !== dp) return false;
+      if(tst){                                   /* only the cohort that assessment is open to */
+        var t = hbeTestById(cfg.colleges[x.collegeId] || {}, tst);
+        if(!t || !hbeAudienceOk(t, x)) return false;
+      }
+      if(cr && x.course !== cr) return false;
+      if(ba && x.batch !== ba) return false;
+      if(stt === "done" && !pick(x)) return false;
+      if(stt === "pending" && pick(x)) return false;
+      if(q){
+        var hay = (x.name+" "+x.email+" "+(x.rollNo||"")+" "+x.regNo).toLowerCase();
+        if(hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    l.sort(function(a,b){
+      if(so === "name") return a.name.localeCompare(b.name);
+      if(so === "new")  return new Date(b.registeredAt) - new Date(a.registeredAt);
+      var ra = pick(a), rb = pick(b);
+      var as = ra ? ra.pct : -1, bs = rb ? rb.pct : -1;
+      return so === "low" ? as - bs : bs - as;
+    });
+    return l;
+  }
+
+  function draw(){
+    var choice = document.getElementById("fCol").value;
+    if(choice && choice !== cid && cfg.colleges[choice]){
+      cid = choice; hbeSet("hbe_last_college_v2", cid); brand(); fillTests();
+    }
+    var l = filtered();
+
+    /* KPIs from the same filtered set */
+    var done = l.filter(function(x){ return pick(x); });
+    var avg  = done.length ? Math.round(done.reduce(function(a,b){ return a + pick(b).pct; },0)/done.length) : 0;
+    var top  = done.length ? done.slice().sort(function(a,b){ return pick(b).pct - pick(a).pct; })[0] : null;
+    var tName = document.getElementById("fTest");
+    var tLabel = tName.value ? tName.options[tName.selectedIndex].text : "latest attempt";
+
+    document.getElementById("kpi").innerHTML =
+      kpi("Registered students", l.length, "Matching current filters") +
+      kpi("Attempted", done.length, l.length ? Math.round(done.length*100/l.length)+"% of the cohort" : "—") +
+      kpi("Average score", avg + "%", tLabel) +
+      kpi("Top performer", top ? pick(top).pct + "%" : "—", top ? top.name : "No attempts yet");
+
+    document.getElementById("count").textContent = l.length + " students";
+
+    if(!l.length){
+      document.getElementById("table").innerHTML =
+        '<div class="empty">'+ico("search")+"<h3>No students match these filters</h3>" +
+        '<p class="sm mut">Try clearing the search box or choosing a different campus.</p></div>';
+      return;
+    }
+
+    document.getElementById("table").innerHTML =
+      '<div class="tbl-wrap"><table><thead><tr>' +
+        "<th>Student</th><th>University ID</th><th>Department</th><th>Course &middot; Programme &middot; Session</th>" +
+        "<th>Status</th><th>Score</th><th></th></tr></thead><tbody>" +
+      l.map(function(x){
+        var r = pick(x), b = r ? hbeBand(r.pct) : null;
+        var nDone = hbeResultList(x).length;
+        var nOpen = hbeTestsFor(cfg.colleges[x.collegeId] || {}, x).length;
+        return '<tr style="cursor:pointer" onclick="A.open(\''+x.id+'\')">' +
+          '<td><div class="row" style="gap:11px"><span class="avatar">'+hbeInitials(x.name)+"</span>" +
+            '<span><span class="nm">'+hbeEsc(x.name)+'</span><br><span class="xs mut email">'+hbeEsc(x.email)+"</span></span></div></td>" +
+          "<td>"+hbeEsc(x.rollNo||"—")+'<br><span class="xs mut">'+hbeEsc(x.regNo)+"</span></td>" +
+          '<td><span class="trunc" title="'+hbeEsc(x.department||"")+'">'+hbeEsc(x.department||"—")+"</span></td>" +
+          '<td><span class="trunc" title="'+hbeEsc(x.course||"")+'">'+hbeEsc(x.course||"—")+"</span>" +
+            '<br><span class="xs mut">'+hbeEsc([x.programme,x.batch].filter(Boolean).join(" · "))+"</span></td>" +
+          "<td>" + (r ? '<span class="badge ok">Attempted</span>' : '<span class="badge warn">Pending</span>') +
+            '<br><span class="xs mut">'+nDone+" of "+nOpen+" assessments</span></td>" +
+          "<td>" + (r ? "<b>"+r.score+"</b>/"+r.max+'<br><span class="badge '+b.cls+'">'+r.pct+"%</span>" +
+                        ' &middot; <span class="xs mut">'+r.percentile+'%ile</span>' +
+                        '<br><span class="xs mut trunc sm-w" title="'+hbeEsc(r.testName||"")+'">'+hbeEsc(r.testName||"")+"</span>"
+                      : '<span class="mut">—</span>') + "</td>" +
+
+          '<td><span class="btn btn-soft btn-sm">View</span></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  }
+
+  function kpi(l,v,s){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(s)+"</div></div>";
+  }
+
+  function open(id){
+    var t = document.getElementById("fTest").value;
+    location.href = "report.html?id=" + encodeURIComponent(id) + (t ? "&test=" + encodeURIComponent(t) : "");
+  }
+
+  function csv(){
+    var l = filtered();
+    var head = ["Name","Email","Phone","University ID","Registration No","Campus","Department","Programme","Course","Session","Registered On","Assessment","Status","Score","Max","Percent","Percentile","Accuracy"];
+    var rows = l.map(function(x){
+      var r = pick(x);
+      return [x.name,x.email,x.phone,x.rollNo,x.regNo,x.collegeName,x.department,x.programme,x.course,x.batch,hbeDate(x.registeredAt),
+              r?(r.testName||""):"", r?"Attempted":"Pending", r?r.score:"", r?r.max:"", r?r.pct:"", r?r.percentile:"", r?r.accuracy:""]
+             .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
+    });
+    var blob = new Blob([head.join(",")+"\n"+rows.join("\n")], {type:"text/csv"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "hitbullseye-student-reports.csv";
+    a.click();
+    hbeToast("Exported " + l.length + " rows to CSV.","down",4000);
+  }
+
+  draw();
+  return { draw:draw, open:open, csv:csv };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assessment · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .test-bar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line)}
+  .test-bar .in{max-width:1180px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .timer{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans';font-weight:800;font-size:19px;color:var(--ink);
+    background:var(--line-2);padding:8px 16px;border-radius:12px}
+  .timer.low{background:var(--err-bg);color:var(--err)}
+  .timer svg{width:18px;height:18px;color:var(--muted)}
+  .q-grid{display:grid;grid-template-columns:1fr 268px;gap:22px;align-items:start;margin-top:22px}
+  .opt{display:flex;gap:13px;align-items:flex-start;border:1.5px solid var(--line);border-radius:var(--r-md);
+    padding:15px 17px;margin-bottom:11px;cursor:pointer;background:#fcfdff;transition:.15s;font-size:14.5px}
+  .opt:hover{border-color:#cfdaea;background:#fff}
+  .opt.sel{border-color:var(--brand);background:rgba(var(--brand-rgb),.05);box-shadow:var(--ring)}
+  .opt input{margin-top:3px;accent-color:var(--brand);width:17px;height:17px;flex:none}
+  .palette{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+  .pal{aspect-ratio:1;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;
+    font-weight:700;font-size:13.5px;color:var(--body);transition:.15s}
+  .pal:hover{border-color:var(--brand)}
+  .pal.ans{background:var(--ok-bg);border-color:#bfe8d3;color:var(--ok)}
+  .pal.cur{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--ring)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:14px}
+  .legend i{width:11px;height:11px;border-radius:4px;display:inline-block;margin-right:5px;vertical-align:-1px}
+  @media(max-width:900px){ .q-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="test-bar">
+  <div class="in">
+    <span class="logo-plate" style="min-height:44px;padding:6px 12px"><img id="lg" src="" alt=""></span>
+    <div class="grow">
+      <div style="font-weight:700;color:var(--ink);font-size:14.5px" id="tName"></div>
+      <div class="xs mut" id="tSub"></div>
+    </div>
+    <div class="timer" id="timer"></div>
+    <button class="btn" onclick="T.submit(false)">Submit test</button>
+  </div>
+</div>
+
+<main class="wrap" style="padding-bottom:60px">
+  <div class="q-grid">
+
+    <section class="card">
+      <div class="row-b" style="margin-bottom:6px">
+        <span class="badge brand" id="qSec"></span>
+        <span class="sm mut" id="qNum"></span>
+      </div>
+      <h2 style="font-size:19px;line-height:1.45;margin:10px 0 20px" id="qText"></h2>
+      <div id="opts"></div>
+
+      <div class="divider"></div>
+      <div class="row-b">
+        <button class="btn btn-ghost" onclick="T.go(-1)">Previous</button>
+        <div class="row" style="gap:10px">
+          <button class="btn btn-ghost" onclick="T.clear()">Clear answer</button>
+          <button class="btn" onclick="T.go(1)">Save &amp; next</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card card-pad-s">
+      <h3 style="font-size:14.5px;margin-bottom:14px">Question palette</h3>
+      <div class="palette" id="pal"></div>
+      <div class="legend">
+        <span><i style="background:var(--ok-bg);border:1px solid #bfe8d3"></i>Answered</span>
+        <span><i style="background:#fff;border:1px solid var(--line)"></i>Not answered</span>
+      </div>
+      <div class="divider"></div>
+      <div class="kv"><span>Answered</span><b id="cAns">0</b></div>
+      <div class="kv"><span>Remaining</span><b id="cRem">0</b></div>
+      <button class="btn btn-block" style="margin-top:14px" onclick="T.submit(false)">Submit test</button>
+      <p class="xs mut center" style="margin-top:10px">Prototype: a short 12-question version of the real paper.</p>
+    </aside>
+
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var T = (function(){
+
+  var s = hbeSession();
+  if(!s || s.role !== "student"){ location.href = "login.html?next=test.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var st  = hbeStudentById(s.id);
+  var c   = cfg.colleges[st.collegeId];
+  hbeApplyTheme(c);
+
+  /* ---------------- question bank ---------------- */
+  var BANK = {
+    quant:[
+      { q:"A shopkeeper marks an item 40% above cost and then allows a 25% discount. What is his profit percentage?",
+        o:["5%","10%","15%","12.5%"], a:0 },
+      { q:"A train 180 m long crosses a pole in 9 seconds. What is its speed?",
+        o:["54 km/h","64 km/h","72 km/h","80 km/h"], a:2 },
+      { q:"If the ratio of two numbers is 3:5 and their sum is 96, the larger number is:",
+        o:["36","54","60","64"], a:2 },
+      { q:"Two pipes fill a tank in 12 and 18 minutes. Working together, they fill it in:",
+        o:["6.8 min","7.2 min","8.4 min","9 min"], a:1 }
+    ],
+    logical:[
+      { q:"Find the next term in the series: 3, 6, 11, 18, 27, ?",
+        o:["36","38","40","42"], a:1 },
+      { q:"If CAT is coded as 3-1-20, how is DOG coded?",
+        o:["4-15-7","4-14-7","3-15-7","5-15-8"], a:0 },
+      { q:"Pointing to a man, Ravi said, 'He is the son of my grandfather's only child.' How is the man related to Ravi?",
+        o:["Uncle","Brother","Cousin","Father"], a:1 },
+      { q:"All pens are books. Some books are red. Which conclusion definitely follows?",
+        o:["All pens are red","Some pens are red","No pen is red","None of these"], a:3 }
+    ],
+    verbal:[
+      { q:"Choose the word most nearly OPPOSITE in meaning to 'CANDID'.",
+        o:["Frank","Evasive","Blunt","Honest"], a:1 },
+      { q:"Select the correctly spelt word.",
+        o:["Occurence","Occurrance","Occurrence","Ocurrence"], a:2 },
+      { q:"Fill in the blank: She is not only intelligent ____ hardworking.",
+        o:["and","but also","as well","either"], a:1 },
+      { q:"Identify the error: 'Each of the students have submitted their assignment.'",
+        o:["Each of","have submitted","their assignment","No error"], a:1 }
+    ],
+    di:[
+      { q:"A company's sales were 120, 150, 180 and 210 units over four quarters. What was the percentage growth from Q1 to Q4?",
+        o:["60%","75%","80%","90%"], a:1 },
+      { q:"In a pie chart of a ₹7,200 budget, marketing occupies 60°. What is the marketing spend?",
+        o:["₹1,200","₹1,440","₹1,800","₹2,400"], a:0 },
+      { q:"Average of 5 observations is 48. If one observation of 60 is removed, the new average is:",
+        o:["44","45","46","47"], a:1 },
+      { q:"A bar chart shows profits of 20, 25, 15 and 40 lakh. Which quarter contributed 40% of the annual profit?",
+        o:["Q1","Q2","Q3","Q4"], a:3 }
+    ],
+    domain:[
+      { q:"In a relational database, which key uniquely identifies each row in a table?",
+        o:["Foreign key","Primary key","Candidate key","Composite key"], a:1 },
+      { q:"What is the time complexity of binary search on a sorted array of n elements?",
+        o:["O(n)","O(n log n)","O(log n)","O(1)"], a:2 },
+      { q:"Which layer of the OSI model is responsible for routing packets?",
+        o:["Data link","Network","Transport","Session"], a:1 },
+      { q:"In object-oriented programming, hiding internal state behind methods is called:",
+        o:["Inheritance","Polymorphism","Encapsulation","Abstraction"], a:2 }
+    ]
+  };
+
+  function bankFor(name){
+    var n = name.toLowerCase();
+    if(/quant|numerical|math/.test(n))         return BANK.quant;
+    if(/logic|reason/.test(n))                 return BANK.logical;
+    if(/verbal|english|language/.test(n))      return BANK.verbal;
+    if(/data|interpret/.test(n))               return BANK.di;
+    return BANK.domain;
+  }
+
+  /* which assessment? ?test=<id>, else the first one this student may see */
+  var mine = hbeTestsFor(c, st);
+  var T = hbeTestById(c, hbeParam("test")) || mine[0] || hbePrimaryTest(c);
+  if(mine.length && !mine.filter(function(x){ return x.id === T.id; }).length){
+    hbeToast("That assessment is not open for your department.", "alert");
+    T = mine[0];
+  }
+
+  /* build paper: 3 questions per section */
+  var paper = [];
+  (T.sections||["Quantitative Aptitude"]).forEach(function(secName){
+    var b = bankFor(secName);
+    for(var i=0;i<3;i++) paper.push({ sec:secName, q:b[i%b.length].q, o:b[i%b.length].o, a:b[i%b.length].a });
+  });
+
+  var answers = new Array(paper.length).fill(-1);
+  var cur = 0, total = Math.min(T.durationMin, 12) * 60, tick;
+
+  var lg = document.getElementById("lg");
+  lg.src = c.logo;
+  lg.style.maxHeight = (+c.logoHeight || 34) + "px";
+  document.getElementById("tName").textContent = T.name;
+  document.getElementById("tSub").textContent =
+      st.name + " · " + st.regNo + " · " + paper.length + " questions";
+
+  /* ---------------- render ---------------- */
+  function draw(){
+    var q = paper[cur];
+    document.getElementById("qSec").textContent = q.sec;
+    document.getElementById("qNum").textContent = "Question " + (cur+1) + " of " + paper.length;
+    document.getElementById("qText").textContent = q.q;
+    document.getElementById("opts").innerHTML = q.o.map(function(o,i){
+      return '<label class="opt'+(answers[cur]===i?" sel":"")+'" onclick="T.pick('+i+')">' +
+             '<input type="radio" name="o" '+(answers[cur]===i?"checked":"")+'><span>'+hbeEsc(o)+"</span></label>"; }).join("");
+
+    document.getElementById("pal").innerHTML = paper.map(function(_,i){
+      return '<button class="pal'+(i===cur?" cur":(answers[i]>-1?" ans":""))+'" onclick="T.jump('+i+')">'+(i+1)+"</button>"; }).join("");
+
+    var done = answers.filter(function(a){ return a>-1; }).length;
+    document.getElementById("cAns").textContent = done;
+    document.getElementById("cRem").textContent = paper.length - done;
+  }
+
+  function clock(){
+    var m = Math.floor(total/60), sec = total%60;
+    var el = document.getElementById("timer");
+    el.innerHTML = ico("clock") + (m<10?"0":"") + m + ":" + (sec<10?"0":"") + sec;
+    el.className = "timer" + (total <= 60 ? " low" : "");
+    if(total <= 0){ clearInterval(tick); hbeToast("Time is up — submitting your test.","clock"); submit(true); return; }
+    total--;
+  }
+  clock(); tick = setInterval(clock, 1000);
+
+  /* ---------------- actions ---------------- */
+  function pick(i){ answers[cur] = i; draw(); }
+  function jump(i){ cur = i; draw(); }
+  function go(d){
+    var n = cur + d;
+    if(n < 0 || n >= paper.length){ if(n>=paper.length) hbeToast("That was the last question. Submit when you are ready.","info"); return; }
+    cur = n; draw();
+  }
+  function clearAns(){ answers[cur] = -1; draw(); }
+
+  function submit(auto){
+    var done = answers.filter(function(a){ return a>-1; }).length;
+    if(!auto && done < paper.length){
+      if(!confirm((paper.length-done) + " question(s) are still unanswered. Submit anyway?")) return;
+    }
+    clearInterval(tick);
+
+    var byS = {};
+    paper.forEach(function(q,i){
+      var s = byS[q.sec] || (byS[q.sec] = { name:q.sec, total:0, correct:0, wrong:0, skipped:0 });
+      s.total++;
+      if(answers[i] === -1) s.skipped++;
+      else if(answers[i] === q.a) s.correct++;
+      else s.wrong++;
+    });
+
+    var used = Math.max(1, Math.round((Math.min(T.durationMin,12)*60 - total)/60));
+    var result = hbeMakeResult(Object.keys(byS).map(function(k){ return byS[k]; }), used);
+    result.testId = T.id; result.testName = T.name;
+    hbeSaveResult(st.id, T.id, result);
+    location.href = "report.html?new=1&test=" + encodeURIComponent(T.id);
+  }
+
+  draw();
+  return { pick:pick, jump:jump, go:go, clear:clearAns, submit:submit };
+})();
+</script>
+</body>
+</html>

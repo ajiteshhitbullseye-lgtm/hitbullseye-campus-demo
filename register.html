@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registration · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap-narrow" style="padding-top:10px;padding-bottom:60px">
+
+  <div class="stepper" id="steps"></div>
+
+  <div class="card rise">
+    <div class="sec-head">
+      <span class="eyebrow" id="eyebrow"></span>
+      <h2 style="margin-top:12px" id="title">Registration</h2>
+      <p class="sm mut" id="lead"></p>
+    </div>
+
+    <div class="matched" id="verified" style="margin-bottom:24px"></div>
+
+    <form id="form" autocomplete="off" novalidate>
+      <div id="body"></div>
+
+      <div class="row" style="gap:12px;margin-top:30px;flex-wrap:wrap">
+        <a class="btn btn-ghost" id="back" href="verify.html">Back</a>
+        <button class="btn btn-lg grow" type="submit" style="min-width:230px">Review &amp; confirm</button>
+      </div>
+      <p class="xs mut center" style="margin-top:14px">
+        Fields marked * are required. Locked fields come from your campus record.
+      </p>
+    </form>
+
+    <!-- ---------- declaration / data-sanitisation step ---------- -->
+    <div id="review" style="display:none">
+      <div class="alert info" style="margin-bottom:20px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
+        <div><b>Check each line and tick it.</b> Nothing is submitted until every row is confirmed —
+        this is what keeps the placement cell's data clean.</div>
+      </div>
+
+      <div class="review-head">
+        <div>
+          <h3>Confirm your details</h3>
+          <p class="sm mut">Tick the box next to a row once you have read it.</p>
+        </div>
+        <div class="row" style="gap:10px">
+          <span class="progress-pill" id="tickCount"></span>
+          <button type="button" class="btn btn-soft btn-sm" onclick="R.tickAll()">Tick all</button>
+        </div>
+      </div>
+
+      <div class="review" id="reviewRows"></div>
+
+      <div class="row" style="gap:12px;margin-top:26px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost" onclick="R.edit()">Back &amp; edit</button>
+        <button type="button" class="btn btn-lg grow" id="finalBtn" style="min-width:230px" onclick="R.final()" disabled>
+          Confirm &amp; submit
+        </button>
+      </div>
+      <p class="xs mut center" style="margin-top:14px">
+        By confirming you declare that the details above are true, complete and yours.
+      </p>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var R = (function(){
+
+  var cfg  = hbeGetConfig();
+  var id   = hbeCollegeId(cfg);
+  var c    = cfg.colleges[id];
+  var V    = c.verification || { securityCode:true };
+  var g    = function(x){ return document.getElementById(x); };
+
+  /* ---------- step 2 must be cleared first ---------- */
+  var gate = hbeGate();
+  if(!gate || gate.collegeId !== id){
+    location.replace("verify.html?college=" + encodeURIComponent(id));
+    return {};
+  }
+
+  hbeApplyTheme(c);
+  g("nav").innerHTML = hbeNav(c,
+    '<a class="nav-link" href="index.html?college='+id+'">Home</a>' +
+    '<a class="nav-link on" href="#">Registration</a>' +
+    '<a class="btn btn-ghost btn-sm" href="login.html">'+ico("user")+' Sign in</a>');
+
+  g("steps").innerHTML = hbeSteps(2);
+  g("eyebrow").textContent = c.name + " · " + (c.campus||"");
+  g("title").textContent   = "Student registration";
+  g("lead").textContent    = "Step 2 of 3 \u2014 confirm your details. Your assessments unlock right after.";
+  g("back").href           = "verify.html?college=" + id;
+  g("verified").innerHTML  =
+    '<div class="row" style="gap:12px">' + ico("check") +
+    "<div><b>" + hbeEsc(gate.name) + " · verified</b>" +
+    '<div class="xs mut">' + hbeEsc(gate.uid) + " · " + hbeEsc(gate.email) + "</div></div></div>";
+
+  /* ---------------- state ---------------- */
+  var values = {};
+
+  (c.fields || []).forEach(function(f){
+    if(f.prefill && gate[f.prefill] != null) values[f.id] = gate[f.prefill];
+    else values[f.id] = "";
+  });
+
+  /* ---------------- rendering ---------------- */
+  function fieldHTML(f){
+    var req  = f.required ? '<span class="req">*</span>' : '';
+    var vis  = hbeFieldVisible(f, values);
+    var cls  = "f" + (f.half ? "" : " full") + (f.lock ? " locked" : "") + (vis ? "" : " hidden");
+    var val  = values[f.id] || "";
+    var opts = hbeFieldOptions(f, values);
+    var inner = "";
+
+    if(f.type === "select"){
+      var blocked = f.dependsOn && !values[f.dependsOn];
+      inner = '<select id="in_'+f.id+'" onchange="R.pick(\''+f.id+'\',this.value)"' + (blocked ? " disabled" : "") + ">" +
+        '<option value="">' + (blocked ? "Select " + hbeEsc(labelOf(f.dependsOn)) + " first" : "Select an option") + "</option>" +
+        opts.map(function(o){
+          return "<option" + (o === val ? " selected" : "") + ">" + hbeEsc(o) + "</option>"; }).join("") +
+      "</select>";
+    }
+    else if(f.type === "radio"){
+      inner = '<div class="opts">' + opts.map(function(o){
+        return '<label><input type="radio" name="rd_'+f.id+'" value="'+hbeEsc(o)+'"' +
+               (o === val ? " checked" : "") + ' onchange="R.pick(\''+f.id+'\',this.value)"><span>'+hbeEsc(o)+"</span></label>";
+      }).join("") + "</div>";
+    }
+    else if(f.type === "checkbox"){
+      return '<div class="f full" id="fd_'+f.id+'">' +
+        '<label class="check"><input type="checkbox" id="in_'+f.id+'"' + (val === "Yes" ? " checked" : "") +
+        ' onchange="R.set(\''+f.id+'\',this.checked?\'Yes\':\'\')"><span>'+hbeEsc(f.label)+req+"</span></label>" +
+        '<div class="err" id="er_'+f.id+'"></div></div>';
+    }
+    else if(f.type === "textarea"){
+      inner = '<textarea id="in_'+f.id+'" rows="3" placeholder="'+hbeEsc(f.placeholder||"")+'"' +
+              ' oninput="R.set(\''+f.id+'\',this.value)">'+hbeEsc(val)+"</textarea>";
+    }
+    else {
+      inner = '<input type="'+(f.type||"text")+'" id="in_'+f.id+'" value="'+hbeEsc(val)+'"' +
+              ' placeholder="'+hbeEsc(f.placeholder||"")+'"' + (f.lock ? " readonly" : "") +
+              ' oninput="R.set(\''+f.id+'\',this.value)">';
+    }
+
+    var note = f.lock ? '<div class="lock-note">'+ico("lock")+" From your campus record</div>"
+             : f.dependsOn ? '<div class="dep-note">Depends on ' + hbeEsc(labelOf(f.dependsOn)) + "</div>"
+             : (f.help ? '<div class="hint">'+hbeEsc(f.help)+"</div>" : "");
+
+    return '<div class="'+cls+'" id="fd_'+f.id+'"><label>'+hbeEsc(f.label)+req+"</label>" + inner + note +
+           '<div class="err" id="er_'+f.id+'"></div></div>';
+  }
+
+  function labelOf(fid){
+    var f = (c.fields||[]).filter(function(x){ return x.id === fid; })[0];
+    return f ? f.label : fid;
+  }
+
+  function render(){
+    var out = "", last = null, open = false, first = true;
+
+    (c.fields||[]).forEach(function(f){
+      var sec = f.section || "Details";
+      if(sec !== last){
+        if(open) out += "</div>";
+        out += '<div class="group-title'+(first?" first":"")+'">'+hbeEsc(sec)+'</div><div class="form-grid">';
+        last = sec; open = true; first = false;
+      }
+      out += fieldHTML(f);
+    });
+    if(open) out += "</div>";
+
+    g("body").innerHTML = out;
+  }
+
+  /* ---------------- interactions ---------------- */
+  function set(fid, v){ values[fid] = v; }
+
+  function pick(fid, v){
+    values[fid] = v;
+    /* any dependent field whose value is no longer valid gets cleared — cascades down */
+    var again = true;
+    while(again){
+      again = false;
+      (c.fields||[]).forEach(function(f){
+        if(!f.dependsOn || !values[f.id]) return;
+        if(hbeFieldOptions(f, values).indexOf(values[f.id]) === -1){ values[f.id] = ""; again = true; }
+      });
+    }
+    render();
+  }
+
+  function setErr(fid, msg){
+    var e = g("er_"+fid), i = g("in_"+fid);
+    if(e){ e.textContent = msg||""; e.className = "err" + (msg ? " on" : ""); }
+    if(i) i.className = msg ? "bad" : "";
+  }
+
+  /* ---------------- validate & submit ---------------- */
+  function validate(){
+    var ok = true, bad = null, data = {};
+
+    (c.fields||[]).forEach(function(f){
+      if(!hbeFieldVisible(f, values)) { setErr(f.id, ""); return; }   /* hidden -> not required */
+      var v = (values[f.id] || "").toString().trim(), m = "";
+
+      if(f.required && !v){
+        m = f.type === "checkbox" ? "Please accept this to continue"
+          : (f.type === "select" || f.type === "radio") ? "Please select an option"
+          : "This field is required";
+      }
+      else if(v && f.type === "email" && !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(v)) m = "Enter a valid email address";
+      else if(v && f.type === "tel"   && !/^[6-9]\d{9}$/.test(v))                     m = "Enter a valid 10-digit mobile number";
+      else if(v && f.type === "number"&& isNaN(Number(v)))                            m = "Numbers only";
+
+      setErr(f.id, m);
+      if(m){ ok = false; bad = bad || g("fd_"+f.id); }
+      data[f.id] = { label: f.label, value: v };
+    });
+
+    if(bad) bad.scrollIntoView({ behavior:"smooth", block:"center" });
+    return ok ? data : null;
+  }
+
+  /* ---------------- step 3: declaration ---------------- */
+  var pending = null, ticked = {}, needed = 0;
+
+  g("form").onsubmit = function(e){
+    e.preventDefault();
+    var data = validate(); if(!data) return;
+    pending = data; ticked = {}; needed = 0;
+    showReview();
+  };
+
+  function showReview(){
+    var rows = "";
+    (c.fields || []).forEach(function(f){
+      if(!hbeFieldVisible(f, values)) return;
+      var d = pending[f.id]; if(!d) return;
+      var v = d.value;
+      if(f.type === "checkbox") v = v ? "Accepted" : "";
+      if(!v){
+        rows += '<div class="rrow"><span class="lbl">'+hbeEsc(f.label)+"</span>" +
+                '<span class="val none">Not provided</span>' +
+                '<span class="tickbox" style="opacity:.45">Optional</span></div>';
+        return;
+      }
+      needed++;
+      rows += '<div class="rrow" id="rr_'+f.id+'">' +
+                '<span class="lbl">'+hbeEsc(f.label)+"</span>" +
+                '<span class="val">'+hbeEsc(v)+"</span>" +
+                '<label class="tickbox"><input type="checkbox" id="tk_'+f.id+'"' +
+                ' onchange="R.tick(\''+f.id+'\',this.checked)"> Correct</label></div>';
+    });
+
+    g("reviewRows").innerHTML = rows;
+    g("form").style.display = "none";
+    g("review").style.display = "";
+    g("lead").textContent = "Step 3 of 3 \u2014 read every line and tick it before you submit.";
+    counter();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function counter(){
+    var n = 0;
+    for(var k in ticked) if(ticked[k]) n++;
+    var pill = g("tickCount"), btn = g("finalBtn");
+    pill.textContent = n + " of " + needed + " confirmed";
+    pill.className = "progress-pill" + (n === needed && needed ? " done" : "");
+    btn.disabled = !(needed && n === needed);
+  }
+
+  function tick(fid, on){
+    ticked[fid] = on;
+    var row = g("rr_"+fid);
+    if(row) row.className = "rrow" + (on ? " ok" : "");
+    counter();
+  }
+
+  function tickAll(){
+    (c.fields || []).forEach(function(f){
+      var box = g("tk_"+f.id);
+      if(box && !box.checked){ box.checked = true; tick(f.id, true); }
+    });
+  }
+
+  function edit(){
+    g("review").style.display = "none";
+    g("form").style.display = "";
+    g("lead").textContent = "Step 2 of 3 \u2014 confirm your details. Your assessments unlock right after.";
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function final(){
+    var missing = null;
+    (c.fields || []).forEach(function(f){
+      var box = g("tk_"+f.id);
+      if(box && !box.checked && !missing) missing = f.id;
+    });
+    if(missing){
+      var row = g("rr_"+missing);
+      row.className = "rrow miss";
+      row.scrollIntoView({ behavior:"smooth", block:"center" });
+      hbeToast("Every row has to be ticked before you can submit.", "alert");
+      return;
+    }
+    var data = pending;
+
+    var st = {
+      id: "S" + Date.now().toString().slice(-7),
+      collegeId: c.id, collegeName: c.name,
+      regNo: hbeRegNo(c),
+      name: ((values.firstName || gate.firstName || "") + " " +
+             (values.lastName  || gate.lastName  || "")).trim() || gate.name,
+      email: gate.email,
+      phone: values.phone || "",
+      rollNo: values.universityId || gate.uid,
+      department: values.department || gate.department,
+      programme: values.programme || gate.programme,
+      course: values.course || gate.course,
+      batch: values.session || gate.session,
+      verifiedEmail: true, verifiedPhone: false,
+      results: {},
+      registeredAt: new Date().toISOString(),
+      data: data, result: null,
+      declaration: { at: new Date().toISOString(), rows: needed, mode: "self-verified" }
+    };
+    hbeAddStudent(st);
+    hbeLogin({ role:"student", id:st.id, name:st.name, email:st.email, collegeId:c.id });
+    hbeClearGate();
+    location.href = "thankyou.html?college=" + encodeURIComponent(c.id);
+  }
+
+  render();
+  return { set:set, pick:pick, tick:tick, tickAll:tickAll, edit:edit, final:final };
+})();
+</script>
+</body>
+</html>

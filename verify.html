@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify your ID · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:10px;padding-bottom:60px">
+
+  <div class="stepper" id="steps"></div>
+
+  <div class="gate-grid">
+    <!-- ---------- form side ---------- -->
+    <div class="card rise">
+      <span class="eyebrow" id="eyebrow"></span>
+      <h2 style="margin:14px 0 6px">Verify your identity</h2>
+      <p class="sm mut" id="lead"></p>
+
+      <!-- stage 1 -->
+      <div id="stage1" style="margin-top:22px">
+        <div class="f code-field" id="secWrap" style="margin-bottom:18px">
+          <label id="secLabel">Campus access code<span class="req">*</span></label>
+          <div class="code-input">
+            <span class="ic"></span>
+            <input type="text" id="sec" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="hint" id="secHelp"></div>
+          <div class="err" id="secErr"></div>
+        </div>
+
+        <div class="f" style="margin-bottom:16px">
+          <label id="idLabel">University ID<span class="req">*</span></label>
+          <input type="text" id="uid" autocomplete="off">
+          <div class="hint" id="idHelp"></div>
+          <div class="err" id="uidErr"></div>
+        </div>
+
+        <div class="f" style="margin-bottom:18px">
+          <label>Email on record<span class="req">*</span></label>
+          <input type="email" id="mail" placeholder="you@college.edu" autocomplete="off">
+          <div class="hint">Must match the email your campus has on file.</div>
+          <div class="err" id="mailErr"></div>
+        </div>
+
+        <button class="btn btn-block btn-lg" onclick="V.check()">Verify &amp; send code</button>
+        <p class="xs mut center" style="margin-top:12px">
+          Not on the list? Contact <span id="mailTo"></span>
+        </p>
+      </div>
+
+      <!-- stage 2 -->
+      <div id="stage2" style="display:none;margin-top:22px">
+        <div class="matched" id="matched"></div>
+
+        <div class="otp on" style="margin-top:18px">
+          <div class="ttl" id="otpTitle"></div>
+          <div class="otp-row">
+            <input class="otp-in" type="text" inputmode="numeric" id="otp" placeholder="••••••">
+            <button class="btn" onclick="V.confirm()">Verify &amp; continue</button>
+            <button class="btn btn-ghost" id="resend" onclick="V.send()">Resend</button>
+            <span class="xs mut" id="timer"></span>
+          </div>
+        </div>
+
+        <button class="btn btn-ghost btn-block" style="margin-top:16px" onclick="V.back()">Use a different ID</button>
+      </div>
+    </div>
+
+    <!-- ---------- info side ---------- -->
+    <aside>
+      <figure class="shot shot-hero" style="height:170px">
+        <img id="photo" src="" alt="">
+        <figcaption>
+          <span class="plate"><img id="logo" src="" alt=""></span>
+          <span><b id="cname"></b><em id="ccity"></em></span>
+        </figcaption>
+      </figure>
+
+      <div class="card mt">
+        <h3 style="margin-bottom:12px">Why this step?</h3>
+        <ul class="plist sm" id="why"></ul>
+        <div class="divider"></div>
+        <div class="kv"><span>Assessment</span><b id="tName"></b></div>
+        <div class="kv"><span>Window</span><b id="tWin"></b></div>
+        <span id="tExtra"></span>
+      </div>
+
+      <div class="card mt" style="border-style:dashed;background:transparent;box-shadow:none">
+        <span class="badge">Prototype</span>
+        <p class="sm mut" style="margin:8px 0 10px" id="demoCode"></p>
+        <p class="sm mut" style="margin:0 0 10px">Try one of these IDs:</p>
+        <div id="demoIds"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var V = (function(){
+
+  var cfg = hbeGetConfig();
+  var id  = hbeCollegeId(cfg);
+  var c   = cfg.colleges[id];
+  var G   = c.gate || { idLabel:"University ID", idPlaceholder:"", idHelp:"" };
+  var VER = c.verification || { otpLength:6, resendSeconds:30 };
+  var g   = function(x){ return document.getElementById(x); };
+
+  hbeApplyTheme(c);
+  g("nav").innerHTML = hbeNav(c,
+    '<a class="nav-link" href="index.html?college='+id+'">Home</a>' +
+    '<a class="nav-link on" href="#">Verify ID</a>' +
+    '<a class="btn btn-ghost btn-sm" href="login.html">'+ico("user")+' Sign in</a>');
+
+  g("steps").innerHTML = hbeSteps(1);
+
+  g("eyebrow").textContent = c.name + " · " + (c.campus || "");
+  g("lead").textContent    = "Step 1 of 2 — we check your ID against the list your placement cell shared with us.";
+  var SEC = c.security || { enabled:false };
+  if(SEC.enabled){
+    g("secLabel").innerHTML = hbeEsc(SEC.label || "Campus access code") + '<span class="req">*</span>';
+    g("secHelp").textContent = SEC.help || "Shared by your placement cell";
+    g("sec").placeholder = String(SEC.code || "XXXXXX").replace(/./g, "X");
+    g("secWrap").querySelector(".ic").innerHTML = ico("lock");
+  } else {
+    g("secWrap").style.display = "none";
+  }
+  g("idLabel").innerHTML   = hbeEsc(G.idLabel) + '<span class="req">*</span>';
+  g("uid").placeholder     = G.idPlaceholder || "";
+  g("idHelp").textContent  = G.idHelp || "";
+  g("mailTo").textContent  = cfg.brand.supportEmail;
+
+  g("photo").src  = c.photo || "";
+  g("logo").src   = c.logo;
+  g("logo").style.maxHeight = ((+c.logoHeight || 34) - 6) + "px";
+  g("cname").textContent = c.name;
+  g("ccity").textContent = c.campus || "";
+  var pt = hbePrimaryTest(c), nTests = hbeTests(c).length;
+  g("tName").textContent = pt.name;
+  g("tWin").textContent  = pt.window;
+  if(nTests > 1){
+    g("tExtra").innerHTML = '<div class="kv"><span>In this cycle</span><b>' + nTests +
+      " assessments</b></div>";
+  }
+
+  g("why").innerHTML = [
+    "Only IDs on your campus list can register",
+    "Your name, department and course come pre-filled",
+    "No duplicate or fake registrations",
+    "Takes about thirty seconds"
+  ].map(function(x){ return "<li>"+ico("check")+"<span>"+x+"</span></li>"; }).join("");
+
+  /* demo helper: show IDs that are not registered yet */
+  var free = (c.roster || []).filter(function(r){ return !hbeStudentByEmail(r.email); }).slice(0,3);
+  if(SEC.enabled){
+    g("demoCode").innerHTML = "Access code: <b>" + hbeEsc(SEC.code) + "</b>";
+  }
+  g("demoIds").innerHTML = free.map(function(r){
+    return '<div class="demo-id" onclick="V.fill(\''+r.uid+'\',\''+r.email+'\')">' +
+           "<b>"+hbeEsc(r.uid)+"</b><span>"+hbeEsc(r.email)+"</span></div>";
+  }).join("") || '<p class="sm mut">Every demo ID is already registered. Reset from the Form Builder.</p>';
+
+  /* ---------------- state ---------------- */
+  var row = null, code = null;
+
+  function err(el, m){ var e=g(el); e.textContent = m||""; e.className = "err"+(m?" on":""); }
+
+  function check(){
+    var uid = g("uid").value.trim(), mail = g("mail").value.trim().toLowerCase();
+    err("uidErr",""); err("mailErr",""); err("secErr","");
+
+    if(SEC.enabled){
+      var typed = g("sec").value.trim().toUpperCase();
+      if(!typed){ err("secErr","Enter the access code shared with your batch"); return; }
+      if(typed !== String(SEC.code||"").toUpperCase()){
+        err("secErr","That access code is not valid for " + (c.shortName || c.name)); return;
+      }
+    }
+
+    if(!uid){ err("uidErr","Enter your " + G.idLabel); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(mail)){ err("mailErr","Enter a valid email address"); return; }
+
+    var found = hbeRosterFind(c, uid);
+    if(!found){
+      err("uidErr","This ID is not on the list shared by " + (c.shortName||c.name) + ". Please contact your placement cell.");
+      return;
+    }
+    if(found.email.toLowerCase() !== mail){
+      err("mailErr","This email does not match our record for that ID (" + hbeMaskEmail(found.email) + ")");
+      return;
+    }
+    if(hbeStudentByEmail(found.email)){
+      err("uidErr","This ID has already been registered. Please sign in instead.");
+      hbeToast('Already registered. <a href="login.html" style="color:#fff;text-decoration:underline">Sign in</a>', "info", 8000);
+      return;
+    }
+
+    row = found;
+    g("stage1").style.display = "none";
+    g("stage2").style.display = "";
+    g("matched").innerHTML =
+      '<div class="row" style="gap:12px">' + ico("check") +
+      "<div><b>" + hbeEsc(row.name) + "</b>" +
+      '<div class="xs mut">' + hbeEsc(row.department) + " · " + hbeEsc(row.course) + " · " + hbeEsc(row.session) + "</div></div></div>";
+    g("otpTitle").innerHTML = ico("mail") + " Code sent to " + hbeEsc(hbeMaskEmail(row.email));
+    send();
+  }
+
+  function send(){
+    code = "";
+    for(var i=0;i<VER.otpLength;i++) code += Math.floor(Math.random()*10);
+    g("otp").value = ""; g("otp").focus();
+    hbeToast("One-time code for <b>"+hbeEsc(row.email)+"</b><br><b>"+code+"</b>", "mail", 12000);
+
+    var left = VER.resendSeconds || 30, rs = g("resend"), tm = g("timer");
+    rs.disabled = true; clearInterval(rs._t);
+    tm.textContent = "Resend in " + left + "s";
+    rs._t = setInterval(function(){
+      left--; tm.textContent = left>0 ? "Resend in "+left+"s" : "";
+      if(left<=0){ clearInterval(rs._t); rs.disabled = false; }
+    }, 1000);
+  }
+
+  function confirm_(){
+    if(g("otp").value.trim() !== code){ hbeToast("That code is not correct.","alert"); return; }
+    var nm = hbeSplitName(row.name);
+    hbeSetGate({
+      collegeId: c.id, uid: row.uid, email: row.email, name: row.name,
+      firstName: nm.first, lastName: nm.last,
+      department: row.department, course: row.course, session: row.session,
+      at: Date.now()
+    });
+    hbeToast("Verified. Opening your form.","check",2500);
+    setTimeout(function(){ location.href = "register.html?college=" + encodeURIComponent(c.id); }, 500);
+  }
+
+  function back(){
+    row = null; code = null;
+    g("stage2").style.display = "none";
+    g("stage1").style.display = "";
+    g("uid").value = ""; g("mail").value = "";
+  }
+
+  function fill(u, m){
+    if(SEC.enabled) g("sec").value = SEC.code;
+    g("uid").value = u; g("mail").value = m; g("uid").focus();
+  }
+
+  return { check:check, send:send, confirm:confirm_, back:back, fill:fill };
+})();
+</script>
+</body>
+</html>

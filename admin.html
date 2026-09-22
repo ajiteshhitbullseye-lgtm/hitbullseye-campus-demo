@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Form Builder · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">No code required</span>
+      <h1 style="font-size:28px;margin-top:12px">Registration form builder</h1>
+      <p class="sm mut">Change the campus branding, the welcome copy, the verification rules and every field on the form.</p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="B.exportJson()">Export JSON</button>
+      <label class="btn btn-ghost btn-sm" style="margin:0">Import JSON
+        <input type="file" accept=".json" onchange="B.importJson(this)" style="display:none"></label>
+      <button class="btn btn-ghost btn-sm" onclick="B.reset()">Reset defaults</button>
+      <button class="btn btn-sm" onclick="B.save(1)">Save &amp; preview</button>
+    </div>
+  </div>
+
+  <div class="alert info mt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
+    <div>Pick a campus on the left, edit anything, then hit <b>Save &amp; preview</b>. In production this same structure is served by
+    <b>GET /api/campus/{slug}/onboarding-config</b> — the front end never changes.</div>
+  </div>
+
+  <div class="split mt">
+
+    <!-- ============ LEFT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Campus</h3>
+        <select id="colSel" onchange="B.switchCollege(this.value)"></select>
+        <button class="btn btn-soft btn-block btn-sm" style="margin-top:11px" onclick="B.addCollege()">+ Add a campus</button>
+
+        <div class="mini" style="margin-top:18px">
+          <div class="full"><label>Campus name</label><input id="c_name"></div>
+          <div><label>Short name</label><input id="c_short"></div>
+          <div><label>City</label><input id="c_campus"></div>
+          <div class="full"><label>Logo</label>
+            <div class="row" style="gap:10px">
+              <span class="logo-plate" style="min-height:48px;padding:6px 12px"><img id="logoPrev" src="" alt=""></span>
+              <label class="btn btn-ghost btn-sm" style="margin:0">Upload
+                <input type="file" accept="image/*" onchange="B.logoUp(this)" style="display:none"></label>
+            </div>
+            <input id="c_logo" style="margin-top:9px" placeholder="assets/logo.svg">
+          </div>
+          <div class="full"><label>Logo height in px (wide lockups need more)</label>
+            <input type="number" id="c_logoh" min="20" max="64"></div>
+          <div><label>Primary</label><input type="color" id="c_p1" oninput="B.live()"></div>
+          <div><label>Dark shade</label><input type="color" id="c_p2" oninput="B.live()"></div>
+          <div class="full"><label>Accent</label><input type="color" id="c_p3" oninput="B.live()"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Campus access code</h3>
+        <div class="mini">
+          <div class="full">
+            <label class="check"><input type="checkbox" id="s_on"><span>Ask for an access code before the ID</span></label>
+          </div>
+          <div class="full"><label>The code (what you give this client)</label>
+            <input id="s_code" placeholder="e.g. LPU123X" style="font-family:'Courier New',monospace;font-weight:700;text-transform:uppercase"></div>
+          <div class="full"><label>Field label</label><input id="s_label" placeholder="Campus access code"></div>
+          <div class="full"><label>Helper text</label><input id="s_help" placeholder="Shared by your placement cell"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Step 2 &mdash; ID verification</h3>
+        <div class="mini">
+          <div class="full"><label>ID field label</label><input id="g_label" placeholder="University Roll Number"></div>
+          <div class="full"><label>ID placeholder</label><input id="g_ph" placeholder="e.g. 2210991209"></div>
+          <div class="full"><label>ID helper text</label><input id="g_help"></div>
+          <div><label>OTP length</label><input type="number" id="v_len" min="4" max="8"></div>
+          <div><label>Resend after (s)</label><input type="number" id="v_res" min="10" max="120"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:10px">
+          <h3 style="margin:0">Student master list</h3>
+          <span class="badge brand" id="rosterCount"></span>
+        </div>
+        <p class="sm mut" style="margin-bottom:10px">
+          One student per line:<br><code>ID, email, name, department, programme, course, session</code>
+        </p>
+        <textarea id="roster" rows="9" style="font-family:'Courier New',monospace;font-size:12.5px"></textarea>
+        <p class="xs mut" style="margin-top:8px">
+          Only these IDs can register. In production this comes from the campus API or a CSV upload.
+        </p>
+      </div>
+
+      <div class="panel mt">
+        <h3>Confirmation &amp; redirect</h3>
+        <div class="mini">
+          <div class="full"><label>Title</label><input id="t_title"></div>
+          <div class="full"><label>Message</label><textarea id="t_msg" rows="3"></textarea></div>
+          <div><label>Redirect after (s)</label><input type="number" id="t_sec" min="0" max="60"></div>
+          <div><label>Button label</label><input id="t_lbl"></div>
+          <div class="full"><label>Dashboard URL (existing portal)</label><input id="t_url"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Welcome page content</h3>
+        <div class="mini">
+          <div><label>Eyebrow / programme</label><input id="w_eye"></div>
+          <div><label>Call-to-action text</label><input id="w_cta"></div>
+          <div><label>Headline</label><input id="w_title"></div>
+          <div><label>Highlighted word</label><input id="w_hl"></div>
+          <div class="full"><label>Sub-headline</label><textarea id="w_sub" rows="3"></textarea></div>
+          <div class="full"><label>Bullet points (one per line)</label><textarea id="w_pts" rows="4"></textarea></div>
+          <div class="full"><label>Trust stats (one per line, format: value | label)</label><textarea id="w_stats" rows="3"></textarea></div>
+          <div class="full"><label>Footer note under the button</label><input id="w_note"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px">
+          <h3 style="margin:0">Assessments</h3>
+          <button class="btn btn-sm" onclick="B.addTest()">+ Add assessment</button>
+        </div>
+        <p class="sm mut" style="margin-bottom:14px">
+          Leave an audience box empty to show that paper to the whole campus.
+          Fill it to restrict the paper to those departments / programmes / sessions.
+        </p>
+        <div id="testList"></div>
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:14px">
+          <h3 style="margin:0">Form fields</h3>
+          <button class="btn btn-sm" onclick="B.addField()">+ Add field</button>
+        </div>
+        <div id="list"></div>
+      </div>
+
+      <div class="row mt" style="gap:12px;flex-wrap:wrap">
+        <button class="btn btn-lg grow" style="min-width:230px" onclick="B.save(1)">Save &amp; preview welcome page</button>
+        <button class="btn btn-ghost" onclick="B.save(0)">Save only</button>
+        <a class="btn btn-ghost" id="openForm" href="register.html">Open the live form</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var B = (function(){
+
+  var s = hbeSession();
+  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var cid = hbeCollegeId(cfg);
+  var TYPES = ["text","email","tel","number","date","select","radio","checkbox","textarea"];
+
+  function C(){ return cfg.colleges[cid]; }
+  function g(i){ return document.getElementById(i); }
+  function labelOf(fid){
+    var f = (C().fields||[]).filter(function(x){ return x.id === fid; })[0];
+    return f ? f.label : fid;
+  }
+  /* "parent > a, b, c" lines  <->  { parent:[a,b,c] } */
+  function mapToText(map){
+    if(!map) return "";
+    var out = [];
+    for(var k in map) out.push(k + " > " + (map[k]||[]).join(", "));
+    return out.join("\n");
+  }
+  function textToMap(txt){
+    var map = {};
+    lines(txt).forEach(function(l){
+      var i = l.indexOf(">"); if(i < 0) return;
+      var key = l.slice(0,i).trim();
+      var vals = l.slice(i+1).split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+      if(key) map[key] = vals;
+    });
+    return map;
+  }
+
+  function nav(){
+    document.getElementById("nav").innerHTML = hbeNav(C(),
+      '<a class="nav-link" href="admin-reports.html">Reports</a>' +
+      '<a class="nav-link on" href="admin.html">Form builder</a>' +
+      '<span class="badge brand">'+ico("shield")+' Admin</span>' +
+      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+  }
+
+  /* ---------------- load ---------------- */
+  function load(){
+    var c = C();
+    g("colSel").innerHTML = Object.keys(cfg.colleges).map(function(k){
+      return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+    g("c_name").value = c.name; g("c_short").value = c.shortName||"";
+    g("c_campus").value = c.campus||""; g("c_logo").value = c.logo||"";
+    g("logoPrev").src = c.logo||"";
+    g("logoPrev").style.maxHeight = (c.logoHeight||34) + "px";
+    g("c_logoh").value = c.logoHeight || 34;
+    g("c_p1").value = c.theme.primary; g("c_p2").value = c.theme.primaryDark; g("c_p3").value = c.theme.accent;
+
+    var v = c.verification||{}, gt = c.gate||{}, sc = c.security||{};
+    g("v_len").value = v.otpLength||6;
+    g("v_res").value = v.resendSeconds||30;
+    g("s_on").checked = !!sc.enabled;
+    g("s_code").value = sc.code||"";
+    g("s_label").value = sc.label||"Campus access code";
+    g("s_help").value  = sc.help||"";
+    g("g_label").value = gt.idLabel||"University ID";
+    g("g_ph").value    = gt.idPlaceholder||"";
+    g("g_help").value  = gt.idHelp||"";
+    g("roster").value  = (c.roster||[]).map(function(r){
+      return [r.uid,r.email,r.name,r.department,r.programme,r.course,r.session].join(", "); }).join("\n");
+    g("rosterCount").textContent = (c.roster||[]).length + " students";
+
+    var w = c.welcome||{};
+    g("w_eye").value = w.eyebrow||""; g("w_cta").value = w.cta||"";
+    g("w_title").value = w.title||""; g("w_hl").value = w.highlight||"";
+    g("w_sub").value = w.subtitle||""; g("w_pts").value = (w.points||[]).join("\n");
+    g("w_stats").value = (w.stats||[]).map(function(x){ return x.value+" | "+x.label; }).join("\n");
+    g("w_note").value = w.note||"";
+
+    tests();
+
+    var y = c.thankyou||{};
+    g("t_title").value = y.title||""; g("t_msg").value = y.message||"";
+    g("t_sec").value = y.redirectSeconds==null?8:y.redirectSeconds;
+    g("t_lbl").value = y.dashboardLabel||"Go to my dashboard";
+    g("t_url").value = y.dashboardUrl||"dashboard.html";
+
+    g("openForm").href = "register.html?college=" + cid;
+    hbeApplyTheme(c); nav(); fields();
+  }
+
+  /* ---------------- field list ---------------- */
+  function fields(){
+    var out = (C().fields||[]).map(function(f,i){
+      var tags = '<span class="badge">'+f.type+"</span>";
+      if(f.required) tags += ' <span class="badge err">Required</span>';
+      if(f.prefill)  tags += ' <span class="badge ok">pre-filled</span>';
+      if(f.lock)     tags += ' <span class="badge">locked</span>';
+      if(f.dependsOn)tags += ' <span class="badge brand">depends on ' + hbeEsc(labelOf(f.dependsOn)) + "</span>";
+      if(f.showIf)   tags += ' <span class="badge warn">conditional</span>';
+      if(f.half)     tags += ' <span class="badge">Half width</span>';
+
+      return '<div class="fl"><div class="fl-head">' +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.mv('+i+',-1)" title="Move up">'+ico("up")+"</button>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.mv('+i+',1)" title="Move down">'+ico("down")+"</button>" +
+        '<span class="nm">'+hbeEsc(f.label||f.id)+"</span>" + tags +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.tog('+i+')" title="Edit">'+ico("edit")+"</button>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.del('+i+')" title="Delete">'+ico("x")+"</button>" +
+      "</div>" +
+      '<div class="fl-body" id="fb_'+i+'"><div class="mini">' +
+        '<div class="full"><label>Label shown to the student</label><input id="f'+i+'_label" value="'+hbeEsc(f.label)+'"></div>' +
+        '<div><label>Field id (backend key)</label><input id="f'+i+'_id" value="'+hbeEsc(f.id)+'"></div>' +
+        '<div><label>Type</label><select id="f'+i+'_type">' +
+          TYPES.map(function(t){ return "<option"+(t===f.type?" selected":"")+">"+t+"</option>"; }).join("") + "</select></div>" +
+        '<div><label>Section heading</label><input id="f'+i+'_section" value="'+hbeEsc(f.section||"Details")+'"></div>' +
+        '<div class="full"><label>Placeholder</label><input id="f'+i+'_placeholder" value="'+hbeEsc(f.placeholder||"")+'"></div>' +
+        '<div class="full"><label>Helper text</label><input id="f'+i+'_help" value="'+hbeEsc(f.help||"")+'"></div>' +
+        '<div class="full"><label>Options for dropdown / radio (comma separated)</label><input id="f'+i+'_options" value="'+hbeEsc((f.options||[]).join(", "))+'"></div>' +
+
+        '<div><label>Pre-fill from verified ID</label><select id="f'+i+'_prefill">' +
+          ["","firstName","lastName","name","email","uid","department","programme","course","session"].map(function(x){
+            return '<option value="'+x+'"'+(x===(f.prefill||"")?" selected":"")+">"+(x?x:"-- none --")+"</option>"; }).join("") +
+        "</select></div>" +
+        '<div><label class="check" style="margin-top:20px"><input type="checkbox" id="f'+i+'_lock"'+(f.lock?" checked":"")+'><span>Locked (read-only)</span></label></div>' +
+
+        '<div class="full" style="border-top:1px dashed var(--line);padding-top:12px;margin-top:4px">' +
+          '<label>Dependent field &mdash; parent</label><select id="f'+i+'_dep">' +
+            '<option value="">-- independent --</option>' +
+            (C().fields||[]).filter(function(o,j){ return j!==i; }).map(function(o){
+              return '<option value="'+o.id+'"'+(o.id===(f.dependsOn||"")?" selected":"")+">"+hbeEsc(o.label)+"</option>"; }).join("") +
+          "</select></div>" +
+        '<div class="full"><label>Options by parent value (one line: <b>parent value &gt; a, b, c</b>, use * for any)</label>' +
+          '<textarea id="f'+i+'_map" rows="4" style="font-size:12.5px">'+hbeEsc(mapToText(f.optionsMap))+'</textarea></div>' +
+
+        '<div><label>Show only when field</label><select id="f'+i+'_sif">' +
+          '<option value="">-- always show --</option>' +
+          (C().fields||[]).filter(function(o,j){ return j!==i; }).map(function(o){
+            return '<option value="'+o.id+'"'+(o.id===((f.showIf||{}).field||"")?" selected":"")+">"+hbeEsc(o.label)+"</option>"; }).join("") +
+        "</select></div>" +
+        '<div><label>&hellip; has one of these values</label><input id="f'+i+'_siv" value="'+hbeEsc(((f.showIf||{}).values||[]).join(", "))+'"></div>' +
+
+        '<div><label class="check" style="margin-top:20px"><input type="checkbox" id="f'+i+'_required"'+(f.required?" checked":"")+'><span>Required</span></label></div>' +
+        '<div><label class="check" style="margin-top:20px"><input type="checkbox" id="f'+i+'_half"'+(f.half?" checked":"")+'><span>Half width</span></label></div>' +
+      "</div></div></div>";
+    }).join("");
+
+    g("list").innerHTML = out || '<div class="empty">'+ico("file")+"<h3>No fields yet</h3><p class=\"sm mut\">Use “Add field” to build the form.</p></div>";
+  }
+
+  /* ---------------- assessments ---------------- */
+  function tests(){
+    var list = hbeTests(C());
+    g("testList").innerHTML = list.map(function(t, i){
+      var restricted = (t.audience && ((t.audience.departments||[]).length ||
+                        (t.audience.programmes||[]).length || (t.audience.sessions||[]).length));
+      return '<div class="fl"><div class="fl-head">' +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.mvTest('+i+',-1)" title="Move up">'+ico("up")+"</button>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.mvTest('+i+',1)" title="Move down">'+ico("down")+"</button>" +
+        '<span class="nm">'+hbeEsc(t.name)+"</span>" +
+        '<span class="badge">'+hbeEsc(t.tag||"Assessment")+"</span>" +
+        '<span class="badge">'+t.durationMin+" min</span>" +
+        (restricted ? '<span class="badge warn">restricted</span>' : '<span class="badge ok">whole campus</span>') +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.togTest('+i+')" title="Edit">'+ico("edit")+"</button>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="B.delTest('+i+')" title="Delete">'+ico("x")+"</button>" +
+      "</div>" +
+      '<div class="fl-body" id="tb_'+i+'"><div class="mini">' +
+        '<div class="full"><label>Assessment name</label><input id="t'+i+'_name" value="'+hbeEsc(t.name)+'"></div>' +
+        '<div><label>Tag (badge)</label><input id="t'+i+'_tag" value="'+hbeEsc(t.tag||"")+'"></div>' +
+        '<div><label>Test id (backend key)</label><input id="t'+i+'_id" value="'+hbeEsc(t.id)+'"></div>' +
+        '<div><label>Duration (minutes)</label><input type="number" id="t'+i+'_dur" value="'+(t.durationMin||60)+'"></div>' +
+        '<div><label>Total questions</label><input type="number" id="t'+i+'_qs" value="'+(t.questions||50)+'"></div>' +
+        '<div><label>Test window</label><input id="t'+i+'_win" value="'+hbeEsc(t.window||"")+'"></div>' +
+        '<div><label>Attempts allowed</label><input id="t'+i+'_att" value="'+hbeEsc(t.attempts||"")+'"></div>' +
+        '<div class="full"><label>Sections (comma separated)</label><input id="t'+i+'_sec" value="'+hbeEsc((t.sections||[]).join(", "))+'"></div>' +
+        '<div class="full" style="border-top:1px dashed var(--line);padding-top:12px;margin-top:4px">' +
+          '<label>Visible to departments (comma separated &mdash; empty = all)</label>' +
+          '<input id="t'+i+'_ad" value="'+hbeEsc(((t.audience||{}).departments||[]).join(", "))+'"></div>' +
+        '<div><label>Only these programmes</label><input id="t'+i+'_ap" value="'+hbeEsc(((t.audience||{}).programmes||[]).join(", "))+'"></div>' +
+        '<div><label>Only these sessions</label><input id="t'+i+'_as" value="'+hbeEsc(((t.audience||{}).sessions||[]).join(", "))+'"></div>' +
+      "</div></div></div>";
+    }).join("") || '<div class="empty">'+ico("file")+"<h3>No assessment yet</h3></div>";
+  }
+
+  function grabTests(){
+    var list = hbeTests(C());
+    list.forEach(function(t, i){
+      if(!g("t"+i+"_name")) return;
+      t.name = g("t"+i+"_name").value.trim() || t.name;
+      t.tag  = g("t"+i+"_tag").value.trim();
+      t.id   = (g("t"+i+"_id").value.trim() || t.id).replace(/[^A-Za-z0-9_-]/g, "");
+      t.durationMin = +g("t"+i+"_dur").value || 60;
+      t.questions   = +g("t"+i+"_qs").value || 50;
+      t.window      = g("t"+i+"_win").value;
+      t.attempts    = g("t"+i+"_att").value;
+      t.sections    = csv(g("t"+i+"_sec").value);
+      t.audience    = { departments: csv(g("t"+i+"_ad").value),
+                        programmes:  csv(g("t"+i+"_ap").value),
+                        sessions:    csv(g("t"+i+"_as").value) };
+    });
+    C().tests = list;
+    delete C().test;
+  }
+  function csv(v){ return v.split(",").map(function(x){ return x.trim(); }).filter(Boolean); }
+
+  function grabFields(){
+    (C().fields||[]).forEach(function(f,i){
+      if(!g("f"+i+"_label")) return;
+      f.label = g("f"+i+"_label").value.trim() || f.id;
+      f.id = (g("f"+i+"_id").value.trim() || f.id).replace(/[^A-Za-z0-9_]/g,"");
+      f.type = g("f"+i+"_type").value;
+      f.section = g("f"+i+"_section").value.trim() || "Details";
+      f.placeholder = g("f"+i+"_placeholder").value;
+      f.help = g("f"+i+"_help").value;
+      f.required = g("f"+i+"_required").checked;
+      f.half = g("f"+i+"_half").checked;
+      var o = g("f"+i+"_options").value.trim();
+      f.options = o ? o.split(",").map(function(x){ return x.trim(); }).filter(Boolean) : [];
+
+      f.prefill = g("f"+i+"_prefill").value;
+      f.lock    = g("f"+i+"_lock").checked;
+
+      var dep = g("f"+i+"_dep").value;
+      if(dep){ f.dependsOn = dep; f.optionsMap = textToMap(g("f"+i+"_map").value); }
+      else   { delete f.dependsOn; delete f.optionsMap; }
+
+      var sif = g("f"+i+"_sif").value;
+      var siv = g("f"+i+"_siv").value.split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+      if(sif && siv.length) f.showIf = { field:sif, values:siv };
+      else delete f.showIf;
+    });
+  }
+
+  function grabAll(){
+    grabFields();
+    var c = C();
+    c.name = g("c_name").value.trim() || c.name;
+    c.shortName = g("c_short").value.trim();
+    c.campus = g("c_campus").value.trim();
+    c.logo = g("c_logo").value.trim();
+    c.logoHeight = Math.max(20, Math.min(64, +g("c_logoh").value || 34));
+    c.theme = { primary:g("c_p1").value, primaryDark:g("c_p2").value, accent:g("c_p3").value };
+    c.verification = {
+      otpLength: Math.max(4, Math.min(8, +g("v_len").value || 6)),
+      resendSeconds: +g("v_res").value || 30 };
+    c.security = { enabled: g("s_on").checked,
+                   code: g("s_code").value.trim().toUpperCase(),
+                   label: g("s_label").value || "Campus access code",
+                   help: g("s_help").value };
+    c.gate = { idLabel:g("g_label").value || "University ID",
+               idPlaceholder:g("g_ph").value, idHelp:g("g_help").value };
+    c.roster = lines(g("roster").value).map(function(l){
+      var p = l.split(",").map(function(x){ return x.trim(); });
+      return { uid:p[0]||"", email:(p[1]||"").toLowerCase(), name:p[2]||"",
+               department:p[3]||"", programme:p[4]||"", course:p[5]||"", session:p[6]||"" };
+    }).filter(function(r){ return r.uid && r.email; });
+    c.welcome = {
+      eyebrow:g("w_eye").value, cta:g("w_cta").value||"Begin registration",
+      title:g("w_title").value, highlight:g("w_hl").value, subtitle:g("w_sub").value,
+      points: lines(g("w_pts").value),
+      stats: lines(g("w_stats").value).map(function(l){
+        var p = l.split("|"); return { value:(p[0]||"").trim(), label:(p[1]||"").trim() }; }),
+      note:g("w_note").value
+    };
+    grabTests();
+    c.thankyou = { title:g("t_title").value, message:g("t_msg").value,
+      redirectSeconds:+g("t_sec").value||0, dashboardUrl:g("t_url").value.trim()||"dashboard.html",
+      dashboardLabel:g("t_lbl").value||"Go to my dashboard" };
+  }
+  function lines(v){ return v.split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
+
+  /* ---------------- actions ---------------- */
+  var api = {
+    tog: function(i){ var b=g("fb_"+i); b.className = b.className.indexOf("on")>-1 ? "fl-body" : "fl-body on"; },
+    mv: function(i,d){
+      grabFields(); var f=C().fields, j=i+d;
+      if(j<0||j>=f.length) return;
+      var t=f[i]; f[i]=f[j]; f[j]=t; fields();
+    },
+    del: function(i){
+      grabFields();
+      if(!confirm('Delete the field "'+C().fields[i].label+'"?')) return;
+      C().fields.splice(i,1); fields();
+    },
+    togTest: function(i){ var b=g("tb_"+i); b.className = b.className.indexOf("on")>-1 ? "fl-body" : "fl-body on"; },
+    mvTest: function(i,d){
+      grabTests(); var l = C().tests, j = i+d;
+      if(j<0 || j>=l.length) return;
+      var t=l[i]; l[i]=l[j]; l[j]=t; tests();
+    },
+    delTest: function(i){
+      grabTests();
+      if(C().tests.length < 2){ alert("Keep at least one assessment."); return; }
+      if(!confirm('Delete the assessment "'+C().tests[i].name+'"?')) return;
+      C().tests.splice(i,1); tests();
+    },
+    addTest: function(){
+      grabTests();
+      var n = (C().tests || []).length + 1;
+      C().tests.push({ id: cid + "-test-" + n, name:"New assessment " + n, tag:"Assessment",
+                       durationMin:60, questions:50,
+                       sections:["Quantitative Aptitude","Logical Reasoning"],
+                       window:"", attempts:"1 attempt per student",
+                       audience:{ departments:[], programmes:[], sessions:[] } });
+      tests();
+      setTimeout(function(){ api.togTest(C().tests.length-1); }, 40);
+    },
+    addField: function(){
+      grabFields();
+      var n = C().fields.length + 1;
+      C().fields.push({ id:"field"+n, label:"New field "+n, type:"text", required:false,
+                        half:true, placeholder:"", help:"", options:[], section:"Academic Details",
+                        prefill:"", lock:false });
+      fields();
+      setTimeout(function(){ api.tog(C().fields.length-1); }, 40);
+    },
+    switchCollege: function(v){ grabAll(); hbeSaveConfig(cfg); cid=v; hbeSet("hbe_last_college_v2",v); load(); },
+    addCollege: function(){
+      var nm = prompt("Name of the new campus:");
+      if(!nm) return;
+      grabAll();
+      var slug = nm.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      if(cfg.colleges[slug]){ alert("That campus already exists."); return; }
+      var base = hbeClone(C());
+      base.id = slug; base.name = nm; base.shortName = nm.split(" ")[0]; base.logo = "assets/hitbullseye-real.png";
+      cfg.colleges[slug] = base; cid = slug;
+      hbeSet("hbe_last_college_v2", slug); hbeSaveConfig(cfg); load();
+      hbeToast("Campus added: <b>"+hbeEsc(nm)+"</b>","check");
+    },
+    logoUp: function(inp){
+      var f = inp.files[0]; if(!f) return;
+      var r = new FileReader();
+      r.onload = function(e){ g("c_logo").value = e.target.result; g("logoPrev").src = e.target.result;
+        hbeToast("Logo loaded — remember to save.","info"); };
+      r.readAsDataURL(f);
+    },
+    live: function(){
+      var st = document.documentElement.style;
+      st.setProperty("--brand", g("c_p1").value);
+      st.setProperty("--brand-dk", g("c_p2").value);
+      st.setProperty("--brand-rgb", hbeRgb(g("c_p1").value));
+      st.setProperty("--accent", g("c_p3").value);
+      st.setProperty("--accent-rgb", hbeRgb(g("c_p3").value));
+    },
+    save: function(preview){
+      grabAll(); hbeSaveConfig(cfg);
+      if(preview){ location.href = "index.html?college=" + cid; return; }
+      load(); hbeToast("Configuration saved.","check",3000);
+    },
+    reset: function(){
+      if(!confirm("Discard all changes and restore the default configuration?")) return;
+      hbeResetConfig(); cfg = hbeGetConfig(); cid = hbeCollegeId(cfg); load();
+      hbeToast("Default configuration restored.","refresh");
+    },
+    exportJson: function(){
+      grabAll();
+      var b = new Blob([JSON.stringify(cfg,null,2)], {type:"application/json"});
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(b); a.download = "hitbullseye-campus-config.json"; a.click();
+    },
+    importJson: function(inp){
+      var f = inp.files[0]; if(!f) return;
+      var r = new FileReader();
+      r.onload = function(e){
+        try{
+          var j = JSON.parse(e.target.result);
+          if(!j.colleges) throw 0;
+          cfg = j; hbeSaveConfig(cfg); cid = hbeCollegeId(cfg); load();
+          hbeToast("Configuration imported.","check");
+        }catch(err){ alert("That file is not a valid configuration export."); }
+      };
+      r.readAsText(f);
+    }
+  };
+
+  load();
+  /* deep link: admin.html#open-3 expands that field's editor */
+  if(/^#open-\d+$/.test(location.hash))
+    setTimeout(function(){ api.tog(+location.hash.split("-")[1]); }, 60);
+  if(/^#opent-\d+$/.test(location.hash))
+    setTimeout(function(){ api.togTest(+location.hash.split("-")[1]); }, 60);
+  return api;
+})();
+</script>
+</body>
+</html>

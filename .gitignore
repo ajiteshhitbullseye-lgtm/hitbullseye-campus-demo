@@ -1,0 +1,14 @@
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# editors
+.vscode/
+.idea/
+
+# scratch files used while prototyping (_seed.html, _crop.html, ...)
+_*.html
+
+# logs
+*.log
