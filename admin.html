@@ -94,13 +94,13 @@
           <h3 style="margin:0">Student master list</h3>
           <span class="badge brand" id="rosterCount"></span>
         </div>
-        <p class="sm mut" style="margin-bottom:10px">
-          One student per line:<br><code>ID, email, name, department, programme, course, session</code>
+        <p class="sm mut" style="margin-bottom:14px">
+          The list of IDs allowed to register. Upload a CSV, search, add or remove
+          students on its own page.
         </p>
-        <textarea id="roster" rows="9" style="font-family:'Courier New',monospace;font-size:12.5px"></textarea>
-        <p class="xs mut" style="margin-top:8px">
-          Only these IDs can register. In production this comes from the campus API or a CSV upload.
-        </p>
+        <a class="btn btn-soft btn-block btn-sm" id="rosterLink" href="admin-roster.html">
+          Manage master list
+        </a>
       </div>
 
       <div class="panel mt">
@@ -201,6 +201,7 @@ var B = (function(){
   function nav(){
     document.getElementById("nav").innerHTML = hbeNav(C(),
       '<a class="nav-link" href="admin-reports.html">Reports</a>' +
+      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
       '<a class="nav-link on" href="admin.html">Form builder</a>' +
       '<span class="badge brand">'+ico("shield")+' Admin</span>' +
       '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
@@ -229,9 +230,8 @@ var B = (function(){
     g("g_label").value = gt.idLabel||"University ID";
     g("g_ph").value    = gt.idPlaceholder||"";
     g("g_help").value  = gt.idHelp||"";
-    g("roster").value  = (c.roster||[]).map(function(r){
-      return [r.uid,r.email,r.name,r.department,r.programme,r.course,r.session].join(", "); }).join("\n");
     g("rosterCount").textContent = (c.roster||[]).length + " students";
+    g("rosterLink").href = "admin-roster.html?college=" + cid;
 
     var w = c.welcome||{};
     g("w_eye").value = w.eyebrow||""; g("w_cta").value = w.cta||"";
@@ -411,11 +411,7 @@ var B = (function(){
                    help: g("s_help").value };
     c.gate = { idLabel:g("g_label").value || "University ID",
                idPlaceholder:g("g_ph").value, idHelp:g("g_help").value };
-    c.roster = lines(g("roster").value).map(function(l){
-      var p = l.split(",").map(function(x){ return x.trim(); });
-      return { uid:p[0]||"", email:(p[1]||"").toLowerCase(), name:p[2]||"",
-               department:p[3]||"", programme:p[4]||"", course:p[5]||"", session:p[6]||"" };
-    }).filter(function(r){ return r.uid && r.email; });
+
     c.welcome = {
       eyebrow:g("w_eye").value, cta:g("w_cta").value||"Begin registration",
       title:g("w_title").value, highlight:g("w_hl").value, subtitle:g("w_sub").value,

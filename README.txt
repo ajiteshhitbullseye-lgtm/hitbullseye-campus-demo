@@ -59,6 +59,7 @@ THE FLOW (as agreed in the meeting)
 
 ADMIN
    login.html?as=admin  ->  admin-reports.html   every student, every attempt
+                        ->  admin-roster.html    the STUDENT MASTER LIST
                         ->  admin.html           the form builder
    The console has an "All assessments" filter: pick one paper and the cohort
    narrows to the students that paper is open to, with that paper's scores.
@@ -70,8 +71,14 @@ Campus            name, city, logo (upload), logo height, 3 brand colours
 Access code       on/off, THE CODE ITSELF (what you hand each client),
                   field label, helper text
 Step 2 gate       ID field label, placeholder, helper text, OTP length, resend timer
-Master list       the roster textarea — one line per student:
-                     ID, email, name, department, programme, course, session
+Master list       moved to its own page: admin-roster.html
+                     - table of every ID with Registered / Pending status
+                     - search, campus switch, add / edit / remove a row
+                     - Upload CSV, Download CSV, bulk paste
+                     - flags invalid emails and duplicate IDs
+                     - dropdowns follow the campus department/programme/course
+                       config, so the master list can never hold a value the
+                       form does not offer
                   Only these IDs can register.
 Welcome page      eyebrow, headline, highlighted word, sub-headline, bullets,
                   trust stats, CTA label, footer note
@@ -141,7 +148,8 @@ Prototype storage (browser localStorage):
 FILES
 -----
 index.html  verify.html  register.html  thankyou.html  login.html
-dashboard.html  test.html  report.html  admin-reports.html  admin.html
+dashboard.html  test.html  report.html
+admin-reports.html  admin-roster.html  admin.html
 css/app.css     one stylesheet; campus colours are CSS variables set at runtime
 js/config.js    default configuration for all campuses (field schema documented on top)
 js/store.js     storage, session, roster/gate, dependent-field helpers, scoring, UI

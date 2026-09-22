@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Student Master List · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Placement cell console</span>
+      <h1 style="font-size:28px;margin-top:12px">Student master list</h1>
+      <p class="sm mut">The list your campus shares with us. Only these IDs can register.</p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <label class="btn btn-ghost btn-sm" style="margin:0">Upload CSV
+        <input type="file" accept=".csv,.txt" onchange="M.upload(this)" style="display:none"></label>
+      <button class="btn btn-ghost btn-sm" onclick="M.exportCsv()">Download CSV</button>
+      <button class="btn btn-sm" onclick="M.newRow()">+ Add student</button>
+    </div>
+  </div>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <!-- ---------- add / edit card ---------- -->
+  <section class="card mt" id="editCard" style="display:none">
+    <div class="row-b sec-head">
+      <div><h2 id="editTitle">Add a student</h2>
+        <p class="sm mut">These values pre-fill the registration form once the student verifies.</p></div>
+      <span class="badge brand" id="editBadge"></span>
+    </div>
+    <div class="form-grid">
+      <div class="f"><label id="uidLabel">University ID<span class="req">*</span></label>
+        <input type="text" id="e_uid"><div class="err" id="er_uid"></div></div>
+      <div class="f"><label>Email on record<span class="req">*</span></label>
+        <input type="email" id="e_email"><div class="err" id="er_email"></div></div>
+      <div class="f"><label>Full name<span class="req">*</span></label>
+        <input type="text" id="e_name"><div class="err" id="er_name"></div></div>
+      <div class="f"><label>Department / School</label><select id="e_dept" onchange="M.deptChanged()"></select></div>
+      <div class="f"><label>Programme</label><select id="e_prog" onchange="M.progChanged()"></select></div>
+      <div class="f"><label>Course</label><select id="e_course"></select></div>
+      <div class="f"><label>Session</label><select id="e_session"></select></div>
+    </div>
+    <div class="row" style="gap:12px;margin-top:22px;flex-wrap:wrap">
+      <button class="btn" onclick="M.save()">Save to master list</button>
+      <button class="btn btn-ghost" onclick="M.cancel()">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ---------- table ---------- -->
+  <section class="card mt">
+    <div class="sec-head row-b">
+      <div>
+        <h2>Students on the list</h2>
+        <p class="sm mut">Edit or remove a row, or paste a whole new list from your MIS.</p>
+      </div>
+      <span class="badge brand" id="count"></span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        <input id="q" placeholder="Search by ID, name, email or department" oninput="M.draw()">
+      </div>
+      <select id="fCol" onchange="M.switchCampus(this.value)"></select>
+      <select id="fStatus" onchange="M.draw()">
+        <option value="">All rows</option>
+        <option value="done">Registered</option>
+        <option value="pending">Not registered yet</option>
+      </select>
+    </div>
+
+    <div id="table"></div>
+  </section>
+
+  <!-- ---------- bulk paste ---------- -->
+  <section class="card mt">
+    <div class="sec-head"><h2>Bulk paste</h2>
+      <p class="sm mut">One student per line:
+        <code>ID, email, name, department, programme, course, session</code>.
+        A header row is ignored.</p></div>
+    <textarea id="bulk" rows="6" placeholder="2210991212, neha.arora@chitkara.edu.in, Neha Arora, Institute of Engineering &amp; Technology, B.E., Computer Science &amp; Engineering, 2022-2026"
+      style="font-family:'Courier New',monospace;font-size:12.5px"></textarea>
+    <div class="row" style="gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn" onclick="M.bulkAdd(false)">Add to the list</button>
+      <button class="btn btn-ghost" onclick="M.bulkAdd(true)">Replace the whole list</button>
+    </div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>In production this list syncs from the campus MIS / a CSV upload.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var M = (function(){
+
+  var s = hbeSession();
+  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-roster.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
+  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var c   = cfg.colleges[cid];
+  var editIndex = -1;
+  var g   = function(x){ return document.getElementById(x); };
+
+  function brand(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    g("nav").innerHTML = hbeNav(c,
+      '<a class="nav-link" href="admin-reports.html">Reports</a>' +
+      '<a class="nav-link on" href="admin-roster.html">Master list</a>' +
+      '<a class="nav-link" href="admin.html">Form builder</a>' +
+      '<span class="badge brand">'+ico("shield")+' Admin</span>' +
+      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("uidLabel").innerHTML = hbeEsc((c.gate||{}).idLabel || "University ID") + '<span class="req">*</span>';
+  }
+
+  g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+  /* ---------------- helpers ---------------- */
+  function roster(){ return c.roster || (c.roster = []); }
+  function fieldById(id){ return (c.fields||[]).filter(function(f){ return f.id === id; })[0] || null; }
+  function isRegistered(email){ return !!hbeStudentByEmail(email); }
+  function save(){ hbeSaveConfig(cfg); }
+
+  /* options for the dropdowns come from the form config itself */
+  function fillSelect(el, list, value){
+    g(el).innerHTML = '<option value="">— none —</option>' +
+      list.map(function(o){ return "<option"+(o===value?" selected":"")+">"+hbeEsc(o)+"</option>"; }).join("");
+  }
+  function deptOptions(){ var f = fieldById("department"); return (f && f.options) || []; }
+  function progOptions(dept){
+    var f = fieldById("programme");
+    if(!f) return [];
+    return (f.optionsMap && (f.optionsMap[dept] || f.optionsMap["*"])) || f.options || [];
+  }
+  function courseOptions(dept, prog){
+    var f = fieldById("course");
+    if(!f) return [];
+    var key = f.dependsOn === "programme" ? prog : dept;
+    return (f.optionsMap && (f.optionsMap[key] || f.optionsMap["*"])) || f.options || [];
+  }
+  function sessionOptions(prog){
+    var f = fieldById("session");
+    if(!f) return [];
+    return (f.optionsMap && (f.optionsMap[prog] || f.optionsMap["*"])) || f.options || [];
+  }
+
+  /* ---------------- table ---------------- */
+  function filtered(){
+    var q = g("q").value.trim().toLowerCase();
+    var st = g("fStatus").value;
+    return roster().map(function(r, i){ r._i = i; return r; }).filter(function(r){
+      if(st === "done" && !isRegistered(r.email)) return false;
+      if(st === "pending" && isRegistered(r.email)) return false;
+      if(q){
+        var hay = [r.uid, r.name, r.email, r.department, r.programme, r.course, r.session].join(" ").toLowerCase();
+        if(hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function draw(){
+    var all = roster();
+    var reg = all.filter(function(r){ return isRegistered(r.email); }).length;
+    var bad = all.filter(function(r){ return !r.uid || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(r.email||""); }).length;
+    var dupes = {}, dupCount = 0;
+    all.forEach(function(r){
+      var k = String(r.uid).trim().toLowerCase();
+      if(dupes[k]) dupCount++; else dupes[k] = 1;
+    });
+
+    g("kpi").innerHTML =
+      kpi("On the master list", all.length, c.name) +
+      kpi("Registered", reg, all.length ? Math.round(reg*100/all.length) + "% of the list" : "—") +
+      kpi("Not registered yet", all.length - reg, "Can still register") +
+      kpi("Needs attention", bad + dupCount, bad + " invalid · " + dupCount + " duplicate IDs");
+
+    var l = filtered();
+    g("count").textContent = l.length + " of " + all.length + " rows";
+
+    if(!l.length){
+      g("table").innerHTML = '<div class="empty">'+ico("users")+"<h3>No rows</h3>" +
+        '<p class="sm mut">Add a student, paste a list below, or upload a CSV.</p></div>';
+      return;
+    }
+
+    g("table").innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+      "<th>University ID</th><th>Student</th><th>Department</th><th>Programme · Course</th>" +
+      "<th>Session</th><th>Status</th><th></th></tr></thead><tbody>" +
+      l.map(function(r){
+        var done = isRegistered(r.email);
+        var bad  = !r.uid || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(r.email||"");
+        return "<tr>" +
+          '<td><b>'+hbeEsc(r.uid||"—")+"</b></td>" +
+          '<td><span class="nm">'+hbeEsc(r.name||"—")+'</span><br>' +
+            '<span class="xs mut email" title="'+hbeEsc(r.email||"")+'">'+hbeEsc(r.email||"—")+"</span></td>" +
+          '<td><span class="trunc" title="'+hbeEsc(r.department||"")+'">'+hbeEsc(r.department||"—")+"</span></td>" +
+          '<td><span class="trunc" title="'+hbeEsc(r.course||"")+'">'+hbeEsc(r.course||"—")+"</span>" +
+            '<br><span class="xs mut">'+hbeEsc(r.programme||"—")+"</span></td>" +
+          "<td>"+hbeEsc(r.session||"—")+"</td>" +
+          "<td>" + (bad ? '<span class="badge err">Invalid row</span>'
+                        : done ? '<span class="badge ok">Registered</span>'
+                               : '<span class="badge warn">Pending</span>') + "</td>" +
+          '<td><div class="row" style="gap:6px">' +
+            '<button class="icon-btn" style="width:30px;height:30px" title="Edit" onclick="M.edit('+r._i+')">'+ico("edit")+"</button>" +
+            '<button class="icon-btn" style="width:30px;height:30px" title="Remove" onclick="M.del('+r._i+')">'+ico("x")+"</button>" +
+          "</div></td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  function kpi(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+
+  /* ---------------- add / edit ---------------- */
+  function openEditor(i){
+    editIndex = i;
+    var r = i > -1 ? roster()[i] : { uid:"", email:"", name:"", department:"", programme:"", course:"", session:"" };
+    g("editTitle").textContent = i > -1 ? "Edit student" : "Add a student";
+    g("editBadge").textContent = i > -1 ? (isRegistered(r.email) ? "Already registered" : "Not registered yet") : "New row";
+    g("e_uid").value = r.uid || "";
+    g("e_email").value = r.email || "";
+    g("e_name").value = r.name || "";
+    fillSelect("e_dept", deptOptions(), r.department);
+    fillSelect("e_prog", progOptions(r.department), r.programme);
+    fillSelect("e_course", courseOptions(r.department, r.programme), r.course);
+    fillSelect("e_session", sessionOptions(r.programme), r.session);
+    ["uid","email","name"].forEach(function(k){ setErr(k, ""); });
+    g("editCard").style.display = "";
+    g("editCard").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+  function deptChanged(){
+    fillSelect("e_prog", progOptions(g("e_dept").value), "");
+    fillSelect("e_course", courseOptions(g("e_dept").value, ""), "");
+    fillSelect("e_session", sessionOptions(""), "");
+  }
+  function progChanged(){
+    fillSelect("e_course", courseOptions(g("e_dept").value, g("e_prog").value), "");
+    fillSelect("e_session", sessionOptions(g("e_prog").value), "");
+  }
+  function setErr(k, m){
+    var e = g("er_"+k), i = g("e_"+k);
+    if(e){ e.textContent = m||""; e.className = "err" + (m?" on":""); }
+    if(i) i.className = m ? "bad" : "";
+  }
+
+  function saveRow(){
+    var uid = g("e_uid").value.trim();
+    var email = g("e_email").value.trim().toLowerCase();
+    var name = g("e_name").value.trim();
+    var ok = true;
+    setErr("uid",""); setErr("email",""); setErr("name","");
+
+    if(!uid){ setErr("uid","ID is required"); ok = false; }
+    if(!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)){ setErr("email","Enter a valid email"); ok = false; }
+    if(!name){ setErr("name","Name is required"); ok = false; }
+
+    var clash = roster().filter(function(r, i){
+      return i !== editIndex && String(r.uid).trim().toLowerCase() === uid.toLowerCase(); }).length;
+    if(clash){ setErr("uid","Another row already uses this ID"); ok = false; }
+    if(!ok) return;
+
+    var row = { uid:uid, email:email, name:name,
+                department:g("e_dept").value, programme:g("e_prog").value,
+                course:g("e_course").value, session:g("e_session").value };
+
+    if(editIndex > -1) roster()[editIndex] = row; else roster().push(row);
+    save(); cancel(); draw();
+    hbeToast(editIndex > -1 ? "Row updated." : "Student added to the master list.", "check", 3000);
+  }
+
+  function cancel(){ editIndex = -1; g("editCard").style.display = "none"; }
+
+  function del(i){
+    var r = roster()[i];
+    if(!confirm('Remove "' + (r.name || r.uid) + '" from the master list?\nAlready-registered students are not deleted.')) return;
+    roster().splice(i, 1); save(); draw();
+    hbeToast("Row removed.", "info", 2500);
+  }
+
+  /* ---------------- CSV / bulk ---------------- */
+  function parseLines(text){
+    var out = [], skipped = 0;
+    text.split(/\r?\n/).forEach(function(line, n){
+      if(!line.trim()) return;
+      var p = line.split(",").map(function(x){ return x.trim(); });
+      if(n === 0 && /id|email/i.test(p[0]) && /mail/i.test(p[1] || "")) return;   /* header */
+      if(p.length < 3 || !p[0] || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(p[1] || "")){ skipped++; return; }
+      out.push({ uid:p[0], email:(p[1]||"").toLowerCase(), name:p[2]||"",
+                 department:p[3]||"", programme:p[4]||"", course:p[5]||"", session:p[6]||"" });
+    });
+    return { rows: out, skipped: skipped };
+  }
+
+  function apply(rows, replace, skipped){
+    if(replace){
+      if(!confirm("Replace the whole master list with " + rows.length + " rows?")) return;
+      c.roster = rows;
+    } else {
+      var byId = {};
+      roster().forEach(function(r){ byId[String(r.uid).trim().toLowerCase()] = r; });
+      var added = 0, updated = 0;
+      rows.forEach(function(r){
+        var k = String(r.uid).trim().toLowerCase();
+        if(byId[k]){ for(var f in r) byId[k][f] = r[f]; updated++; }
+        else { roster().push(r); added++; }
+      });
+      hbeToast(added + " added, " + updated + " updated" + (skipped ? ", " + skipped + " skipped" : "") + ".", "check", 5000);
+    }
+    save(); draw();
+    if(replace) hbeToast(rows.length + " rows loaded" + (skipped ? ", " + skipped + " skipped" : "") + ".", "check", 5000);
+  }
+
+  function bulkAdd(replace){
+    var r = parseLines(g("bulk").value);
+    if(!r.rows.length){ hbeToast("No usable rows found. Check the format.", "alert"); return; }
+    apply(r.rows, replace, r.skipped);
+    g("bulk").value = "";
+  }
+
+  function upload(input){
+    var f = input.files[0]; if(!f) return;
+    var fr = new FileReader();
+    fr.onload = function(e){
+      var r = parseLines(e.target.result);
+      if(!r.rows.length){ hbeToast("That file had no usable rows.", "alert"); return; }
+      apply(r.rows, false, r.skipped);
+    };
+    fr.readAsText(f);
+    input.value = "";
+  }
+
+  function exportCsv(){
+    var head = ["University ID","Email","Name","Department","Programme","Course","Session","Status"];
+    var rows = roster().map(function(r){
+      return [r.uid, r.email, r.name, r.department, r.programme, r.course, r.session,
+              isRegistered(r.email) ? "Registered" : "Pending"]
+        .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
+    });
+    var blob = new Blob([head.join(",") + "\n" + rows.join("\n")], { type:"text/csv" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = cid + "-master-list.csv";
+    a.click();
+    hbeToast("Exported " + roster().length + " rows.", "down", 3500);
+  }
+
+  function switchCampus(v){
+    cid = v; hbeSet("hbe_last_college_v2", v); cancel(); brand(); draw();
+  }
+
+  brand(); draw();
+  return { draw:draw, edit:openEditor, newRow:function(){ openEditor(-1); }, del:del,
+           save:saveRow, cancel:cancel, deptChanged:deptChanged, progChanged:progChanged,
+           bulkAdd:bulkAdd, upload:upload, exportCsv:exportCsv, switchCampus:switchCampus };
+})();
+</script>
+</body>
+</html>
