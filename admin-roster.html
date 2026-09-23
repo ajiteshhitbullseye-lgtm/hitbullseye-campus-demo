@@ -18,7 +18,7 @@
 
   <div class="row-b rise">
     <div>
-      <span class="eyebrow">Placement cell console</span>
+      <span class="eyebrow" id="who">Console</span>
       <h1 style="font-size:28px;margin-top:12px">Student master list</h1>
       <p class="sm mut">The list your campus uploads &mdash; and exactly how far each student has got.</p>
     </div>
@@ -213,7 +213,7 @@ var M = (function(){
     });
 
     g("kpi").innerHTML =
-      kpi("Coverage of final year", onBooks ? Math.round(all.length * 100 / onBooks) + "%" : "—",
+      kpi("Coverage of final year", onBooks ? pctText(all.length, onBooks) : "—",
           onBooks ? all.length + " uploaded of " + onBooks.toLocaleString() + " on your books"
                   : "add final-year strength in Profile") +
       kpi("Departments on the list", deptCount,
@@ -308,6 +308,13 @@ var M = (function(){
     g("fStatus").value = map[k] != null ? map[k] : "";
     draw();
     g("table").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+
+  /* a tiny share should read "under 1%", not "0%" */
+  function pctText(part, whole){
+    if(!whole) return "—";
+    var p = part * 100 / whole;
+    return (p > 0 && p < 1) ? "under 1%" : Math.round(p) + "%";
   }
 
   function kpi(l,v,sub){

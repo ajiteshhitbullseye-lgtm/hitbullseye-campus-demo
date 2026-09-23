@@ -117,6 +117,8 @@ main > *:nth-child(n+6){animation-delay:.25s}
   content:"";display:block;width:32px;height:3px;border-radius:99px;margin-bottom:11px;
   background:linear-gradient(90deg,var(--brand),rgba(var(--brand-rgb),.25))
 }
+/* one marker per heading: an eyebrow already does the job */
+.sec-head .eyebrow ~ h2::before{display:none}
 
 .stat{position:relative;overflow:hidden;transition:transform .22s var(--ease),box-shadow .22s}
 .stat:hover{transform:translateY(-3px);box-shadow:var(--sh-lift)}
@@ -218,6 +220,42 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   background:linear-gradient(180deg,#fff,var(--line-2))}
 .empty svg{width:34px;height:34px;color:#b6c4d6;margin-bottom:10px}
 .empty h3{margin-bottom:4px}
+
+/* ---------------- modal + invoice sheet ---------------- */
+.modal{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  padding:24px;background:rgba(10,21,35,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.modal.on{display:flex;animation:hbeIn .22s var(--ease) both}
+.modal-box{background:#fff;border-radius:var(--r-lg);padding:26px;width:100%;max-width:720px;
+  max-height:88vh;overflow:auto;box-shadow:var(--sh-3)}
+.modal-box .icon-btn{font-size:15px;line-height:1}
+
+.inv-sheet{border:1px solid var(--line);border-radius:var(--r-md);padding:22px;background:#fff}
+.inv-top{display:flex;justify-content:space-between;gap:18px;padding-bottom:16px;margin-bottom:18px;
+  border-bottom:2px solid var(--ink)}
+.inv-top b{display:block;font-family:'Plus Jakarta Sans';font-size:17px;font-weight:800;
+  color:var(--ink);letter-spacing:.01em}
+.inv-top span{font-size:11.5px;color:var(--muted)}
+.inv-top .r{text-align:right}
+.inv-cols{display:grid;grid-template-columns:1fr 1.15fr;gap:26px;margin-bottom:20px}
+.inv-cols em{display:block;font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.inv-cols > div > b{display:block;font-size:14.5px;color:var(--ink);font-family:'Plus Jakarta Sans'}
+.inv-cols > div > span{display:block;font-size:12.5px;color:var(--muted);line-height:1.6}
+.inv-cols .kv{padding:7px 0;font-size:12.5px}
+/* the line items must fit - this sheet is never wide enough to scroll */
+.inv-sheet .tbl-wrap{overflow:visible}
+.inv-sheet .tbl-wrap table{min-width:0;width:100%;table-layout:fixed}
+.inv-sheet .tbl-wrap th,.inv-sheet .tbl-wrap td{padding:11px 10px}
+.inv-sheet .tbl-wrap th:first-child,.inv-sheet .tbl-wrap td:first-child{width:46%}
+.inv-sheet .tbl-wrap th:not(:first-child),.inv-sheet .tbl-wrap td:not(:first-child){text-align:right}
+.inv-sheet .tbl-wrap td:first-child b{display:block;word-break:break-word}
+
+.inv-tot{margin-top:16px;margin-left:auto;max-width:280px}
+.inv-tot .kv{padding:8px 0;font-size:13px;border-bottom:1px dashed var(--line)}
+.inv-tot .kv.grand{border-bottom:0;border-top:2px solid var(--ink);margin-top:4px;padding-top:11px;font-size:15px}
+.inv-tot .kv.grand b{font-family:'Plus Jakarta Sans';font-weight:800;color:var(--ink)}
+
+@media(max-width:620px){ .inv-cols{grid-template-columns:1fr;gap:18px} .modal{padding:12px} }
 
 /* ---------------- console chrome ---------------- */
 .cnav-acct .me .avatar{box-shadow:0 6px 14px -8px rgba(var(--brand-rgb),.9)}

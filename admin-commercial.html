@@ -59,11 +59,61 @@
   <section class="card mt">
     <div class="sec-head row-b">
       <div><h2>Purchases &amp; invoices</h2>
-        <p class="sm mut">What was bought, what is paid, what is due.</p></div>
-      <span class="badge" id="dueBadge"></span>
+        <p class="sm mut" id="invSub">What was bought, what is paid, what is due.</p></div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        <span class="badge" id="dueBadge"></span>
+        <button class="btn btn-sm" id="addInvBtn" style="display:none"
+                onclick="C.openInv(-1)">+ Raise invoice</button>
+      </div>
     </div>
+
+    <!-- HQ only: raise or edit an invoice -->
+    <div class="panel" id="invForm" style="display:none;margin-bottom:22px">
+      <div class="row-b" style="margin-bottom:14px">
+        <h3 style="margin:0" id="invFormTitle">Raise an invoice</h3>
+        <span class="badge brand" id="invFormFor"></span>
+      </div>
+      <div class="mini">
+        <div><label>Invoice number</label><input type="text" id="i_id" placeholder="HB-LPU-2026-04"></div>
+        <div><label>Status</label>
+          <select id="i_status">
+            <option>Due</option><option>Paid</option><option>Overdue</option>
+          </select></div>
+        <div class="full"><label>Item</label>
+          <input type="text" id="i_item" placeholder="Aptitude Benchmark — Cycle 2"></div>
+        <div><label>Assessments</label><input type="number" id="i_tests" min="1" value="1"></div>
+        <div><label>Licences</label><input type="number" id="i_lic" min="1" placeholder="2000"></div>
+        <div><label>Amount (before GST)</label><input type="number" id="i_amt" min="0" placeholder="190000"></div>
+        <div><label>Invoiced on</label><input type="date" id="i_inv"></div>
+        <div><label>Payment due</label><input type="date" id="i_due"></div>
+        <div><label>Paid on <span class="xs mut">(if settled)</span></label><input type="date" id="i_paid"></div>
+      </div>
+      <div class="err" id="i_err"></div>
+      <div class="row" style="gap:12px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn" onclick="C.saveInv()">Save invoice</button>
+        <button class="btn btn-ghost" onclick="C.closeInv()">Cancel</button>
+        <button class="btn btn-ghost" id="delInv" style="display:none" onclick="C.delInv()">Delete</button>
+      </div>
+    </div>
+
     <div id="invoices"></div>
   </section>
+
+  <!-- invoice preview -->
+  <div class="modal" id="invModal" onclick="C.closeView(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="row-b" style="margin-bottom:16px">
+        <div><h3 style="margin:0" id="vwTitle">Invoice</h3>
+          <p class="xs mut" id="vwSub"></p></div>
+        <button class="icon-btn" onclick="C.closeView()" title="Close">&#10005;</button>
+      </div>
+      <div id="vwBody"></div>
+      <div class="row" style="gap:10px;margin-top:20px;flex-wrap:wrap">
+        <button class="btn" onclick="C.pdf()">Download PDF</button>
+        <button class="btn btn-ghost" onclick="C.closeView()">Close</button>
+      </div>
+    </div>
+  </div>
 
   <footer class="foot row-b">
     <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
@@ -100,6 +150,10 @@ var C = (function(){
       return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
     sel.style.display = isHQ ? "" : "none";          /* a college admin has one campus */
     g("allClients").style.display = isHQ ? "" : "none";
+    g("addInvBtn").style.display = isHQ ? "" : "none";
+    g("invSub").textContent = isHQ
+      ? "Raise an invoice, mark it paid, or open any one as a PDF."
+      : "What was bought, what is paid, what is due. Open any invoice to download it.";
   }
 
   function spoc(){
@@ -158,7 +212,7 @@ var C = (function(){
 
     g("kpi").innerHTML =
       kpi("Licences bought", m.licences, m.tests + " assessments on the contract") +
-      kpi("Used", used, pct + "% of the licences") +
+      kpi("Used", used, (used && pct === 0 ? "under 1" : pct) + "% of the licences") +
       kpi("Remaining", left, left ? "can still register" : "top-up needed") +
       kpi("Outstanding", hbeMoney(m.due), m.overdue ? hbeMoney(m.overdue) + " overdue" : (m.due ? "due " + (m.nextDue||"") : "all clear"));
 
@@ -196,17 +250,178 @@ var C = (function(){
 
     g("invoices").innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
       "<th>Invoice</th><th>Item</th><th>Licences</th><th>Amount</th><th>Invoiced</th>" +
-      "<th>Due</th><th>Status</th></tr></thead><tbody>" +
-      m.items.map(function(i){
+      "<th>Due</th><th>Status</th><th></th></tr></thead><tbody>" +
+      m.items.map(function(i, ix){
         var cls = i.status === "Paid" ? "ok" : i.status === "Overdue" ? "err" : "warn";
         return "<tr><td><b>"+hbeEsc(i.id)+"</b></td>" +
           '<td class="wrap">'+hbeEsc(i.item)+"</td>" +
           "<td>"+i.licences+"</td><td><b>"+hbeMoney(i.amount)+"</b></td>" +
           "<td>"+hbeEsc(i.invoiced||"—")+"</td><td>"+hbeEsc(i.due||"—")+"</td>" +
           '<td><span class="badge '+cls+'">'+hbeEsc(i.status)+"</span>" +
-            (i.paid ? '<br><span class="xs mut">paid '+hbeEsc(i.paid)+"</span>" : "") + "</td></tr>";
+            (i.paid ? '<br><span class="xs mut">paid '+hbeEsc(i.paid)+"</span>" : "") + "</td>" +
+          '<td><div class="row" style="gap:6px;flex-wrap:nowrap">' +
+            '<button class="btn btn-soft btn-sm" onclick="C.view('+ix+')">View</button>' +
+            '<button class="icon-btn" style="width:30px;height:30px" title="Download PDF" ' +
+              'onclick="C.pdfAt('+ix+')">'+ico("down")+"</button>" +
+            (isHQ ? '<button class="icon-btn" style="width:30px;height:30px" title="Edit" ' +
+                    'onclick="C.openInv('+ix+')">'+ico("edit")+"</button>" : "") +
+          "</div></td></tr>";
       }).join("") + "</tbody></table></div>";
   }
+
+  /* ================= invoices ================= */
+  var editIx = -1, viewIx = -1;
+
+  function items(){ return ((c.commercial || {}).items) || []; }
+
+  function openInv(ix){
+    if(!isHQ) return;
+    editIx = ix;
+    var it = ix > -1 ? items()[ix] : null;
+    var com = c.commercial || {};
+    g("invFormTitle").textContent = it ? "Edit invoice" : "Raise an invoice";
+    g("invFormFor").textContent = com.clientName || c.name;
+    g("i_id").value     = it ? (it.id || "") : nextId();
+    g("i_item").value   = it ? (it.item || "") : "";
+    g("i_tests").value  = it ? (it.tests || 1) : 1;
+    g("i_lic").value    = it ? (it.licences || "") : "";
+    g("i_amt").value    = it ? (it.amount || "") : "";
+    g("i_inv").value    = it ? iso(it.invoiced) : iso(new Date());
+    g("i_due").value    = it ? iso(it.due) : "";
+    g("i_paid").value   = it ? iso(it.paid) : "";
+    g("i_status").value = it ? (it.status || "Due") : "Due";
+    g("delInv").style.display = it ? "" : "none";
+    err("");
+    g("invForm").style.display = "";
+    g("invForm").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+
+  function closeInv(){ g("invForm").style.display = "none"; editIx = -1; }
+  function err(m){ var e = g("i_err"); e.textContent = m || ""; e.className = "err" + (m ? " on" : ""); }
+
+  function nextId(){
+    var com = c.commercial || {}, n = items().length + 1;
+    var stem = (com.contract && com.contract.id) ? String(com.contract.id).replace(/-\d+$/, "")
+                                                 : "HB-" + String(cid).toUpperCase() + "-2026";
+    return stem + "-" + ("0" + n).slice(-2);
+  }
+
+  /* dates are stored the way the seed wrote them: "05 Oct 2026" */
+  var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function iso(v){
+    if(!v) return "";
+    var d = (v instanceof Date) ? v : new Date(v);
+    if(isNaN(d.getTime())) return "";
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  }
+  function pretty(isoStr){
+    if(!isoStr) return "";
+    var p = String(isoStr).split("-");
+    if(p.length !== 3) return isoStr;
+    return p[2] + " " + MON[(+p[1]) - 1] + " " + p[0];
+  }
+
+  function saveInv(){
+    if(!isHQ) return;
+    var id  = g("i_id").value.trim();
+    var itm = g("i_item").value.trim();
+    var amt = +g("i_amt").value, lic = +g("i_lic").value;
+    if(!id)  return err("Give the invoice a number.");
+    if(!itm) return err("Say what is being invoiced.");
+    if(!(amt > 0)) return err("The amount must be more than zero.");
+    if(!(lic > 0)) return err("How many licences does this cover?");
+
+    var dupe = items().filter(function(x, ix){
+      return ix !== editIx && String(x.id).toLowerCase() === id.toLowerCase(); }).length;
+    if(dupe) return err("That invoice number is already used for this client.");
+
+    var row = { id:id, item:itm, tests:+g("i_tests").value || 1, licences:lic, amount:amt,
+                status:g("i_status").value,
+                invoiced:pretty(g("i_inv").value), due:pretty(g("i_due").value),
+                paid: g("i_status").value === "Paid" ? (pretty(g("i_paid").value) || pretty(iso(new Date()))) : "" };
+
+    var live = hbeGetConfig();
+    var arr  = ((live.colleges[cid].commercial || (live.colleges[cid].commercial = {})).items) ||
+               (live.colleges[cid].commercial.items = []);
+    if(editIx > -1) arr[editIx] = row; else arr.push(row);
+    hbeSaveConfig(live);
+    cfg = hbeGetConfig(); c = cfg.colleges[cid];
+
+    closeInv();
+    drawHQ(); draw();
+    hbeToast(editIx > -1 ? "Invoice updated." : "Invoice " + id + " raised.", "check", 3500);
+  }
+
+  function delInv(){
+    if(!isHQ || editIx < 0) return;
+    var it = items()[editIx];
+    if(!confirm("Delete invoice " + (it && it.id) + "?")) return;
+    var live = hbeGetConfig();
+    live.colleges[cid].commercial.items.splice(editIx, 1);
+    hbeSaveConfig(live);
+    cfg = hbeGetConfig(); c = cfg.colleges[cid];
+    closeInv(); drawHQ(); draw();
+    hbeToast("Invoice removed.", "check", 3000);
+  }
+
+  /* ---- view + pdf ---- */
+  function view(ix){
+    viewIx = ix;
+    var it = items()[ix]; if(!it) return;
+    var com = c.commercial || {}, con = com.contract || {};
+    var sp = spoc();
+    var gst = Math.round((it.amount || 0) * 0.18), tot = (it.amount || 0) + gst;
+    var cls = it.status === "Paid" ? "ok" : it.status === "Overdue" ? "err" : "warn";
+
+    g("vwTitle").textContent = it.id;
+    g("vwSub").textContent = (com.clientName || c.name) + " \u00b7 " + (it.item || "");
+    g("vwBody").innerHTML =
+      '<div class="inv-sheet">' +
+        '<div class="inv-top"><div><b>HITBULLSEYE</b><span>Campus Assessment Platform</span></div>' +
+          '<div class="r"><b>TAX INVOICE</b><span>' + hbeEsc(it.id) + "</span></div></div>" +
+        '<div class="inv-cols">' +
+          "<div><em>Bill to</em>" +
+            "<b>" + hbeEsc(com.clientName || c.name) + "</b>" +
+            "<span>" + hbeEsc(c.campus || "") + "</span>" +
+            "<span>Attn: " + hbeEsc(sp.name || "Placement Cell") + "</span>" +
+            "<span>" + hbeEsc(sp.email || "") + "</span></div>" +
+          "<div><em>Details</em>" +
+            '<div class="kv"><span>Date of issue</span><b>' + hbeEsc(it.invoiced || "\u2014") + "</b></div>" +
+            '<div class="kv"><span>Payment due</span><b>' + hbeEsc(it.due || "\u2014") + "</b></div>" +
+            '<div class="kv"><span>Contract</span><b>' + hbeEsc(con.id || "\u2014") + "</b></div>" +
+            '<div class="kv"><span>PO number</span><b>' + hbeEsc(con.po || "\u2014") + "</b></div>" +
+            '<div class="kv"><span>Status</span><b><span class="badge ' + cls + '">' +
+              hbeEsc(it.status) + "</span></b></div></div>" +
+        "</div>" +
+        '<div class="tbl-wrap" style="margin-top:6px"><table><thead><tr>' +
+          "<th>Description</th><th>Licences</th><th>Rate</th><th>Amount</th></tr></thead><tbody><tr>" +
+          "<td><b>" + hbeEsc(it.item || "") + '</b><br><span class="xs mut">' +
+            (it.tests || 1) + " assessment(s) \u00b7 " + hbeEsc(c.shortName || c.name) + "</span></td>" +
+          "<td>" + (it.licences || 0) + "</td><td>" + hbeMoney(com.rate || 0) + "</td>" +
+          "<td><b>" + hbeMoney(it.amount) + "</b></td></tr></tbody></table></div>" +
+        '<div class="inv-tot">' +
+          '<div class="kv"><span>Subtotal</span><b>' + hbeMoney(it.amount) + "</b></div>" +
+          '<div class="kv"><span>GST 18%</span><b>' + hbeMoney(gst) + "</b></div>" +
+          '<div class="kv grand"><span>Total payable</span><b>' + hbeMoney(tot) + "</b></div>" +
+        "</div>" +
+        '<p class="xs mut" style="margin-top:16px">Prototype document \u2014 not a valid tax invoice. ' +
+          "Licences cover one attempt per student per assessment for the contract period.</p>" +
+      "</div>";
+    g("invModal").classList.add("on");
+  }
+
+  function closeView(e){
+    if(e && e.target && e.target.id !== "invModal" && e.type === "click" && e.target.closest(".modal-box")) return;
+    g("invModal").classList.remove("on");
+  }
+
+  function pdfAt(ix){
+    var it = items()[ix]; if(!it) return;
+    hbeDownloadBlob(hbeInvoicePdf(cfg, c, it),
+                    String(it.id).replace(/[^\w.-]+/g, "-") + ".pdf");
+    hbeToast("Downloading " + it.id + ".pdf", "down", 3000);
+  }
+  function pdf(){ if(viewIx > -1) pdfAt(viewIx); }
 
   function kpi(l,v,sub){
     return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
@@ -239,7 +454,9 @@ var C = (function(){
   }
 
   brand(); drawHQ(); draw();
-  return { campus:campus, csv:csv };
+
+  return { openInv:openInv, closeInv:closeInv, saveInv:saveInv, delInv:delInv,
+           view:view, closeView:closeView, pdf:pdf, pdfAt:pdfAt, campus:campus, csv:csv };
 })();
 </script>
 </body>

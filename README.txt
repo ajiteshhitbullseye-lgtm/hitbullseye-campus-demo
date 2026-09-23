@@ -104,7 +104,7 @@ CONSOLE PAGES
                           "needs attention" list. Filters: campus, assessment,
                           department, session. Export summary as CSV.
    admin-reports.html     every student, every attempt (row level)
-   admin-roster.html      the STUDENT MASTER LIST
+   admin-roster.html      the STUDENT MASTER LIST + the SIGN-UP FUNNEL
    admin.html             the form builder
    admin-commercial.html  COMMERCIAL
                           College admin: licences bought / used / remaining,
@@ -113,6 +113,24 @@ CONSOLE PAGES
                           Super admin: the same per client PLUS an "All clients"
                           roll-up - contracted value, collected, outstanding,
                           licences used, next due per campus. Export CSV.
+
+                          INVOICES
+                          Super admin: "+ Raise invoice" opens a form - invoice
+                          number (suggested from the contract), item, number of
+                          assessments, licences, amount, invoiced / due / paid
+                          dates and status. Saving writes it into that client's
+                          account and the roll-up updates. Rows can be edited or
+                          deleted. Duplicate invoice numbers are refused.
+                          College admin: read only - no Raise button, no edit.
+                          BOTH can open any invoice. "View" shows the invoice
+                          sheet (bill-to, SPOC, contract, PO, line item, GST at
+                          18%, total payable) and "Download PDF" saves a real
+                          one-page PDF, generated in the browser with no
+                          library - the page writes the PDF objects and the
+                          xref table itself. The download button also sits on
+                          every row, so a single invoice takes one click.
+                          The PDF carries a DEMO PROTOTYPE line: it is not a
+                          valid tax document.
    admin-profile.html     CAMPUS PROFILE - what the college fills in
                           Institute details, SPOC CONTACTS (as many as they
                           want, the first is primary and is used for billing),
@@ -142,6 +160,29 @@ Campus            name, city, logo (upload), logo height, 3 brand colours
 Access code       on/off, THE CODE ITSELF (what you hand each client),
                   field label, helper text
 Step 2 gate       ID field label, placeholder, helper text, OTP length, resend timer
+SIGN-UP FUNNEL    (Roster page, top)
+                  Answers "of the students we uploaded, how many actually
+                  got through?". A student on the master list is in one of
+                  three states:
+                     invited    - uploaded, never signed in
+                     verified   - cleared the email OTP, an ACCOUNT EXISTS,
+                                  the form is NOT submitted yet
+                     registered - the form is submitted and confirmed
+                  The four-step funnel shows On your list -> Account created
+                  -> Registration done -> Test attempted, with how many
+                  dropped off at each step. Every step is clickable and
+                  filters the table underneath. Two chips below break the
+                  pending half apart: started-but-not-finished vs never
+                  signed in. The table's Status column, the status filter
+                  and the CSV export all carry the three states, so a bulk
+                  upload can be chased row by row.
+                  The stat row under the funnel is about the list itself:
+                  coverage against final-year strength, departments tagged,
+                  rows with a bad email or a duplicate ID, and last activity.
+                  Analytics carries the same funnel with the assessment
+                  steps on the end; the HQ Clients page shows a three-segment
+                  progress bar per campus and a "needs a nudge" roll-up.
+
 Master list       moved to its own page: admin-roster.html
                   Only ID + email are actually required. Department, programme,
                   course and session are optional reference columns now that
