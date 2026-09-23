@@ -46,7 +46,9 @@
   var isAdmin = s.role === "admin";
   document.getElementById("nav").innerHTML = hbeNav(c,
     (isAdmin
-      ? '<a class="nav-link" href="admin-reports.html">All students</a><a class="nav-link" href="admin.html">Form builder</a>'
+      ? '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
+        '<a class="nav-link" href="admin-reports.html">Students</a>' +
+        '<a class="nav-link" href="admin-roster.html">Master list</a>'
       : '<a class="nav-link" href="dashboard.html">My dashboard</a>') +
     '<a class="nav-link on" href="#">Report</a>' +
     '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');

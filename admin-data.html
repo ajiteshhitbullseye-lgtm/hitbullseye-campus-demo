@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Data & API · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Placement cell console</span>
+      <h1 style="font-size:28px;margin-top:12px">Data &amp; API</h1>
+      <p class="sm mut">Pull the configuration, the master list and the students from a JSON endpoint
+        instead of editing them by hand.</p>
+    </div>
+    <span class="badge brand" id="campusBadge"></span>
+  </div>
+
+  <div class="alert info mt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
+    <div>Opened from a file (<code>file://</code>), the browser blocks most cross-site calls.
+      If <b>Fetch</b> fails, use <b>Paste JSON</b> or <b>Upload file</b> — same result. On a real
+      server (GitHub Pages / Netlify) the fetch works as long as your API sends CORS headers.</div>
+  </div>
+
+  <div class="split mt">
+
+    <!-- ============ LEFT: endpoints ============ -->
+    <div>
+      <div class="panel">
+        <h3>Endpoints</h3>
+        <div class="mini">
+          <div class="full"><label>Base URL</label>
+            <input id="a_base" placeholder="https://api.hitbullseye.com"></div>
+          <div class="full"><label>Campus config</label>
+            <input id="a_config" placeholder="/api/campus/{slug}/onboarding-config"></div>
+          <div class="full"><label>Master list</label>
+            <input id="a_roster" placeholder="/api/campus/{slug}/roster"></div>
+          <div class="full"><label>Students &amp; attempts</label>
+            <input id="a_students" placeholder="/api/campus/{slug}/students"></div>
+          <div class="full"><label>Auth header (optional)</label>
+            <input id="a_auth" placeholder="Bearer eyJhbGciOi..."></div>
+        </div>
+        <p class="xs mut" style="margin-top:10px"><code>{slug}</code> is replaced with the campus id.</p>
+        <button class="btn btn-soft btn-block btn-sm" style="margin-top:12px" onclick="D.saveApi()">Save endpoints</button>
+      </div>
+
+      <div class="panel mt">
+        <h3>Campus</h3>
+        <select id="fCol" onchange="D.campus(this.value)"></select>
+        <div class="kv" style="margin-top:14px"><span>Master list rows</span><b id="nRoster">0</b></div>
+        <div class="kv"><span>Registered students</span><b id="nStudents">0</b></div>
+        <div class="kv"><span>Assessments</span><b id="nTests">0</b></div>
+        <div class="kv"><span>Form fields</span><b id="nFields">0</b></div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Download</h3>
+        <button class="btn btn-ghost btn-block btn-sm" onclick="D.down('config')">Campus config (JSON)</button>
+        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px" onclick="D.down('roster')">Master list (JSON)</button>
+        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px" onclick="D.down('students')">Students + attempts (JSON)</button>
+        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:8px" onclick="D.down('all')">Everything (JSON)</button>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT: pull data ============ -->
+    <div>
+      <div class="panel">
+        <div class="row-b" style="margin-bottom:14px">
+          <h3 style="margin:0">Pull data in</h3>
+          <span class="badge" id="lastSync">never synced</span>
+        </div>
+
+        <div class="tabs" style="margin-bottom:18px">
+          <button id="tabConfig"   class="on" onclick="D.tab('config')">Campus config</button>
+          <button id="tabRoster"   onclick="D.tab('roster')">Master list</button>
+          <button id="tabStudents" onclick="D.tab('students')">Students</button>
+        </div>
+
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:16px">
+          <button class="btn btn-sm" onclick="D.fetchNow()">Fetch from API</button>
+          <label class="btn btn-ghost btn-sm" style="margin:0">Upload file
+            <input type="file" accept=".json,.txt" onchange="D.file(this)" style="display:none"></label>
+          <button class="btn btn-ghost btn-sm" onclick="D.apply()">Apply pasted JSON</button>
+          <span class="xs mut" id="targetUrl" style="align-self:center"></span>
+        </div>
+
+        <textarea id="payload" rows="12" placeholder="Paste JSON here, or hit Fetch."
+          style="font-family:'Courier New',monospace;font-size:12.5px"></textarea>
+
+        <div class="log mt" id="log"><div class="line mut">No action yet.</div></div>
+      </div>
+
+      <div class="panel mt">
+        <h3 id="shapeTitle">Expected shape</h3>
+        <p class="sm mut" style="margin-bottom:12px" id="shapeNote"></p>
+        <pre class="code-block" id="shape"></pre>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="D.loadSample()">Load this sample into the box</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Same JSON the backend will serve in production.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var D = (function(){
+
+  var s = hbeSession();
+  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-data.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
+  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var c   = cfg.colleges[cid];
+  var mode = "config";
+  var g   = function(x){ return document.getElementById(x); };
+
+  var API_KEY = "hbe_api_v1";
+  var api = hbeJson(API_KEY, {
+    base: "", config: "/api/campus/{slug}/onboarding-config",
+    roster: "/api/campus/{slug}/roster", students: "/api/campus/{slug}/students",
+    auth: "", lastSync: ""
+  });
+
+  /* ---------------- chrome ---------------- */
+  function brand(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    g("nav").innerHTML = hbeNav(c,
+      '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
+      '<a class="nav-link" href="admin-reports.html">Students</a>' +
+      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
+      '<a class="nav-link" href="admin.html">Builder</a>' +
+      '<a class="nav-link on" href="admin-data.html">Data</a>' +
+      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("campusBadge").textContent = c.name;
+    counts();
+    url();
+  }
+
+  function counts(){
+    g("nRoster").textContent   = (c.roster || []).length;
+    g("nStudents").textContent = hbeStudents().filter(function(x){ return x.collegeId === cid; }).length;
+    g("nTests").textContent    = hbeTests(c).length;
+    g("nFields").textContent   = (c.fields || []).length;
+  }
+
+  g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+  g("a_base").value = api.base; g("a_config").value = api.config;
+  g("a_roster").value = api.roster; g("a_students").value = api.students;
+  g("a_auth").value = api.auth;
+  if(api.lastSync) g("lastSync").textContent = "last sync " + hbeDate(api.lastSync);
+
+  function url(){
+    var path = (api[mode] || "").replace("{slug}", cid);
+    var full = (api.base || "") + path;
+    g("targetUrl").textContent = full || "no endpoint set";
+    return full;
+  }
+
+  function log(msg, cls){
+    var box = g("log");
+    var d = document.createElement("div");
+    d.className = "line " + (cls || "");
+    d.innerHTML = "<b>" + new Date().toLocaleTimeString() + "</b> " + msg;
+    if(box.firstChild && box.firstChild.className === "line mut") box.innerHTML = "";
+    box.insertBefore(d, box.firstChild);
+  }
+
+  /* ---------------- samples ---------------- */
+  var SAMPLES = {
+    config: function(){
+      return JSON.stringify({
+        id: cid, name: c.name, shortName: c.shortName, campus: c.campus,
+        theme: c.theme, security: c.security, gate: c.gate,
+        verification: c.verification,
+        fields: (c.fields || []).slice(0, 2),
+        tests: hbeTests(c).slice(0, 1)
+      }, null, 2);
+    },
+    roster: function(){
+      return JSON.stringify([
+        { uid:"2210991299", email:"new.student@chitkara.edu.in", name:"New Student",
+          department:"", programme:"", course:"", session:"" }
+      ], null, 2);
+    },
+    students: function(){
+      var one = hbeStudents().filter(function(x){ return x.collegeId === cid; })[0];
+      return JSON.stringify(one ? [one] : [], null, 2);
+    }
+  };
+
+  var NOTES = {
+    config:   "The whole campus object — branding, access code, gate, fields and assessments. Replaces this campus's config.",
+    roster:   "An array of master-list rows. Matched on uid: existing rows are updated, new ones are added.",
+    students: "An array of registrations with their attempts. Matched on id or email."
+  };
+
+  function tab(m){
+    mode = m;
+    ["config","roster","students"].forEach(function(k){
+      g("tab" + k.charAt(0).toUpperCase() + k.slice(1)).className = (k === m ? "on" : "");
+    });
+    g("shapeTitle").textContent = "Expected shape — " + m;
+    g("shapeNote").textContent  = NOTES[m];
+    g("shape").textContent      = SAMPLES[m]();
+    url();
+  }
+
+  function loadSample(){ g("payload").value = SAMPLES[mode](); log("Sample loaded into the box.", "mut"); }
+
+  /* ---------------- fetch / apply ---------------- */
+  function fetchNow(){
+    var u = url();
+    if(!u || u.indexOf("http") !== 0){
+      log("Set a base URL first (it must start with http).", "err");
+      hbeToast("Base URL missing — or use Paste / Upload.", "alert"); return;
+    }
+    log("GET " + u + " …");
+    var opts = { headers: {} };
+    if(g("a_auth").value.trim()) opts.headers.Authorization = g("a_auth").value.trim();
+
+    fetch(u, opts).then(function(r){
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    }).then(function(txt){
+      g("payload").value = txt;
+      log("Received " + txt.length + " characters. Review it, then hit Apply.", "ok");
+      hbeToast("Fetched. Check the JSON and press Apply.", "check");
+    }).catch(function(err){
+      log("Failed: " + err.message + " — likely CORS or the file:// origin. Use Paste or Upload.", "err");
+      hbeToast("Fetch failed: " + err.message, "alert", 6000);
+    });
+  }
+
+  function file(input){
+    var f = input.files[0]; if(!f) return;
+    var fr = new FileReader();
+    fr.onload = function(e){
+      g("payload").value = e.target.result;
+      log("Loaded " + f.name + " (" + e.target.result.length + " chars). Press Apply.", "ok");
+    };
+    fr.readAsText(f); input.value = "";
+  }
+
+  function apply(){
+    var txt = g("payload").value.trim();
+    if(!txt){ hbeToast("Nothing to apply — paste or fetch some JSON first.", "alert"); return; }
+    var data;
+    try { data = JSON.parse(txt); }
+    catch(e){ log("Invalid JSON: " + e.message, "err"); hbeToast("That is not valid JSON.", "alert"); return; }
+
+    if(mode === "config")   return applyConfig(data);
+    if(mode === "roster")   return applyRoster(data);
+    if(mode === "students") return applyStudents(data);
+  }
+
+  function applyConfig(data){
+    var obj = data.colleges ? (data.colleges[cid] || data.colleges[Object.keys(data.colleges)[0]]) : data;
+    if(!obj || typeof obj !== "object"){ log("No campus object found in that JSON.", "err"); return; }
+    if(!confirm("Replace the configuration of " + c.name + " with this JSON?")) return;
+
+    var keep = { id: cid };
+    Object.keys(obj).forEach(function(k){ if(k !== "id") keep[k] = obj[k]; });
+    cfg.colleges[cid] = Object.assign({}, cfg.colleges[cid], keep);
+    hbeSaveConfig(cfg); stamp();
+    log("Config applied: " + Object.keys(obj).length + " keys.", "ok");
+    hbeToast("Campus config updated.", "check");
+    brand();
+  }
+
+  function applyRoster(data){
+    var rows = Array.isArray(data) ? data : (data.roster || data.rows || []);
+    if(!rows.length){ log("No rows in that JSON.", "err"); return; }
+    var list = c.roster || (c.roster = []);
+    var byId = {}; list.forEach(function(r){ byId[String(r.uid).trim().toLowerCase()] = r; });
+    var added = 0, updated = 0, bad = 0;
+    rows.forEach(function(r){
+      if(!r.uid || !r.email){ bad++; return; }
+      var k = String(r.uid).trim().toLowerCase();
+      if(byId[k]){ Object.keys(r).forEach(function(f){ byId[k][f] = r[f]; }); updated++; }
+      else { list.push(r); added++; }
+    });
+    hbeSaveConfig(cfg); stamp(); counts();
+    log(added + " added, " + updated + " updated" + (bad ? ", " + bad + " skipped" : "") + ".", "ok");
+    hbeToast("Master list updated.", "check");
+  }
+
+  function applyStudents(data){
+    var rows = Array.isArray(data) ? data : (data.students || []);
+    if(!rows.length){ log("No students in that JSON.", "err"); return; }
+    var all = hbeStudents();
+    var added = 0, updated = 0;
+    rows.forEach(function(r){
+      if(!r.email) return;
+      var hit = all.filter(function(x){
+        return x.id === r.id || String(x.email).toLowerCase() === String(r.email).toLowerCase(); })[0];
+      if(hit){ Object.keys(r).forEach(function(f){ hit[f] = r[f]; }); updated++; }
+      else {
+        r.id = r.id || ("S" + Date.now().toString().slice(-7) + added);
+        r.collegeId = r.collegeId || cid;
+        all.push(r); added++;
+      }
+    });
+    hbeSaveStudents(all); stamp(); counts();
+    log(added + " students added, " + updated + " updated.", "ok");
+    hbeToast("Students imported.", "check");
+  }
+
+  function stamp(){
+    api.lastSync = new Date().toISOString();
+    hbeSet(API_KEY, JSON.stringify(api));
+    g("lastSync").textContent = "last sync just now";
+    g("lastSync").className = "badge ok";
+  }
+
+  /* ---------------- misc ---------------- */
+  function saveApi(){
+    api.base = g("a_base").value.trim().replace(/\/$/, "");
+    api.config = g("a_config").value.trim();
+    api.roster = g("a_roster").value.trim();
+    api.students = g("a_students").value.trim();
+    api.auth = g("a_auth").value.trim();
+    hbeSet(API_KEY, JSON.stringify(api));
+    url(); log("Endpoints saved.", "ok");
+    hbeToast("Endpoints saved.", "check", 2500);
+  }
+
+  function down(what){
+    var payload, name;
+    if(what === "config"){ payload = cfg.colleges[cid]; name = cid + "-config.json"; }
+    else if(what === "roster"){ payload = c.roster || []; name = cid + "-roster.json"; }
+    else if(what === "students"){ payload = hbeStudents().filter(function(x){ return x.collegeId === cid; }); name = cid + "-students.json"; }
+    else { payload = { config: cfg, students: hbeStudents() }; name = "hitbullseye-everything.json"; }
+
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    log("Downloaded " + name + ".", "ok");
+  }
+
+  function campus(v){ cid = v; hbeSet("hbe_last_college_v2", v); brand(); tab(mode); }
+
+  brand(); tab("config");
+  return { tab:tab, fetchNow:fetchNow, file:file, apply:apply, saveApi:saveApi,
+           down:down, campus:campus, loadSample:loadSample };
+})();
+</script>
+</body>
+</html>

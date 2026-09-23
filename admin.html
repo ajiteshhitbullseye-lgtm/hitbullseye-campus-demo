@@ -200,9 +200,11 @@ var B = (function(){
 
   function nav(){
     document.getElementById("nav").innerHTML = hbeNav(C(),
-      '<a class="nav-link" href="admin-reports.html">Reports</a>' +
+      '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
+      '<a class="nav-link" href="admin-reports.html">Students</a>' +
       '<a class="nav-link" href="admin-roster.html">Master list</a>' +
-      '<a class="nav-link on" href="admin.html">Form builder</a>' +
+      '<a class="nav-link on" href="admin.html">Builder</a>' +
+      '<a class="nav-link" href="admin-data.html">Data</a>' +
       '<span class="badge brand">'+ico("shield")+' Admin</span>' +
       '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
   }

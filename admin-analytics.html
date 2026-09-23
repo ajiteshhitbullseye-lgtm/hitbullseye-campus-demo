@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cohort Analytics · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Placement cell console</span>
+      <h1 style="font-size:28px;margin-top:12px">Cohort analytics</h1>
+      <p class="sm mut" id="sub"></p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-sm" onclick="A.csv()">Export summary</button>
+    </div>
+  </div>
+
+  <section class="card mt">
+    <div class="toolbar" style="margin-bottom:0">
+      <select id="fCol" onchange="A.campus(this.value)"></select>
+      <select id="fTest" onchange="A.draw()"></select>
+      <select id="fDept" onchange="A.draw()"></select>
+      <select id="fSession" onchange="A.draw()"></select>
+      <button class="btn btn-ghost btn-sm" onclick="A.reset()">Clear filters</button>
+    </div>
+  </section>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <!-- funnel -->
+  <section class="card mt">
+    <div class="sec-head"><h2>Registration funnel</h2>
+      <p class="sm mut">Master list → registered → attempted this assessment.</p></div>
+    <div id="funnel"></div>
+  </section>
+
+  <div class="media-split mt" style="align-items:stretch">
+    <!-- distribution -->
+    <section class="card">
+      <div class="sec-head"><h2>Score distribution</h2>
+        <p class="sm mut" id="distSub"></p></div>
+      <div class="hist" id="hist"></div>
+      <div class="hist-axis" id="histAxis"></div>
+    </section>
+
+    <!-- sections -->
+    <section class="card">
+      <div class="sec-head"><h2>Section-wise average</h2>
+        <p class="sm mut">Where the whole cohort is strong and where it leaks marks.</p></div>
+      <div id="sections"></div>
+    </section>
+  </div>
+
+  <!-- department table -->
+  <section class="card mt">
+    <div class="sec-head"><h2>Department-wise performance</h2>
+      <p class="sm mut">Click a row to filter everything above by that department.</p></div>
+    <div id="deptTable"></div>
+  </section>
+
+  <div class="media-split mt" style="align-items:stretch">
+    <section class="card">
+      <div class="sec-head"><h2>Top performers</h2>
+        <p class="sm mut">Best ten scores in the current filter.</p></div>
+      <div id="top"></div>
+    </section>
+
+    <section class="card">
+      <div class="sec-head"><h2>Needs attention</h2>
+        <p class="sm mut">Below 40%, or registered but not attempted.</p></div>
+      <div id="risk"></div>
+    </section>
+  </div>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Numbers recalculate live from the registrations and attempts.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var A = (function(){
+
+  var s = hbeSession();
+  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-analytics.html"; return {}; }
+
+  var cfg = hbeGetConfig();
+  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
+  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var c   = cfg.colleges[cid];
+  var g   = function(x){ return document.getElementById(x); };
+
+  function brand(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    g("nav").innerHTML = hbeNav(c,
+      '<a class="nav-link on" href="admin-analytics.html">Analytics</a>' +
+      '<a class="nav-link" href="admin-reports.html">Students</a>' +
+      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
+      '<a class="nav-link" href="admin.html">Builder</a>' +
+      '<a class="nav-link" href="admin-data.html">Data</a>' +
+      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("sub").textContent = c.name + " · " + (c.campus || "");
+  }
+
+  function fillFilters(){
+    g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+      return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+
+    var tests = hbeTests(c);
+    g("fTest").innerHTML = tests.map(function(t){
+      return '<option value="'+t.id+'">'+hbeEsc(t.name)+"</option>"; }).join("");
+
+    var mine = hbeStudents().filter(function(x){ return x.collegeId === cid; });
+    function uniq(k){ var o={}; mine.forEach(function(x){ if(x[k]) o[x[k]]=1; }); return Object.keys(o).sort(); }
+    g("fDept").innerHTML = '<option value="">All departments</option>' +
+      uniq("department").map(function(v){ return "<option>"+hbeEsc(v)+"</option>"; }).join("");
+    g("fSession").innerHTML = '<option value="">All sessions</option>' +
+      uniq("batch").map(function(v){ return "<option>"+hbeEsc(v)+"</option>"; }).join("");
+  }
+
+  /* ---------------- data ---------------- */
+  function currentTest(){ return hbeTestById(c, g("fTest").value) || hbePrimaryTest(c); }
+
+  function cohort(){
+    var dept = g("fDept").value, sess = g("fSession").value, t = currentTest();
+    return hbeStudents().filter(function(x){
+      if(x.collegeId !== cid) return false;
+      if(dept && x.department !== dept) return false;
+      if(sess && x.batch !== sess) return false;
+      return hbeAudienceOk(t, x);              /* only the students this paper is open to */
+    });
+  }
+  function resultOf(x){ return hbeResults(x)[currentTest().id] || null; }
+
+  /* ---------------- render ---------------- */
+  function draw(){
+    var t = currentTest(), list = cohort();
+    var done = list.filter(resultOf);
+    var pcts = done.map(function(x){ return resultOf(x).pct; });
+    var avg  = pcts.length ? Math.round(pcts.reduce(function(a,b){ return a+b; },0)/pcts.length) : 0;
+    var avgP = done.length ? Math.round(done.reduce(function(a,b){ return a + resultOf(b).percentile; },0)/done.length) : 0;
+    var pass = pcts.filter(function(p){ return p >= 40; }).length;
+    var best = pcts.length ? Math.max.apply(null, pcts) : 0;
+
+    /* ---- KPIs ---- */
+    g("kpi").innerHTML =
+      kpi("Eligible students", list.length, t.name) +
+      kpi("Attempted", done.length, list.length ? Math.round(done.length*100/list.length) + "% of the cohort" : "—") +
+      kpi("Average score", avg + "%", "Percentile avg " + avgP) +
+      kpi("Clearing 40%", done.length ? Math.round(pass*100/done.length) + "%" : "—", pass + " of " + done.length + " attempts");
+
+    /* ---- funnel ---- */
+    var onList = (c.roster || []).length;
+    var steps = [
+      { l:"On the master list", v:onList },
+      { l:"Registered",         v:list.length },
+      { l:"Attempted",          v:done.length },
+      { l:"Cleared 40%",        v:pass }
+    ];
+    var top = Math.max(onList, list.length, 1);
+    g("funnel").innerHTML = steps.map(function(x, i){
+      var w = Math.round(x.v * 100 / top);
+      return '<div style="margin-bottom:14px">' +
+        '<div class="row-b" style="margin-bottom:6px">' +
+          '<span class="sm" style="font-weight:650;color:var(--ink)">'+x.l+"</span>" +
+          '<span class="sm mut"><b style="color:var(--ink)">'+x.v+"</b>" +
+            (i && steps[i-1].v >= x.v ? " · " + Math.round(x.v*100/steps[i-1].v) + "% of previous" : "") + "</span></div>" +
+        '<div class="bar' + (i === 3 ? " ok" : "") + '"><i style="width:'+Math.max(w,1)+'%"></i></div></div>';
+    }).join("");
+
+    /* ---- distribution ---- */
+    var buckets = [0,0,0,0,0], labels = ["0-20","20-40","40-60","60-80","80-100"];
+    pcts.forEach(function(p){ buckets[Math.min(4, Math.floor(p/20))]++; });
+    var maxB = Math.max.apply(null, buckets) || 1;
+    g("distSub").textContent = done.length + " attempts · average " + avg + "% · best " + best + "%";
+    g("hist").innerHTML = buckets.map(function(n, i){
+      var h = Math.round(n * 100 / maxB);
+      var cls = i < 2 ? " low" : (i > 3 ? " high" : "");
+      return '<div class="col"><span class="n">'+n+"</span>" +
+             '<div class="bar-v'+cls+'" style="height:'+Math.max(h,2)+'%"></div></div>';
+    }).join("");
+    g("histAxis").innerHTML = labels.map(function(l){ return "<span>"+l+"%</span>"; }).join("");
+
+    /* ---- sections ---- */
+    var secAgg = {};
+    done.forEach(function(x){
+      (resultOf(x).sections || []).forEach(function(sec){
+        var a = secAgg[sec.name] || (secAgg[sec.name] = { sum:0, n:0, acc:0 });
+        a.sum += sec.pct; a.acc += sec.accuracy; a.n++;
+      });
+    });
+    var secKeys = Object.keys(secAgg).sort(function(a,b){ return secAgg[b].sum/secAgg[b].n - secAgg[a].sum/secAgg[a].n; });
+    g("sections").innerHTML = secKeys.length ? secKeys.map(function(k){
+      var a = secAgg[k], p = Math.round(a.sum/a.n), band = hbeBand(p);
+      return '<div style="margin-bottom:16px">' +
+        '<div class="row-b" style="margin-bottom:6px">' +
+          '<span class="sm" style="font-weight:650;color:var(--ink)">'+hbeEsc(k)+"</span>" +
+          '<span class="sm mut">'+p+"% avg · "+Math.round(a.acc/a.n)+"% accuracy</span></div>" +
+        '<div class="bar '+(band.cls==="brand"?"mid":band.cls)+'"><i style="width:'+p+'%"></i></div></div>';
+    }).join("") : '<p class="sm mut">No attempts yet for this assessment.</p>';
+
+    /* ---- department table ---- */
+    var byDept = {};
+    list.forEach(function(x){
+      var k = x.department || "—";
+      var d = byDept[k] || (byDept[k] = { n:0, done:0, sum:0, best:0, weak:{} });
+      d.n++;
+      var r = resultOf(x);
+      if(r){
+        d.done++; d.sum += r.pct; d.best = Math.max(d.best, r.pct);
+        (r.sections||[]).forEach(function(sec){
+          var w = d.weak[sec.name] || (d.weak[sec.name] = { sum:0, n:0 });
+          w.sum += sec.pct; w.n++;
+        });
+      }
+    });
+    var dKeys = Object.keys(byDept).sort(function(a,b){
+      var A1 = byDept[a], B1 = byDept[b];
+      return (B1.done ? B1.sum/B1.done : -1) - (A1.done ? A1.sum/A1.done : -1);
+    });
+    g("deptTable").innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+      "<th>Department</th><th>Registered</th><th>Attempted</th><th>Average</th><th>Best</th><th>Weakest section</th></tr></thead><tbody>" +
+      dKeys.map(function(k){
+        var d = byDept[k], av = d.done ? Math.round(d.sum/d.done) : 0;
+        var wk = Object.keys(d.weak).sort(function(a,b){ return d.weak[a].sum/d.weak[a].n - d.weak[b].sum/d.weak[b].n; })[0];
+        var band = hbeBand(av);
+        return '<tr style="cursor:pointer" onclick="A.pickDept(\''+k.replace(/'/g,"\\'")+'\')">' +
+          '<td><span class="trunc" title="'+hbeEsc(k)+'"><b>'+hbeEsc(k)+"</b></span></td>" +
+          "<td>"+d.n+"</td><td>"+d.done+"</td>" +
+          '<td>' + (d.done ? '<span class="badge '+band.cls+'">'+av+"%</span>" : '<span class="mut">—</span>') + "</td>" +
+          "<td>" + (d.done ? d.best + "%" : "—") + "</td>" +
+          '<td><span class="trunc" title="'+hbeEsc(wk||"")+'">'+hbeEsc(wk || "—")+"</span></td></tr>";
+      }).join("") + "</tbody></table></div>";
+
+    /* ---- top performers ---- */
+    var ranked = done.slice().sort(function(a,b){ return resultOf(b).pct - resultOf(a).pct; }).slice(0,10);
+    g("top").innerHTML = ranked.length ? ranked.map(function(x, i){
+      var r = resultOf(x);
+      return '<div class="rank-row" onclick="A.open(\''+x.id+'\')">' +
+        '<span class="rk">'+(i+1)+"</span>" +
+        '<span class="avatar">'+hbeInitials(x.name)+"</span>" +
+        '<span class="who"><b>'+hbeEsc(x.name)+"</b><em>"+hbeEsc(x.department||"")+"</em></span>" +
+        '<span class="sc"><b>'+r.pct+'%</b><em>'+r.percentile+" %ile</em></span></div>";
+    }).join("") : '<p class="sm mut">No attempts yet.</p>';
+
+    /* ---- needs attention ---- */
+    var low = done.filter(function(x){ return resultOf(x).pct < 40; })
+                  .sort(function(a,b){ return resultOf(a).pct - resultOf(b).pct; });
+    var never = list.filter(function(x){ return !resultOf(x); });
+    var rows = low.map(function(x){
+      var r = resultOf(x);
+      return '<div class="rank-row" onclick="A.open(\''+x.id+'\')">' +
+        '<span class="rk warn">!</span>' +
+        '<span class="avatar">'+hbeInitials(x.name)+"</span>" +
+        '<span class="who"><b>'+hbeEsc(x.name)+"</b><em>"+hbeEsc(x.department||"")+"</em></span>" +
+        '<span class="sc"><b style="color:var(--err)">'+r.pct+'%</b><em>below 40%</em></span></div>';
+    }).concat(never.slice(0,8).map(function(x){
+      return '<div class="rank-row" onclick="A.open(\''+x.id+'\')">' +
+        '<span class="rk">·</span>' +
+        '<span class="avatar">'+hbeInitials(x.name)+"</span>" +
+        '<span class="who"><b>'+hbeEsc(x.name)+"</b><em>"+hbeEsc(x.department||"")+"</em></span>" +
+        '<span class="sc"><b class="mut">—</b><em>not attempted</em></span></div>';
+    })).join("");
+    g("risk").innerHTML = rows || '<p class="sm mut">Nobody in the danger zone. </p>';
+  }
+
+  function kpi(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+
+  /* ---------------- actions ---------------- */
+  function campus(v){ cid = v; hbeSet("hbe_last_college_v2", v); brand(); fillFilters(); draw(); }
+  function pickDept(d){ g("fDept").value = d; draw(); window.scrollTo({top:0,behavior:"smooth"}); }
+  function reset(){ g("fDept").value = ""; g("fSession").value = ""; draw(); }
+  function open(id){ location.href = "report.html?id=" + encodeURIComponent(id) + "&test=" + encodeURIComponent(currentTest().id); }
+
+  function csv(){
+    var t = currentTest(), list = cohort();
+    var head = ["Name","University ID","Department","Programme","Course","Session","Assessment",
+                "Status","Score","Max","Percent","Percentile","Accuracy"];
+    var rows = list.map(function(x){
+      var r = resultOf(x);
+      return [x.name, x.rollNo, x.department, x.programme, x.course, x.batch, t.name,
+              r ? "Attempted" : "Pending", r?r.score:"", r?r.max:"", r?r.pct:"", r?r.percentile:"", r?r.accuracy:""]
+        .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
+    });
+    var blob = new Blob([head.join(",")+"\n"+rows.join("\n")], {type:"text/csv"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = cid + "-" + t.id + "-summary.csv";
+    a.click();
+    hbeToast("Exported " + list.length + " rows.", "down", 3500);
+  }
+
+  brand(); fillFilters(); draw();
+  return { draw:draw, campus:campus, pickDept:pickDept, reset:reset, open:open, csv:csv };
+})();
+</script>
+</body>
+</html>

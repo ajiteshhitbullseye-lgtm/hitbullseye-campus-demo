@@ -59,10 +59,18 @@ THE FLOW (as agreed in the meeting)
    student has attempted more than one, and campus rank is computed inside
    that assessment only.
 
-ADMIN
-   login.html?as=admin  ->  admin-reports.html   every student, every attempt
-                        ->  admin-roster.html    the STUDENT MASTER LIST
-                        ->  admin.html           the form builder
+ADMIN  (login.html?as=admin)
+   admin-analytics.html   COHORT ANALYTICS - the bulk view
+                          KPIs, registration funnel, score distribution,
+                          section-wise averages, department table, top ten,
+                          "needs attention" list. Filters: campus, assessment,
+                          department, session. Export summary as CSV.
+   admin-reports.html     every student, every attempt (row level)
+   admin-roster.html      the STUDENT MASTER LIST
+   admin.html             the form builder
+   admin-data.html        DATA & API - pull config / master list / students
+                          from a JSON endpoint, or paste / upload JSON.
+                          Download any of them as JSON too.
    The console has an "All assessments" filter: pick one paper and the cohort
    narrows to the students that paper is open to, with that paper's scores.
 
@@ -154,7 +162,8 @@ FILES
 -----
 index.html  verify.html  register.html  thankyou.html  login.html
 dashboard.html  test.html  report.html
-admin-reports.html  admin-roster.html  admin.html
+admin-analytics.html  admin-reports.html  admin-roster.html
+admin.html  admin-data.html
 css/app.css     one stylesheet; campus colours are CSS variables set at runtime
 js/config.js    default configuration for all campuses (field schema documented on top)
 js/store.js     storage, session, roster/gate, dependent-field helpers, scoring, UI

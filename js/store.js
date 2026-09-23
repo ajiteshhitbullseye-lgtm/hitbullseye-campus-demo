@@ -5,7 +5,7 @@
    ===================================================================== */
 
 var K_CFG   = "hbe_cfg_v4";
-var K_STUD  = "hbe_students_v9";
+var K_STUD  = "hbe_students_v10";
 var K_SESS  = "hbe_session_v2";
 var K_LASTC = "hbe_last_college_v2";
 var K_GATE  = "hbe_gate_v1";      /* verified University ID pass */
@@ -446,6 +446,23 @@ function hbeSeedStudents(){
     }
     out.push(st);
   });
+  /* every seeded student must also exist on the campus master list —
+     nobody can register without being on it                         */
+  var touched = false;
+  out.forEach(function(st){
+    var col = cfg.colleges[st.collegeId];
+    if(!col) return;
+    var list = col.roster || (col.roster = []);
+    var seen = list.filter(function(r){
+      return String(r.email).toLowerCase() === String(st.email).toLowerCase(); }).length;
+    if(!seen){
+      list.push({ uid:st.rollNo, email:st.email, name:st.name, department:st.department,
+                  programme:st.programme, course:st.course, session:st.batch });
+      touched = true;
+    }
+  });
+  if(touched) hbeSaveConfig(cfg);
+
   return out;
 }
 
