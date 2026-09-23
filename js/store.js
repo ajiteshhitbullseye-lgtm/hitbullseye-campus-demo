@@ -218,9 +218,14 @@ function hbeIsAdminish(sess){ return !!sess && (sess.role === "admin" || sess.ro
 function hbeRequireAdmin(level){
   var sess = hbeSession();
   var page = location.pathname.split("/").pop();
-  var ok = hbeIsAdminish(sess) && (level !== "superadmin" || hbeIsSuper(sess));
-  if(!ok){
+  if(!hbeIsAdminish(sess)){
     location.href = "login.html?as=admin&next=" + encodeURIComponent(page);
+    return null;
+  }
+  if(level === "superadmin" && !hbeIsSuper(sess)){
+    /* signed in, just not HQ - send them back to their own console */
+    hbeSet("hbe_denied_v1", "1");
+    location.href = "admin-analytics.html";
     return null;
   }
   return sess;
@@ -237,13 +242,15 @@ function hbeAdminCampus(sess, cfg){
 
 /* one navigation for every console page */
 function hbeAdminNav(college, sess, active){
-  var items = [
+  var items = [];
+  if(hbeIsSuper(sess)) items.push({ k:"clients", href:"admin-clients.html", label:"Clients" });
+  items = items.concat([
     { k:"analytics",  href:"admin-analytics.html",  label:"Analytics" },
     { k:"students",   href:"admin-reports.html",    label:"Students" },
-    { k:"roster",     href:"admin-roster.html",     label:"Master list" },
+    { k:"roster",     href:"admin-roster.html",     label:"Roster" },
     { k:"commercial", href:"admin-commercial.html", label:"Commercial" },
     { k:"profile",    href:"admin-profile.html",    label:"Profile" }
-  ];
+  ]);
   if(hbeIsSuper(sess)){
     items.push({ k:"builder", href:"admin.html",      label:"Builder" });
     items.push({ k:"data",    href:"admin-data.html", label:"Data" });

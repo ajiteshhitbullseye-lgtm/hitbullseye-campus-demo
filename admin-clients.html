@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Clients · Hitbullseye HQ</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Hitbullseye HQ</span>
+      <h1 style="font-size:28px;margin-top:12px">Clients</h1>
+      <p class="sm mut">Every campus, what they have filled in, and where their account stands.</p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-sm" onclick="K.csv()">Export</button>
+    </div>
+  </div>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <section class="card mt">
+    <div class="sec-head"><h2>What each campus has submitted</h2>
+      <p class="sm mut">Filled by the college's own placement cell from their Campus profile tab.</p></div>
+    <div id="table"></div>
+  </section>
+
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div><h2>Client cards</h2>
+        <p class="sm mut">Jump straight into any campus.</p></div>
+    </div>
+    <div class="tcards" id="cards"></div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Master view — only Hitbullseye staff see this page.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var K = (function(){
+
+  var sess = hbeRequireAdmin("superadmin");
+  if(!sess) return {};
+
+  var cfg = hbeGetConfig();
+  var g   = function(x){ return document.getElementById(x); };
+
+  hbeStudents();                       /* make sure the demo data exists */
+  hbeApplyTheme(cfg.colleges[hbeAdminCampus(sess, cfg)]);
+  g("nav").innerHTML = hbeAdminNav(cfg.colleges[hbeAdminCampus(sess, cfg)], sess, "clients");
+
+  /* ---------------- gather ---------------- */
+  function rows(){
+    return Object.keys(cfg.colleges).map(function(k){
+      var c  = cfg.colleges[k];
+      var pf = c.profile || {};
+      var m  = hbeCommercial(c);
+      var studs = hbeStudents().filter(function(x){ return x.collegeId === k; });
+      var attempts = 0;
+      studs.forEach(function(x){ attempts += hbeResultList(x).length; });
+      var depts = pf.departments || [];
+      var strength = depts.reduce(function(a,b){ return a + (+b.total || 0); }, 0);
+      var finalYr  = depts.reduce(function(a,b){ return a + (+b.finalYear || 0); }, 0);
+      var spocs = pf.spocs || [];
+
+      /* how complete is the profile the college filled? */
+      var checks = [ !!pf.updatedAt, spocs.length > 0, depts.length > 0, strength > 0,
+                     !!(pf.nomenclature && pf.nomenclature.uid), (c.roster||[]).length > 0 ];
+      var done = checks.filter(Boolean).length;
+
+      return { k:k, c:c, pf:pf, m:m, spocs:spocs, depts:depts, strength:strength,
+               finalYr:finalYr, students:studs.length, attempts:attempts,
+               tests:hbeTests(c).length, roster:(c.roster||[]).length,
+               complete: Math.round(done * 100 / checks.length) };
+    });
+  }
+
+  /* ---------------- render ---------------- */
+  function draw(){
+    var l = rows();
+    var value = 0, due = 0, strength = 0, students = 0, pending = 0;
+    l.forEach(function(r){
+      value += r.m.value; due += r.m.due; strength += r.strength;
+      students += r.students; if(r.complete < 100) pending++;
+    });
+
+    g("kpi").innerHTML =
+      kpi("Clients", l.length, strength.toLocaleString() + " students on their books") +
+      kpi("Registered with us", students, l.reduce(function(a,b){ return a+b.roster; },0) + " on the master lists") +
+      kpi("Contracted value", hbeMoney(value), hbeMoney(due) + " outstanding") +
+      kpi("Profiles incomplete", pending, pending ? "chase these campuses" : "everything submitted");
+
+    g("table").innerHTML = '<div class="tbl-wrap"><table style="min-width:1080px"><thead><tr>' +
+      "<th>Client</th><th>Profile</th><th>SPOC</th><th>Departments</th><th>Strength</th>" +
+      "<th>Assessments</th><th>Registered</th><th>Account</th><th></th></tr></thead><tbody>" +
+      l.map(function(r){
+        var sp = r.spocs[0] || {};
+        var cls = r.complete === 100 ? "ok" : r.complete >= 60 ? "warn" : "err";
+        return '<tr style="cursor:pointer" onclick="K.open(\''+r.k+'\',\'admin-profile.html\')">' +
+          '<td><span class="nm">'+hbeEsc(r.c.name)+"</span><br>" +
+            '<span class="xs mut">'+hbeEsc(r.c.campus||"")+"</span></td>" +
+          '<td><span class="badge '+cls+'">'+r.complete+"% filled</span>" +
+            '<br><span class="xs mut">'+(r.pf.updatedAt ? "updated "+hbeEsc(r.pf.updatedAt) : "never saved")+"</span></td>" +
+          "<td>" + (sp.name
+              ? '<span class="nm">'+hbeEsc(sp.name)+'</span><br><span class="xs mut email" title="'+hbeEsc(sp.email||"")+'">'+hbeEsc(sp.email||"")+"</span>" +
+                (r.spocs.length > 1 ? '<br><span class="badge">+'+(r.spocs.length-1)+" more</span>" : "")
+              : '<span class="badge warn">not given</span>') + "</td>" +
+          "<td><b>"+r.depts.length+'</b><br><span class="xs mut">'+
+            r.depts.slice(0,2).map(function(d){ return hbeEsc(d.name); }).join(", ").slice(0,28) +
+            (r.depts.length > 2 ? "…" : "") + "</span></td>" +
+          "<td><b>"+(r.strength ? r.strength.toLocaleString() : "—")+"</b>" +
+            '<br><span class="xs mut">'+(r.finalYr ? r.finalYr.toLocaleString()+" final year" : "")+"</span></td>" +
+          "<td>"+r.tests+'<br><span class="xs mut">'+r.attempts+" attempts</span></td>" +
+          "<td>"+r.students+" / "+r.roster+'<br><span class="xs mut">registered / on list</span></td>' +
+          "<td>"+hbeMoney(r.m.value)+"<br>" +
+            (r.m.due ? '<span class="badge '+(r.m.overdue?"err":"warn")+'">'+hbeMoney(r.m.due)+" due</span>"
+                     : '<span class="badge ok">settled</span>') + "</td>" +
+          '<td><span class="btn btn-soft btn-sm">Open</span></td></tr>';
+      }).join("") + "</tbody></table></div>";
+
+    g("cards").innerHTML = l.map(function(r){
+      var sp = r.spocs[0] || {};
+      return '<div class="tcard">' +
+        '<div class="top"><h3>'+hbeEsc(r.c.shortName || r.c.name)+"</h3>" +
+          '<span class="badge '+(r.complete===100?"ok":"warn")+'">'+r.complete+"%</span></div>" +
+        '<div class="meta">' +
+          '<span class="chip">'+r.depts.length+" departments</span>" +
+          '<span class="chip">'+(r.strength ? r.strength.toLocaleString() : "—")+" students</span>" +
+          '<span class="chip">'+r.tests+" assessments</span></div>" +
+        '<div class="aud">'+ico("user")+"<span>" +
+          (sp.name ? hbeEsc(sp.name) + (sp.role ? " · " + hbeEsc(sp.role) : "") : "no SPOC on record") +
+        "</span></div>" +
+        '<div class="aud">'+ico("file")+"<span>" +
+          hbeEsc(((r.pf.nomenclature||{}).uid) || "University ID") + " · " +
+          hbeEsc(((r.pf.nomenclature||{}).department) || "Department") + "</span></div>" +
+        '<div class="res"><div><b>'+r.students+'</b><span>Registered</span></div>' +
+          "<div><b>"+r.attempts+'</b><span>Attempts</span></div>' +
+          "<div><b>"+hbeMoney(r.m.due)+'</b><span>Due</span></div></div>' +
+        '<div class="foot">' +
+          '<button class="btn btn-sm" onclick="K.open(\''+r.k+'\',\'admin-analytics.html\')">Analytics'+ico("arrow")+"</button>" +
+          '<button class="btn btn-ghost btn-sm" onclick="K.open(\''+r.k+'\',\'admin-profile.html\')">Profile</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="K.open(\''+r.k+'\',\'admin-commercial.html\')">Commercial</button>' +
+        "</div></div>";
+    }).join("");
+  }
+
+  function kpi(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+
+  function open(slug, page){
+    hbeSet("hbe_last_college_v2", slug);
+    location.href = page + "?college=" + encodeURIComponent(slug);
+  }
+
+  function csv(){
+    var head = ["Client","City","Profile %","Last updated","SPOC","SPOC email","SPOCs",
+                "Departments","Total strength","Final year","Assessments","Registered",
+                "On master list","Attempts","Contract value","Outstanding","Next due"];
+    var lines = rows().map(function(r){
+      var sp = r.spocs[0] || {};
+      return [r.c.name, r.c.campus, r.complete, r.pf.updatedAt || "", sp.name || "", sp.email || "",
+              r.spocs.length, r.depts.length, r.strength, r.finalYr, r.tests, r.students,
+              r.roster, r.attempts, r.m.value, r.m.due, r.m.nextDue || ""]
+        .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
+    });
+    var blob = new Blob([head.join(",")+"\n"+lines.join("\n")], {type:"text/csv"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "hitbullseye-clients.csv";
+    a.click();
+    hbeToast("Exported " + lines.length + " clients.", "down", 3500);
+  }
+
+  draw();
+  return { open:open, csv:csv };
+})();
+</script>
+</body>
+</html>

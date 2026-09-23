@@ -63,14 +63,20 @@ THREE LOGINS
 ------------
 SUPER ADMIN  hq-login.html   (its own URL, not the campus one)
              super@hitbullseye.com / super@123   Hitbullseye HQ
-   Every campus. Analytics, Students, Master list, Commercial (all clients),
-   Campus profile, Form builder, Data & API. Can switch campus anywhere.
+   A MASTER LOGIN - there is NO campus to pick at sign-in. You land on the
+   Clients page, which lists every campus at once. Every other tab carries a
+   campus dropdown at the top right, so you switch client from inside the tab
+   and the page redraws in place - no going back to a chooser.
+   Tabs: Clients, Analytics, Students, Roster, Commercial, Campus profile,
+   Form builder, Data & API.
 
 COLLEGE ADMIN  login.html?as=admin
                admin@hitbullseye.com / admin@123   the placement cell
    ONE campus only (chosen at sign-in, no campus switcher anywhere).
-   Analytics, Students, Master list, Commercial (their own account),
-   Campus profile. NO form builder, NO Data/JSON page.
+   Analytics, Students, Roster, Commercial (their own account),
+   Campus profile. NO Clients page, NO form builder, NO Data/JSON page.
+   If they type an HQ-only URL they are bounced back to their own Analytics
+   with a note, not dumped on a login screen.
 
 STUDENT  any registered email + the one-time code shown on screen.
 
@@ -79,7 +85,19 @@ Students and college admins share one URL (login.html). HQ has its own page
 students. Every sign-in page has a click-to-fill demo-credentials card.
 
 
-CONSOLE PAGES  (login.html?as=admin)
+CONSOLE PAGES
+   admin-clients.html     CLIENTS - the HQ master view        (super admin only)
+                          Answers "what has each college actually given us?".
+                          KPIs: number of clients, students registered vs names
+                          on the master lists, contracted value and outstanding,
+                          how many profiles are still incomplete.
+                          One row per campus: profile completeness %, when the
+                          college last saved it, their SPOC (+N more), how many
+                          departments and their names, total and final-year
+                          strength, assessments and attempts, registered / on
+                          list, account value and anything due. Click a row to
+                          open that campus. Client cards below for one-click
+                          jumps to Analytics / Profile / Commercial. Export CSV.
    admin-analytics.html   COHORT ANALYTICS - the bulk view
                           KPIs, registration funnel, score distribution,
                           section-wise averages, department table, top ten,
@@ -105,6 +123,13 @@ CONSOLE PAGES  (login.html?as=admin)
                           computed from the departments, not typed.
                           Saving writes straight into the form config: field
                           labels, the gate ID label and the dependent dropdowns.
+                          Opened by HQ, the page adds a read-at-a-glance
+                          "Submitted by the campus" card on top - website,
+                          established, department count, total and final-year
+                          strength, what they call the ID, the SPOCs on record
+                          and a department-strength bar chart - so HQ can see
+                          exactly what the college filled in without hunting
+                          through the inputs.
    admin.html             FORM BUILDER            (super admin only)
    admin-data.html        DATA & API - JSON in/out (super admin only)
    The console has an "All assessments" filter: pick one paper and the cohort

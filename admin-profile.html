@@ -28,11 +28,8 @@
     </div>
   </div>
 
-  <div class="alert info mt">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
-    <div>What you enter here writes straight into the student form — the labels students see,
-      and the department / programme / course dropdowns they pick from.</div>
-  </div>
+  <div class="alert info mt" id="note"></div>
+  <section class="card mt" id="hqSummary" style="display:none"></section>
 
   <div class="split mt">
 
@@ -192,6 +189,14 @@ var P = (function(){
     var list = (sf && sf.optionsMap && (sf.optionsMap["*"] || [])) || (sf && sf.options) || [];
     g("p_sessions").value = list.join(", ");
 
+    g("note").innerHTML = ico("info") + "<div>" + (hbeIsSuper(sess)
+      ? "You are looking at what <b>" + hbeEsc(c.name) + "</b> submitted. Anything you change here " +
+        "changes their live student form, so edit with care."
+      : "What you enter here writes straight into the student form — the labels students see, " +
+        "and the department / programme / course dropdowns they pick from.") + "</div>";
+
+    if(hbeIsSuper(sess)) hqSummary(pf);
+
     g("savedAt").textContent = pf.updatedAt ? "saved " + pf.updatedAt : "not saved yet";
     g("previewForm").href = "verify.html?college=" + cid;
     g("foot").textContent = "Feeds the registration form for " + c.name;
@@ -203,6 +208,51 @@ var P = (function(){
     drawSpocs(); drawDepts(); snapshot(); preview();
   }
   function labelOf(id, fb){ var f = fieldById(id); return f ? f.label : fb; }
+
+  /* HQ view: a read-at-a-glance card of what the campus submitted */
+  function hqSummary(pf){
+    var box = g("hqSummary");
+    var sp = pf.spocs || [], dp = pf.departments || [], nm = pf.nomenclature || {};
+    var total = dp.reduce(function(a,b){ return a + (+b.total||0); }, 0);
+    var fin   = dp.reduce(function(a,b){ return a + (+b.finalYear||0); }, 0);
+
+    box.style.display = "";
+    box.innerHTML =
+      '<div class="row-b sec-head"><div><h2>Submitted by the campus</h2>' +
+      '<p class="sm mut">' + (pf.updatedAt ? "Last updated " + hbeEsc(pf.updatedAt) : "Never saved by the campus yet") +
+      " · " + hbeEsc(c.name) + "</p></div>" +
+      '<span class="badge '+(pf.updatedAt?"ok":"warn")+'">'+(pf.updatedAt?"On record":"Pending")+"</span></div>" +
+
+      '<div class="media-split" style="align-items:flex-start">' +
+        "<div>" +
+          '<div class="kv"><span>Website</span><b>'+hbeEsc(pf.website||"—")+"</b></div>" +
+          '<div class="kv"><span>Established</span><b>'+hbeEsc(pf.established||"—")+"</b></div>" +
+          '<div class="kv"><span>Departments</span><b>'+dp.length+"</b></div>" +
+          '<div class="kv"><span>Total strength</span><b>'+(total?total.toLocaleString():"—")+"</b></div>" +
+          '<div class="kv"><span>Final year</span><b>'+(fin?fin.toLocaleString():"—")+"</b></div>" +
+          '<div class="kv"><span>They call the ID</span><b>'+hbeEsc(nm.uid||"—")+"</b></div>" +
+        "</div>" +
+        "<div>" +
+          '<div class="xs mut" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:10px">SPOCs on record</div>' +
+          (sp.length ? sp.map(function(x, i){
+            return '<div class="rank-row" style="cursor:default">' +
+              '<span class="avatar">'+hbeInitials(x.name)+"</span>" +
+              '<span class="who"><b>'+hbeEsc(x.name)+"</b><em>"+hbeEsc(x.role||"")+" · "+hbeEsc(x.email||"")+"</em></span>" +
+              '<span class="sc">'+(i===0?'<span class="badge brand">Primary</span>':"")+"</span></div>";
+          }).join("") : '<p class="sm mut">No SPOC submitted yet.</p>') +
+
+          '<div class="xs mut" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin:16px 0 10px">Department strength</div>' +
+          (dp.length ? dp.map(function(d){
+            var p = total ? Math.round((+d.total||0)*100/total) : 0;
+            return '<div style="margin-bottom:11px">' +
+              '<div class="row-b" style="margin-bottom:5px">' +
+                '<span class="sm" style="font-weight:600;color:var(--ink)">'+hbeEsc(d.name)+"</span>" +
+                '<span class="xs mut">'+(+d.total||0)+" students · "+(+d.finalYear||0)+" final yr</span></div>" +
+              '<div class="bar mid" style="height:7px"><i style="width:'+Math.max(p,2)+'%"></i></div></div>';
+          }).join("") : '<p class="sm mut">No departments submitted yet.</p>') +
+        "</div>" +
+      "</div>";
+  }
 
   /* ---------------- SPOCs ---------------- */
   function drawSpocs(){

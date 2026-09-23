@@ -280,6 +280,13 @@ var A = (function(){
   }
 
   /* ---------------- actions ---------------- */
+  if(hbeGet("hbe_denied_v1")){
+    hbeDel("hbe_denied_v1");
+    setTimeout(function(){
+      hbeToast("That page is for Hitbullseye HQ only.", "lock", 4000);
+    }, 400);
+  }
+
   function campus(v){
     if(!hbeIsSuper(sess)) return;
     cid = v; hbeSet("hbe_last_college_v2", v); brand(); fillFilters(); draw();

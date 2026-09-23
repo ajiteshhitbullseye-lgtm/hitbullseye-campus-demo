@@ -49,11 +49,10 @@
         <label>Password</label>
         <input type="password" id="pass" placeholder="Enter password">
       </div>
-      <div class="f" style="margin-bottom:22px">
-        <label>Open on</label>
-        <select id="col"></select>
-        <div class="hint">You can switch campus any time once you are in.</div>
-      </div>
+      <p class="sm mut" style="margin-bottom:22px">
+        No campus to pick — this is the master login. Every page has a campus
+        dropdown once you are inside.
+      </p>
 
       <button class="btn btn-block btn-lg" onclick="H.go()">Sign in to HQ</button>
 
@@ -84,8 +83,6 @@ var H = (function(){
   var c = cfg.colleges[hbeCollegeId(cfg)];
   hbeApplyTheme(c);
 
-  g("col").innerHTML = Object.keys(cfg.colleges).map(function(k){
-    return "<option value='"+k+"'>"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
   g("demoMail").textContent = (SA.email || "") + "  /  " + (SA.password || "");
 
   function fill(){ g("email").value = SA.email || ""; g("pass").value = SA.password || ""; err(""); }
@@ -97,10 +94,9 @@ var H = (function(){
       err("Those are not valid HQ credentials"); return;
     }
     err("");
-    var col = g("col").value;
+    var col = hbeGet("hbe_last_college_v2") || Object.keys(cfg.colleges)[0];
     hbeLogin({ role:"superadmin", name: SA.name || "Hitbullseye HQ", email:e, collegeId:col });
-    hbeSet("hbe_last_college_v2", col);
-    location.href = next || ("admin-analytics.html?college=" + col);
+    location.href = next || "admin-clients.html";
   }
 
   return { go:go, fill:fill };
