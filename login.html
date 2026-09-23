@@ -20,13 +20,13 @@
       <span class="logo-plate" style="background:#fff"><img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:34px"></span>
     </div>
 
-    <h2>One platform.<br>Three <em>points of view</em>.</h2>
+    <h2>One platform.<br>Two <em>points of view</em>.</h2>
     <p>Students track their own progress and get a personalised improvement plan. Placement teams see every student, every attempt and every report in one place.</p>
 
     <ul class="ticks" style="margin-top:26px">
       <li><span style="margin-top:2px">&#9679;</span><span><b>Students</b> — attempt the test, view your score card, percentile and what to practise next.</span></li>
       <li><span style="margin-top:2px">&#9679;</span><span><b>College admins</b> — their own cohort, master list, reports and commercial account.</span></li>
-      <li><span style="margin-top:2px">&#9679;</span><span><b>Super admin</b> — every campus, the form builder, the data pipes and billing across clients.</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Campus profile</b> — departments, courses, strength and SPOCs, kept by the cell itself.</span></li>
     </ul>
 
     <div class="hero-stats" id="stats" style="margin-top:auto"></div>
@@ -70,9 +70,6 @@
 
       <!-- admin -->
       <div id="paneA" style="display:none">
-        <p class="sm mut" style="margin-bottom:12px">Pick the login you want — it fills the fields for you.</p>
-        <div id="rolePicks" style="margin-bottom:18px"></div>
-
         <div class="f" style="margin-bottom:16px">
           <label>Email</label>
           <input type="email" id="aEmail" placeholder="you@hitbullseye.com">
@@ -88,6 +85,14 @@
           <div class="hint" id="colHint">A college admin only ever sees this campus.</div>
         </div>
         <button class="btn btn-block btn-lg" onclick="L.adminIn()">Sign in</button>
+
+        <div class="demo-id" style="margin-top:18px" onclick="L.fill()">
+          <b id="credLine"></b><span>Demo credentials — click to fill</span>
+        </div>
+
+        <p class="xs mut center" style="margin-top:20px">
+          Hitbullseye staff? <a href="hq-login.html">Sign in at HQ</a>
+        </p>
       </div>
 
       <p class="xs mut center" style="margin-top:26px">
@@ -116,16 +121,9 @@ var L = (function(){
   document.getElementById("aCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
     return '<option value="'+k+'"'+(k===id?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
 
-  var SA = cfg.brand.superAdmin || {};
   var AD = cfg.brand.admin || {};
-
-  document.getElementById("rolePicks").innerHTML =
-    '<div class="demo-id" onclick="L.pick(\'super\')">' +
-      "<b>Super admin \u00b7 Hitbullseye HQ</b>" +
-      "<span>Every campus \u00b7 form builder \u00b7 data \u00b7 commercial across clients</span></div>" +
-    '<div class="demo-id" onclick="L.pick(\'college\')">' +
-      "<b>College admin \u00b7 placement cell</b>" +
-      "<span>One campus \u00b7 students, master list, commercial, campus profile</span></div>";
+  document.getElementById("credLine").textContent =
+    (AD.email || "") + "  /  " + (AD.password || "");
 
   var sample = hbeStudents().filter(function(s){ return s.collegeId===id; })[0];
   document.getElementById("hintS").innerHTML =
@@ -167,33 +165,30 @@ var L = (function(){
     location.href = next || ("dashboard.html?college=" + st.collegeId);
   }
 
-  function pick(which){
-    var who = which === "super" ? SA : AD;
-    g("aEmail").value = who.email || "";
-    g("aPass").value  = who.password || "";
-    g("colHint").textContent = which === "super"
-      ? "Super admin starts on this campus and can switch to any other."
-      : "A college admin only ever sees this campus.";
+  function fill(){
+    g("aEmail").value = AD.email || "";
+    g("aPass").value  = AD.password || "";
     err("aErr","");
   }
 
   function adminIn(){
     var e = g("aEmail").value.trim().toLowerCase(), p = g("aPass").value;
-    var role = null, name = "";
-    if(SA.email && e === String(SA.email).toLowerCase() && p === SA.password){
-      role = "superadmin"; name = SA.name || "Hitbullseye HQ";
-    } else if(AD.email && e === String(AD.email).toLowerCase() && p === AD.password){
-      role = "admin"; name = AD.name || "Placement Cell";
+    var SA = cfg.brand.superAdmin || {};
+    if(SA.email && e === String(SA.email).toLowerCase()){
+      err("aErr","That is an HQ account — sign in at the HQ link below.");
+      return;
     }
-    if(!role){ err("aErr","Incorrect email or password"); return; }
+    if(!AD.email || e !== String(AD.email).toLowerCase() || p !== AD.password){
+      err("aErr","Incorrect email or password"); return;
+    }
     err("aErr","");
     var col = g("aCol").value;
-    hbeLogin({ role:role, name:name, email:e, collegeId:col });
+    hbeLogin({ role:"admin", name: AD.name || "Placement Cell", email:e, collegeId:col });
     hbeSet("hbe_last_college_v2", col);
     location.href = next || ("admin-analytics.html?college=" + col);
   }
 
-  return { tab:tab, send:send, studentIn:studentIn, adminIn:adminIn, pick:pick };
+  return { tab:tab, send:send, studentIn:studentIn, adminIn:adminIn, fill:fill };
 })();
 </script>
 </body>

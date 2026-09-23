@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>HQ Sign in · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div class="auth hq">
+
+  <aside class="auth-art">
+    <span class="logo-plate" style="background:#fff;align-self:flex-start;margin-bottom:auto">
+      <img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:34px">
+    </span>
+
+    <span class="eyebrow" style="align-self:flex-start">Internal · Hitbullseye HQ</span>
+    <h2 style="margin-top:16px">Every campus,<br><em>one console</em>.</h2>
+    <p>Sign in with your Hitbullseye account to manage all client campuses.</p>
+
+    <ul class="ticks" style="margin-top:26px">
+      <li><span style="margin-top:2px">&#9679;</span><span>Analytics and student reports for any campus</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span>Form builder — fields, assessments, access codes</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span>Data &amp; API — pull config, master lists, results</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span>Commercial across every client account</span></li>
+    </ul>
+
+    <p class="xs" style="margin-top:auto;color:rgba(255,255,255,.6)">
+      Campus staff sign in at the campus link, not here.
+    </p>
+  </aside>
+
+  <section class="auth-form">
+    <div class="auth-box">
+      <span class="badge brand">Staff access</span>
+      <h2 style="margin:14px 0 6px">HQ sign in</h2>
+      <p class="sm mut" style="margin-bottom:24px">This console is for Hitbullseye staff only.</p>
+
+      <div class="f" style="margin-bottom:16px">
+        <label>Work email</label>
+        <input type="email" id="email" placeholder="you@hitbullseye.com">
+        <div class="err" id="err"></div>
+      </div>
+      <div class="f" style="margin-bottom:16px">
+        <label>Password</label>
+        <input type="password" id="pass" placeholder="Enter password">
+      </div>
+      <div class="f" style="margin-bottom:22px">
+        <label>Open on</label>
+        <select id="col"></select>
+        <div class="hint">You can switch campus any time once you are in.</div>
+      </div>
+
+      <button class="btn btn-block btn-lg" onclick="H.go()">Sign in to HQ</button>
+
+      <div class="demo-id" style="margin-top:18px" onclick="H.fill()">
+        <b id="demoMail"></b><span>Demo credentials — click to fill</span>
+      </div>
+
+      <p class="xs mut center" style="margin-top:24px">
+        Campus staff? <a href="login.html?as=admin">Sign in here</a> ·
+        <a href="index.html">Student portal</a>
+      </p>
+    </div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var H = (function(){
+  var cfg = hbeGetConfig();
+  var SA  = cfg.brand.superAdmin || {};
+  var g   = function(x){ return document.getElementById(x); };
+  var next = hbeParam("next");
+
+  hbeStudents();                                  /* make sure demo data exists */
+  var c = cfg.colleges[hbeCollegeId(cfg)];
+  hbeApplyTheme(c);
+
+  g("col").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    return "<option value='"+k+"'>"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+  g("demoMail").textContent = (SA.email || "") + "  /  " + (SA.password || "");
+
+  function fill(){ g("email").value = SA.email || ""; g("pass").value = SA.password || ""; err(""); }
+  function err(m){ var e = g("err"); e.textContent = m || ""; e.className = "err" + (m ? " on" : ""); }
+
+  function go(){
+    var e = g("email").value.trim().toLowerCase(), p = g("pass").value;
+    if(!SA.email || e !== String(SA.email).toLowerCase() || p !== SA.password){
+      err("Those are not valid HQ credentials"); return;
+    }
+    err("");
+    var col = g("col").value;
+    hbeLogin({ role:"superadmin", name: SA.name || "Hitbullseye HQ", email:e, collegeId:col });
+    hbeSet("hbe_last_college_v2", col);
+    location.href = next || ("admin-analytics.html?college=" + col);
+  }
+
+  return { go:go, fill:fill };
+})();
+</script>
+</body>
+</html>

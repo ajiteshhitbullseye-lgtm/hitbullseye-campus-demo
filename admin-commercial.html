@@ -101,6 +101,11 @@ var C = (function(){
     g("allClients").style.display = isHQ ? "" : "none";
   }
 
+  function spoc(){
+    var list = ((c.profile || {}).spocs) || [];
+    return list.filter(function(x){ return x.primary; })[0] || list[0] || {};
+  }
+
   function usedLicences(slug){
     return hbeStudents().filter(function(x){ return x.collegeId === slug; }).length;
   }
@@ -181,8 +186,8 @@ var C = (function(){
       '<div class="kv"><span>PO number</span><b>'+hbeEsc(ct.po || "—")+"</b></div>" +
       '<div class="kv"><span>Rate per student</span><b>'+hbeMoney(m.com.rate || 0)+"</b></div>" +
       '<div class="kv"><span>Contracted value</span><b>'+hbeMoney(m.value)+"</b></div>" +
-      '<div class="kv"><span>Billing contact</span><b>'+hbeEsc(((c.profile||{}).contact||{}).name || "—")+"<br>" +
-        '<span class="xs mut">'+hbeEsc(((c.profile||{}).contact||{}).email || "")+"</span></b></div>";
+      '<div class="kv"><span>SPOC</span><b>'+hbeEsc(spoc().name || "—")+"<br>" +
+        '<span class="xs mut">'+hbeEsc(spoc().email || "")+"</span></b></div>";
 
     g("dueBadge").innerHTML = m.due
       ? '<span class="badge '+(m.overdue?"err":"warn")+'">'+hbeMoney(m.due)+" outstanding</span>"

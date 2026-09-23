@@ -61,19 +61,22 @@ THE FLOW (as agreed in the meeting)
 
 THREE LOGINS
 ------------
-SUPER ADMIN  super@hitbullseye.com / super@123   Hitbullseye HQ
+SUPER ADMIN  hq-login.html   (its own URL, not the campus one)
+             super@hitbullseye.com / super@123   Hitbullseye HQ
    Every campus. Analytics, Students, Master list, Commercial (all clients),
    Campus profile, Form builder, Data & API. Can switch campus anywhere.
 
-COLLEGE ADMIN  admin@hitbullseye.com / admin@123   the placement cell
+COLLEGE ADMIN  login.html?as=admin
+               admin@hitbullseye.com / admin@123   the placement cell
    ONE campus only (chosen at sign-in, no campus switcher anywhere).
    Analytics, Students, Master list, Commercial (their own account),
    Campus profile. NO form builder, NO Data/JSON page.
 
 STUDENT  any registered email + the one-time code shown on screen.
 
-On the sign-in page the admin tab shows both logins as click-to-fill cards,
-the same way the student demo email fills itself.
+Students and college admins share one URL (login.html). HQ has its own page
+(hq-login.html) with a different look, so nothing internal is advertised to
+students. Every sign-in page has a click-to-fill demo-credentials card.
 
 
 CONSOLE PAGES  (login.html?as=admin)
@@ -93,10 +96,13 @@ CONSOLE PAGES  (login.html?as=admin)
                           roll-up - contracted value, collected, outstanding,
                           licences used, next due per campus. Export CSV.
    admin-profile.html     CAMPUS PROFILE - what the college fills in
-                          Institute details, strength, placement-cell contact,
+                          Institute details, SPOC CONTACTS (as many as they
+                          want, the first is primary and is used for billing),
                           NOMENCLATURE (what they call the ID field, department,
-                          programme, course, session) and the DEPARTMENTS with
-                          their programmes and courses.
+                          programme, course, session) and DEPARTMENTS with their
+                          programmes, courses and DEPARTMENT-WISE STRENGTH
+                          (total + final year). Institute-level strength is
+                          computed from the departments, not typed.
                           Saving writes straight into the form config: field
                           labels, the gate ID label and the dependent dropdowns.
    admin.html             FORM BUILDER            (super admin only)

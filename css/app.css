@@ -399,6 +399,10 @@ tbody td{padding:12px 12px}
 .cred{background:var(--line-2);border-radius:var(--r-md);padding:13px 15px;font-size:12.5px;color:var(--muted);margin-top:18px}
 .cred b{color:var(--ink);font-family:'Courier New',monospace}
 
+.auth.hq .auth-art{background:radial-gradient(760px 420px at 80% 6%, rgba(245,165,36,.22), transparent 60%),
+  linear-gradient(160deg,#101d31,#060c16)}
+.auth.hq .auth-art .eyebrow{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.22)}
+
 /* ============ TOAST / MOTION ============ */
 #toast{position:fixed;right:20px;bottom:20px;z-index:99;display:flex;flex-direction:column;gap:10px}
 .toast{display:flex;gap:12px;align-items:flex-start;background:var(--ink);color:#fff;padding:15px 18px;border-radius:15px;

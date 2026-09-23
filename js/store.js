@@ -4,7 +4,7 @@
    opened straight from disk. In production each block maps to an API.
    ===================================================================== */
 
-var K_CFG   = "hbe_cfg_v4";
+var K_CFG   = "hbe_cfg_v5";
 var K_STUD  = "hbe_students_v10";
 var K_SESS  = "hbe_session_v2";
 var K_LASTC = "hbe_last_college_v2";
@@ -18,8 +18,24 @@ function hbeDel(k){ try{ localStorage.removeItem(k); }catch(e){} delete _mem[k];
 function hbeClone(o){ return JSON.parse(JSON.stringify(o)); }
 function hbeJson(k,fb){ var r=hbeGet(k); if(!r) return fb; try{ return JSON.parse(r); }catch(e){ return fb; } }
 
-/* ---------------- config ---------------- */
-function hbeGetConfig(){ return hbeJson(K_CFG, null) || hbeClone(HBE_DEFAULT_CONFIG); }
+/* ---------------- config ----------------
+   A saved config must never hide new keys that shipped later, so what is in
+   localStorage is layered on top of the defaults instead of replacing them.
+   Objects merge key by key; arrays and plain values keep the saved version.  */
+function hbeMerge(def, saved){
+  if(saved === undefined || saved === null) return hbeClone(def);
+  if(def === null || typeof def !== "object" || Array.isArray(def)) return saved;
+  if(typeof saved !== "object" || Array.isArray(saved)) return saved;
+  var out = {};
+  Object.keys(def).forEach(function(k){ out[k] = hbeMerge(def[k], saved[k]); });
+  Object.keys(saved).forEach(function(k){ if(!(k in out)) out[k] = saved[k]; });
+  return out;
+}
+function hbeGetConfig(){
+  var saved = hbeJson(K_CFG, null);
+  if(!saved) return hbeClone(HBE_DEFAULT_CONFIG);
+  return hbeMerge(HBE_DEFAULT_CONFIG, saved);
+}
 function hbeSaveConfig(c){ hbeSet(K_CFG, JSON.stringify(c)); }
 function hbeResetConfig(){ hbeDel(K_CFG); }
 

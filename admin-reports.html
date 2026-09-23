@@ -99,7 +99,9 @@ var A = (function(){
 
   document.getElementById("sub").textContent =
     "Every registration and every attempt across your campuses, in one place.";
-  document.getElementById("fbLink").innerHTML = ico("settings") + " Edit registration form";
+  var fb = document.getElementById("fbLink");
+  if(hbeIsSuper(sess)) fb.innerHTML = ico("settings") + " Edit registration form";
+  else fb.style.display = "none";                      /* the form belongs to HQ */
   document.querySelector('button[onclick="A.csv()"]').innerHTML = ico("down") + " Export CSV";
 
   /* filters */

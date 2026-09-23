@@ -19,7 +19,7 @@
     <div>
       <span class="eyebrow">Placement cell console</span>
       <h1 style="font-size:28px;margin-top:12px">Campus profile</h1>
-      <p class="sm mut">Tell us how your campus is organised. The registration form picks these up straight away.</p>
+      <p class="sm mut">Tell us how your campus is organised. The registration form picks this up straight away.</p>
     </div>
     <div class="row" style="gap:10px;flex-wrap:wrap">
       <select id="fCol" onchange="P.campus(this.value)" style="width:auto;min-width:210px"></select>
@@ -41,24 +41,27 @@
       <div class="panel">
         <h3>Institute details</h3>
         <div class="mini">
-          <div class="full"><label>Official name</label><input id="p_name"></div>
-          <div><label>Short name</label><input id="p_short"></div>
-          <div><label>City</label><input id="p_city"></div>
-          <div><label>Website</label><input id="p_web"></div>
-          <div><label>Established</label><input id="p_est"></div>
-          <div><label>Total strength</label><input type="number" id="p_total"></div>
-          <div><label>Final-year strength</label><input type="number" id="p_final"></div>
+          <div class="full"><label>Official name</label><input type="text" id="p_name"></div>
+          <div><label>Short name</label><input type="text" id="p_short"></div>
+          <div><label>City</label><input type="text" id="p_city"></div>
+          <div class="full"><label>Website</label><input type="text" id="p_web"></div>
+          <div class="full"><label>Established</label><input type="text" id="p_est"></div>
         </div>
+        <p class="xs mut" style="margin-top:10px">
+          Student strength is filled department by department on the right.
+        </p>
       </div>
 
       <div class="panel mt">
-        <h3>Placement cell contact</h3>
-        <div class="mini">
-          <div class="full"><label>Name</label><input id="p_cname"></div>
-          <div class="full"><label>Designation</label><input id="p_crole"></div>
-          <div class="full"><label>Email</label><input type="email" id="p_cmail"></div>
-          <div class="full"><label>Phone</label><input id="p_cphone"></div>
+        <div class="row-b" style="margin-bottom:6px">
+          <h3 style="margin:0">SPOC contact details</h3>
+          <button class="btn btn-sm" onclick="P.addSpoc()">+ Add SPOC</button>
         </div>
+        <p class="sm mut" style="margin-bottom:14px">
+          Single points of contact at your end. Add as many as you need — the first one is
+          the primary contact we bill and write to.
+        </p>
+        <div id="spocList"></div>
       </div>
 
       <div class="panel mt">
@@ -67,13 +70,13 @@
           Every campus names things differently. These become the labels on the student form.
         </p>
         <div class="mini">
-          <div class="full"><label>Student ID field</label><input id="n_uid" placeholder="University Roll Number"></div>
-          <div class="full"><label>Department level</label><input id="n_dept" placeholder="Department / School"></div>
-          <div class="full"><label>Programme level</label><input id="n_prog" placeholder="Programme"></div>
-          <div class="full"><label>Course level</label><input id="n_course" placeholder="Course / Branch"></div>
-          <div class="full"><label>Session / batch</label><input id="n_session" placeholder="Session"></div>
+          <div class="full"><label>Student ID field</label><input type="text" id="n_uid" placeholder="University Roll Number" oninput="P.preview()"></div>
+          <div class="full"><label>Department level</label><input type="text" id="n_dept" placeholder="Department / School" oninput="P.preview()"></div>
+          <div class="full"><label>Programme level</label><input type="text" id="n_prog" placeholder="Programme" oninput="P.preview()"></div>
+          <div class="full"><label>Course level</label><input type="text" id="n_course" placeholder="Course / Branch" oninput="P.preview()"></div>
+          <div class="full"><label>Session / batch</label><input type="text" id="n_session" placeholder="Session" oninput="P.preview()"></div>
         </div>
-        <div class="preview mt" id="namePreview"></div>
+        <div class="mt" id="namePreview"></div>
       </div>
     </div>
 
@@ -81,12 +84,12 @@
     <div>
       <div class="panel">
         <div class="row-b" style="margin-bottom:6px">
-          <h3 style="margin:0">Departments &amp; what they offer</h3>
+          <h3 style="margin:0">Departments, courses &amp; strength</h3>
           <button class="btn btn-sm" onclick="P.addDept()">+ Add department</button>
         </div>
         <p class="sm mut" style="margin-bottom:14px">
-          These feed the dependent dropdowns: pick a department on the form and only its
-          programmes show, pick a programme and only its courses show.
+          Programmes and courses feed the dependent dropdowns on the form. Strength is what
+          we use to size your licences.
         </p>
         <div id="deptList"></div>
       </div>
@@ -129,26 +132,31 @@ var P = (function(){
   var cid = hbeAdminCampus(sess, cfg);
   var c   = cfg.colleges[cid];
   var g   = function(x){ return document.getElementById(x); };
-  var depts = [];                       /* working copy: [{name, programmes:[], courses:[], strength}] */
+  var depts = [], spocs = [];
 
-  /* ---------------- read the current config into the editor ---------------- */
   function fieldById(id){ return (c.fields||[]).filter(function(f){ return f.id === id; })[0] || null; }
+  function csv(v){ return String(v||"").split(",").map(function(x){ return x.trim(); }).filter(Boolean); }
 
+  /* ---------------- read the current config ---------------- */
   function readDepts(){
     var d = fieldById("department"), pr = fieldById("programme"), cr = fieldById("course");
-    var names = (d && d.options) || [];
-    return names.map(function(n){
+    var saved = ((c.profile || {}).departments) || [];
+    function savedFor(n){ return saved.filter(function(x){ return x.name === n; })[0] || {}; }
+
+    return ((d && d.options) || []).map(function(n){
       var progs = (pr && pr.optionsMap && pr.optionsMap[n]) || [];
-      var crsKey = (cr && cr.dependsOn === "programme") ? null : n;
-      var courses = crsKey ? ((cr && cr.optionsMap && cr.optionsMap[crsKey]) || [])
-                           : uniqFrom(cr, progs);
-      return { name:n, programmes:progs.slice(), courses:courses.slice(), strength:"" };
+      var courses = (cr && cr.dependsOn === "programme")
+        ? spread(cr, progs)
+        : ((cr && cr.optionsMap && cr.optionsMap[n]) || []);
+      var sv = savedFor(n);
+      return { name:n, programmes:progs.slice(), courses:courses.slice(),
+               total: sv.total || "", finalYear: sv.finalYear || "" };
     });
   }
-  function uniqFrom(cr, progs){
+  function spread(cr, progs){
     var out = [], seen = {};
     progs.forEach(function(p){
-      ((cr && cr.optionsMap && cr.optionsMap[p]) || []).forEach(function(x){
+      ((cr.optionsMap && cr.optionsMap[p]) || []).forEach(function(x){
         if(!seen[x]){ seen[x] = 1; out.push(x); }
       });
     });
@@ -166,20 +174,13 @@ var P = (function(){
     sel.style.display = hbeIsSuper(sess) ? "" : "none";
 
     var pf = c.profile || (c.profile = {});
-    var st = pf.strength || {}, ct = pf.contact || {}, nm = pf.nomenclature || {};
+    var nm = pf.nomenclature || {};
 
     g("p_name").value  = c.name || "";
     g("p_short").value = c.shortName || "";
     g("p_city").value  = c.campus || "";
     g("p_web").value   = pf.website || "";
     g("p_est").value   = pf.established || "";
-    g("p_total").value = st.total || "";
-    g("p_final").value = st.finalYear || "";
-
-    g("p_cname").value  = ct.name || "";
-    g("p_crole").value  = ct.role || "";
-    g("p_cmail").value  = ct.email || "";
-    g("p_cphone").value = ct.phone || "";
 
     g("n_uid").value     = nm.uid || (c.gate||{}).idLabel || "University ID";
     g("n_dept").value    = nm.department || labelOf("department", "Department / School");
@@ -188,150 +189,98 @@ var P = (function(){
     g("n_session").value = nm.session    || labelOf("session", "Session");
 
     var sf = fieldById("session");
-    var sess_list = (sf && sf.optionsMap && (sf.optionsMap["*"] || [])) || (sf && sf.options) || [];
-    g("p_sessions").value = sess_list.join(", ");
+    var list = (sf && sf.optionsMap && (sf.optionsMap["*"] || [])) || (sf && sf.options) || [];
+    g("p_sessions").value = list.join(", ");
 
     g("savedAt").textContent = pf.updatedAt ? "saved " + pf.updatedAt : "not saved yet";
     g("previewForm").href = "verify.html?college=" + cid;
     g("foot").textContent = "Feeds the registration form for " + c.name;
 
+    spocs = (pf.spocs || []).slice();
+    if(!spocs.length) spocs = [{ name:"", role:"", email:"", phone:"", primary:true }];
     depts = readDepts();
-    drawDepts(); snapshot(); preview();
-  }
 
+    drawSpocs(); drawDepts(); snapshot(); preview();
+  }
   function labelOf(id, fb){ var f = fieldById(id); return f ? f.label : fb; }
 
-  /* ---------------- departments editor ---------------- */
+  /* ---------------- SPOCs ---------------- */
+  function drawSpocs(){
+    g("spocList").innerHTML = spocs.map(function(sp, i){
+      return '<div class="fl" style="padding:14px"><div class="row-b" style="margin-bottom:10px">' +
+        '<span class="badge '+(i===0?"brand":"")+'">'+(i===0?"Primary SPOC":"SPOC "+(i+1))+"</span>" +
+        (spocs.length > 1
+          ? '<div class="row" style="gap:6px">' +
+            (i ? '<button class="icon-btn" style="width:28px;height:28px" title="Make primary" onclick="P.primary('+i+')">'+ico("up")+"</button>" : "") +
+            '<button class="icon-btn" style="width:28px;height:28px" title="Remove" onclick="P.delSpoc('+i+')">'+ico("x")+"</button></div>"
+          : "") +
+      "</div>" +
+      '<div class="mini">' +
+        '<div class="full"><label>Name</label><input type="text" id="s'+i+'_name" value="'+hbeEsc(sp.name||"")+'"></div>' +
+        '<div class="full"><label>Designation</label><input type="text" id="s'+i+'_role" value="'+hbeEsc(sp.role||"")+'"></div>' +
+        '<div class="full"><label>Email</label><input type="email" id="s'+i+'_mail" value="'+hbeEsc(sp.email||"")+'"></div>' +
+        '<div class="full"><label>Phone</label><input type="text" id="s'+i+'_phone" value="'+hbeEsc(sp.phone||"")+'"></div>' +
+      "</div></div>";
+    }).join("");
+  }
+  function grabSpocs(){
+    spocs = spocs.map(function(sp, i){
+      if(!g("s"+i+"_name")) return sp;
+      return { name:g("s"+i+"_name").value.trim(), role:g("s"+i+"_role").value.trim(),
+               email:g("s"+i+"_mail").value.trim(), phone:g("s"+i+"_phone").value.trim(),
+               primary: i === 0 };
+    });
+  }
+  function addSpoc(){ grabSpocs(); spocs.push({ name:"", role:"", email:"", phone:"", primary:false }); drawSpocs(); }
+  function delSpoc(i){ grabSpocs(); spocs.splice(i,1); if(spocs.length) spocs[0].primary = true; drawSpocs(); }
+  function primary(i){
+    grabSpocs();
+    var pick = spocs.splice(i,1)[0];
+    spocs.unshift(pick);
+    spocs.forEach(function(x,k){ x.primary = k === 0; });
+    drawSpocs();
+    hbeToast("Primary SPOC updated.", "check", 2500);
+  }
+
+  /* ---------------- departments ---------------- */
   function drawDepts(){
     g("deptList").innerHTML = depts.map(function(d, i){
       return '<div class="fl"><div class="fl-head">' +
         '<span class="nm">'+hbeEsc(d.name || "New department")+"</span>" +
-        '<span class="badge">'+d.programmes.length+" programmes</span>" +
+        '<span class="badge">'+d.programmes.length+" prog</span>" +
         '<span class="badge">'+d.courses.length+" courses</span>" +
+        '<span class="badge '+(d.total?"ok":"warn")+'">'+(d.total ? d.total + " students" : "strength?")+"</span>" +
         '<button class="icon-btn" style="width:30px;height:30px" onclick="P.tog('+i+')" title="Edit">'+ico("edit")+"</button>" +
         '<button class="icon-btn" style="width:30px;height:30px" onclick="P.delDept('+i+')" title="Remove">'+ico("x")+"</button>" +
       "</div>" +
       '<div class="fl-body" id="db_'+i+'"><div class="mini">' +
         '<div class="full"><label>Department / school name</label>' +
-          '<input id="d'+i+'_name" value="'+hbeEsc(d.name)+'" oninput="P.touch()"></div>' +
+          '<input type="text" id="d'+i+'_name" value="'+hbeEsc(d.name)+'" oninput="P.touch()"></div>' +
+        '<div><label>Total students</label>' +
+          '<input type="number" id="d'+i+'_total" value="'+hbeEsc(d.total)+'" oninput="P.touch()"></div>' +
+        '<div><label>Final-year students</label>' +
+          '<input type="number" id="d'+i+'_final" value="'+hbeEsc(d.finalYear)+'" oninput="P.touch()"></div>' +
         '<div class="full"><label>Programmes offered (comma separated)</label>' +
-          '<input id="d'+i+'_prog" value="'+hbeEsc(d.programmes.join(", "))+'" oninput="P.touch()"></div>' +
+          '<input type="text" id="d'+i+'_prog" value="'+hbeEsc(d.programmes.join(", "))+'" oninput="P.touch()"></div>' +
         '<div class="full"><label>Courses / branches (comma separated)</label>' +
-          '<input id="d'+i+'_course" value="'+hbeEsc(d.courses.join(", "))+'" oninput="P.touch()"></div>' +
-        '<div><label>Students in this department</label>' +
-          '<input type="number" id="d'+i+'_str" value="'+hbeEsc(d.strength||"")+'" oninput="P.touch()"></div>' +
+          '<input type="text" id="d'+i+'_course" value="'+hbeEsc(d.courses.join(", "))+'" oninput="P.touch()"></div>' +
       "</div></div></div>";
     }).join("") || '<div class="empty">'+ico("users")+"<h3>No departments yet</h3>" +
                    '<p class="sm mut">Add the first one — the form needs at least one.</p></div>';
   }
-
   function grabDepts(){
     depts = depts.map(function(d, i){
       if(!g("d"+i+"_name")) return d;
-      return {
-        name: g("d"+i+"_name").value.trim(),
-        programmes: csv(g("d"+i+"_prog").value),
-        courses: csv(g("d"+i+"_course").value),
-        strength: g("d"+i+"_str").value
-      };
+      return { name: g("d"+i+"_name").value.trim(),
+               total: g("d"+i+"_total").value,
+               finalYear: g("d"+i+"_final").value,
+               programmes: csv(g("d"+i+"_prog").value),
+               courses: csv(g("d"+i+"_course").value) };
     }).filter(function(d){ return d.name; });
   }
-  function csv(v){ return String(v||"").split(",").map(function(x){ return x.trim(); }).filter(Boolean); }
-
-  /* ---------------- save back into the form config ---------------- */
-  function saveAll(){
-    grabDepts();
-    if(!depts.length){ hbeToast("Add at least one department first.", "alert"); return; }
-
-    c.name      = g("p_name").value.trim() || c.name;
-    c.shortName = g("p_short").value.trim() || c.shortName;
-    c.campus    = g("p_city").value.trim();
-
-    c.profile = {
-      website: g("p_web").value.trim(),
-      established: g("p_est").value.trim(),
-      strength: { total: +g("p_total").value || 0, finalYear: +g("p_final").value || 0 },
-      contact: { name:g("p_cname").value.trim(), role:g("p_crole").value.trim(),
-                 email:g("p_cmail").value.trim(), phone:g("p_cphone").value.trim() },
-      nomenclature: { uid:g("n_uid").value.trim(), department:g("n_dept").value.trim(),
-                      programme:g("n_prog").value.trim(), course:g("n_course").value.trim(),
-                      session:g("n_session").value.trim() },
-      departments: depts,
-      updatedAt: new Date().toISOString().slice(0,10)
-    };
-
-    /* ---- labels ---- */
-    c.gate = c.gate || {};
-    c.gate.idLabel = g("n_uid").value.trim() || c.gate.idLabel;
-    setLabel("universityId", g("n_uid").value.trim());
-    setLabel("department",   g("n_dept").value.trim());
-    setLabel("programme",    g("n_prog").value.trim());
-    setLabel("course",       g("n_course").value.trim());
-    setLabel("session",      g("n_session").value.trim());
-
-    /* ---- dropdown options ---- */
-    var dF = fieldById("department"), pF = fieldById("programme"), cF = fieldById("course"), sF = fieldById("session");
-    if(dF) dF.options = depts.map(function(d){ return d.name; });
-
-    if(pF){
-      pF.dependsOn = "department";
-      pF.optionsMap = {};
-      depts.forEach(function(d){ pF.optionsMap[d.name] = d.programmes.slice(); });
-    }
-    if(cF){
-      cF.dependsOn = "department";               /* profile keeps it simple: courses per department */
-      cF.optionsMap = {};
-      depts.forEach(function(d){ cF.optionsMap[d.name] = d.courses.slice(); });
-    }
-    if(sF){
-      var list = csv(g("p_sessions").value);
-      sF.dependsOn = "programme";
-      sF.optionsMap = { "*": list };
-    }
-
-    hbeSaveConfig(cfg);
-    g("savedAt").textContent = "saved just now";
-    g("savedAt").className = "badge ok";
-    snapshot(); preview(); drawDepts();
-    hbeToast("Campus profile saved — the student form is updated.", "check", 4000);
-  }
-
-  function setLabel(id, label){
-    if(!label) return;
-    var f = fieldById(id);
-    if(f) f.label = label;
-  }
-
-  /* ---------------- side panels ---------------- */
-  function snapshot(){
-    grabDepts();
-    var progs = 0, courses = 0, strength = 0;
-    depts.forEach(function(d){ progs += d.programmes.length; courses += d.courses.length; strength += (+d.strength || 0); });
-    g("snap").innerHTML =
-      mini("Departments", depts.length) +
-      mini("Programmes", progs) +
-      mini("Courses", courses) +
-      mini("Mapped strength", strength || (c.profile && c.profile.strength ? c.profile.strength.total : 0));
-  }
-  function mini(l, v){
-    return '<div class="stat" style="padding:16px"><div class="lbl">'+l+'</div><div class="val" style="font-size:24px">'+v+"</div></div>";
-  }
-
-  function preview(){
-    g("namePreview").innerHTML =
-      '<div class="xs mut" style="margin-bottom:8px">This is how the form will read:</div>' +
-      ["n_uid","n_dept","n_prog","n_course","n_session"].map(function(k){
-        return '<div class="kv" style="padding:8px 0"><span>' +
-          ({n_uid:"ID field",n_dept:"Level 1",n_prog:"Level 2",n_course:"Level 3",n_session:"Batch"})[k] +
-          "</span><b>" + hbeEsc(g(k).value || "—") + "</b></div>";
-      }).join("");
-  }
-
-  function touch(){ snapshot(); preview(); }
-  function tog(i){ var b = g("db_"+i); b.className = b.className.indexOf("on") > -1 ? "fl-body" : "fl-body on"; }
   function addDept(){
     grabDepts();
-    depts.push({ name:"New department", programmes:[], courses:[], strength:"" });
+    depts.push({ name:"New department", programmes:[], courses:[], total:"", finalYear:"" });
     drawDepts(); snapshot();
     setTimeout(function(){ tog(depts.length-1); }, 40);
   }
@@ -340,17 +289,104 @@ var P = (function(){
     if(!confirm('Remove "' + depts[i].name + '" from the profile?')) return;
     depts.splice(i,1); drawDepts(); snapshot();
   }
+  function tog(i){ var b = g("db_"+i); b.className = b.className.indexOf("on") > -1 ? "fl-body" : "fl-body on"; }
+
+  /* ---------------- save ---------------- */
+  function saveAll(){
+    grabDepts(); grabSpocs();
+    if(!depts.length){ hbeToast("Add at least one department first.", "alert"); return; }
+
+    c.name      = g("p_name").value.trim() || c.name;
+    c.shortName = g("p_short").value.trim() || c.shortName;
+    c.campus    = g("p_city").value.trim();
+
+    var totals = totalsOf();
+    c.profile = {
+      website: g("p_web").value.trim(),
+      established: g("p_est").value.trim(),
+      spocs: spocs.filter(function(x){ return x.name || x.email; }),
+      departments: depts.map(function(d){
+        return { name:d.name, total:+d.total || 0, finalYear:+d.finalYear || 0 }; }),
+      strength: { total: totals.total, finalYear: totals.finalYear },
+      nomenclature: { uid:g("n_uid").value.trim(), department:g("n_dept").value.trim(),
+                      programme:g("n_prog").value.trim(), course:g("n_course").value.trim(),
+                      session:g("n_session").value.trim() },
+      updatedAt: new Date().toISOString().slice(0,10)
+    };
+
+    /* labels */
+    c.gate = c.gate || {};
+    c.gate.idLabel = g("n_uid").value.trim() || c.gate.idLabel;
+    setLabel("universityId", g("n_uid").value.trim());
+    setLabel("department",   g("n_dept").value.trim());
+    setLabel("programme",    g("n_prog").value.trim());
+    setLabel("course",       g("n_course").value.trim());
+    setLabel("session",      g("n_session").value.trim());
+
+    /* dropdowns */
+    var dF = fieldById("department"), pF = fieldById("programme"),
+        cF = fieldById("course"),     sF = fieldById("session");
+    if(dF) dF.options = depts.map(function(d){ return d.name; });
+    if(pF){
+      pF.dependsOn = "department"; pF.optionsMap = {};
+      depts.forEach(function(d){ pF.optionsMap[d.name] = d.programmes.slice(); });
+    }
+    if(cF){
+      cF.dependsOn = "department"; cF.optionsMap = {};
+      depts.forEach(function(d){ cF.optionsMap[d.name] = d.courses.slice(); });
+    }
+    if(sF){ sF.dependsOn = "programme"; sF.optionsMap = { "*": csv(g("p_sessions").value) }; }
+
+    hbeSaveConfig(cfg);
+    g("savedAt").textContent = "saved just now";
+    g("savedAt").className = "badge ok";
+    drawSpocs(); drawDepts(); snapshot(); preview();
+    hbeToast("Campus profile saved — the student form is updated.", "check", 4000);
+  }
+  function setLabel(id, label){ if(!label) return; var f = fieldById(id); if(f) f.label = label; }
+
+  /* ---------------- side panels ---------------- */
+  function totalsOf(){
+    var t = 0, f = 0, pr = 0, cr = 0;
+    depts.forEach(function(d){
+      t += +d.total || 0; f += +d.finalYear || 0;
+      pr += d.programmes.length; cr += d.courses.length;
+    });
+    return { total:t, finalYear:f, programmes:pr, courses:cr };
+  }
+  function snapshot(){
+    grabDepts();
+    var t = totalsOf();
+    g("snap").innerHTML =
+      mini("Departments", depts.length) +
+      mini("Programmes", t.programmes) +
+      mini("Courses", t.courses) +
+      mini("Total strength", t.total || "—") +
+      mini("Final year", t.finalYear || "—") +
+      mini("SPOCs", spocs.length);
+  }
+  function mini(l, v){
+    return '<div class="stat" style="padding:15px"><div class="lbl">'+l+
+           '</div><div class="val" style="font-size:23px">'+v+"</div></div>";
+  }
+  function preview(){
+    g("namePreview").innerHTML =
+      '<div class="xs mut" style="margin-bottom:8px">This is how the form will read:</div>' +
+      [["n_uid","ID field"],["n_dept","Level 1"],["n_prog","Level 2"],
+       ["n_course","Level 3"],["n_session","Batch"]].map(function(x){
+        return '<div class="kv" style="padding:8px 0"><span>'+x[1]+"</span><b>" +
+               hbeEsc(g(x[0]).value || "—") + "</b></div>";
+      }).join("");
+  }
+  function touch(){ snapshot(); }
   function campus(v){
     if(!hbeIsSuper(sess)) return;
     cid = v; hbeSet("hbe_last_college_v2", v); load();
   }
 
-  ["n_uid","n_dept","n_prog","n_course","n_session"].forEach(function(k){
-    document.addEventListener("input", function(e){ if(e.target && e.target.id === k) preview(); });
-  });
-
   load();
-  return { saveAll:saveAll, addDept:addDept, delDept:delDept, tog:tog, touch:touch, campus:campus };
+  return { saveAll:saveAll, addDept:addDept, delDept:delDept, tog:tog, touch:touch,
+           campus:campus, addSpoc:addSpoc, delSpoc:delSpoc, primary:primary, preview:preview };
 })();
 </script>
 </body>

@@ -133,9 +133,19 @@ var HBE_DEFAULT_CONFIG = {
       /* ---------- what the placement cell fills in (Campus profile tab) ---------- */
       profile: {
         website: "https://www.chitkara.edu.in", established: "2002",
-        strength: { total: 12000, finalYear: 2600 },
-        contact: { name:"Dr. Neha Arora", role:"Head, Placement Cell",
-                   email:"placements@chitkara.edu.in", phone:"+91 98150 00001" },
+        spocs: [
+          { name:"Dr. Neha Arora", role:"Head, Placement Cell",
+            email:"placements@chitkara.edu.in", phone:"+91 98150 00001", primary:true },
+          { name:"Rohit Sharma", role:"Coordinator, Engineering",
+            email:"rohit.sharma@chitkara.edu.in", phone:"+91 98150 00011", primary:false }
+        ],
+        departments: [
+          { name:"Institute of Engineering & Technology", total:5200, finalYear:1300 },
+          { name:"Chitkara Business School",              total:2400, finalYear:700 },
+          { name:"School of Computer Applications",       total:1500, finalYear:400 },
+          { name:"Chitkara College of Pharmacy",          total:1600, finalYear:120 },
+          { name:"School of Mass Communication",          total:1300, finalYear:80 }
+        ],
         nomenclature: { uid:"University Roll Number", department:"Department / School",
                         programme:"Programme", course:"Course / Branch", session:"Session" },
         updatedAt: "2026-08-12"
@@ -333,9 +343,16 @@ var HBE_DEFAULT_CONFIG = {
 
       profile: {
         website: "https://www.lpu.in", established: "2005",
-        strength: { total: 30000, finalYear: 7200 },
-        contact: { name:"Rajat Sethi", role:"Career Services",
-                   email:"careers@lpu.in", phone:"+91 98140 00002" },
+        spocs: [
+          { name:"Rajat Sethi", role:"Head, Career Services",
+            email:"careers@lpu.in", phone:"+91 98140 00002", primary:true }
+        ],
+        departments: [
+          { name:"School of Computer Science & Engineering", total:11000, finalYear:2800 },
+          { name:"Mittal School of Business",                total:8000,  finalYear:2100 },
+          { name:"School of Mechanical Engineering",         total:7000,  finalYear:1700 },
+          { name:"School of Pharmaceutical Sciences",        total:4000,  finalYear:600 }
+        ],
         nomenclature: { uid:"LPU Registration Number", department:"School",
                         programme:"Programme", course:"Course / Specialisation", session:"Session" },
         updatedAt: "2026-08-20"
@@ -505,9 +522,20 @@ var HBE_DEFAULT_CONFIG = {
 
       profile: {
         website: "https://www.upes.ac.in", established: "2003",
-        strength: { total: 14000, finalYear: 3100 },
-        contact: { name:"Ms. Ritu Bhatt", role:"Placement Cell",
-                   email:"placements@upes.ac.in", phone:"+91 99170 00003" },
+        spocs: [
+          { name:"Ms. Ritu Bhatt", role:"Head, Placement Cell",
+            email:"placements@upes.ac.in", phone:"+91 99170 00003", primary:true },
+          { name:"Karan Negi", role:"Coordinator, Business & Law",
+            email:"karan.negi@upes.ac.in", phone:"+91 99170 00013", primary:false }
+        ],
+        departments: [
+          { name:"School of Computer Science",     total:4200, finalYear:1100 },
+          { name:"School of Advanced Engineering", total:3600, finalYear:900 },
+          { name:"School of Business",             total:2800, finalYear:700 },
+          { name:"School of Law",                  total:1600, finalYear:250 },
+          { name:"School of Design",               total:1100, finalYear:100 },
+          { name:"School of Health Sciences",      total:700,  finalYear:50 }
+        ],
         nomenclature: { uid:"SAP ID", department:"School",
                         programme:"Programme", course:"Specialisation", session:"Session" },
         updatedAt: "2026-08-28"
@@ -690,9 +718,21 @@ var HBE_DEFAULT_CONFIG = {
 
       profile: {
         website: "https://www.thapar.edu", established: "1956",
-        strength: { total: 9500, finalYear: 2100 },
-        contact: { name:"Dr. A. S. Grewal", role:"Training & Placement Cell",
-                   email:"tnp@thapar.edu", phone:"+91 98720 00004" },
+        spocs: [
+          { name:"Dr. A. S. Grewal", role:"Head, Training & Placement",
+            email:"tnp@thapar.edu", phone:"+91 98720 00004", primary:true },
+          { name:"Simran Kohli", role:"Placement Officer",
+            email:"simran.kohli@thapar.edu", phone:"+91 98720 00014", primary:false }
+        ],
+        departments: [
+          { name:"Computer Science & Engineering",   total:2600, finalYear:640 },
+          { name:"Electronics & Communication",      total:1700, finalYear:420 },
+          { name:"Mechanical Engineering",           total:1500, finalYear:370 },
+          { name:"Civil Engineering",                total:1200, finalYear:290 },
+          { name:"Chemical Engineering",             total:1100, finalYear:260 },
+          { name:"Biotechnology",                    total:900,  finalYear:220 },
+          { name:"LM Thapar School of Management",   total:500,  finalYear:250 }
+        ],
         nomenclature: { uid:"Thapar Roll Number", department:"Department",
                         programme:"Programme", course:"Course / Branch", session:"Session" },
         updatedAt: "2026-09-01"
@@ -872,9 +912,17 @@ var HBE_DEFAULT_CONFIG = {
 
       profile: {
         website: "https://www.amity.edu", established: "1995",
-        strength: { total: 21000, finalYear: 4800 },
-        contact: { name:"Prof. S. Iyer", role:"Corporate Resource Centre",
-                   email:"crc@amity.edu", phone:"+91 99990 00005" },
+        spocs: [
+          { name:"Prof. S. Iyer", role:"Director, Corporate Resource Centre",
+            email:"crc@amity.edu", phone:"+91 99990 00005", primary:true }
+        ],
+        departments: [
+          { name:"ASET",                  total:8000, finalYear:1900 },
+          { name:"Amity Business School",  total:5200, finalYear:1400 },
+          { name:"AIIT",                   total:3200, finalYear:800 },
+          { name:"Amity Law School",       total:2800, finalYear:500 },
+          { name:"AIBAS",                  total:1800, finalYear:200 }
+        ],
         nomenclature: { uid:"Enrolment Number", department:"School / Institute",
                         programme:"Programme", course:"Specialisation", session:"Session" },
         updatedAt: "2026-09-04"
