@@ -9,6 +9,7 @@ var K_STUD  = "hbe_students_v10";
 var K_SESS  = "hbe_session_v2";
 var K_LASTC = "hbe_last_college_v2";
 var K_GATE  = "hbe_gate_v1";      /* verified University ID pass */
+var K_SIGN  = "hbe_signups_v1";   /* who got through the gate but has not submitted */
 var _mem = {};
 
 /* ---------------- storage primitives ---------------- */
@@ -74,6 +75,13 @@ var ICO = {
   arrow:'<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
   back:'<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
   mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+  grid:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.3"/><circle cx="3.6" cy="12" r="1.3"/><circle cx="3.6" cy="18" r="1.3"/>',
+  rupee:'<path d="M6 3h12"/><path d="M6 8.5h12"/><path d="M15 3c0 3.6-2.6 5.5-6 5.5h-1l8 12.5"/>',
+  building:'<rect x="3.5" y="7" width="9" height="14" rx="1.4"/><rect x="12.5" y="3" width="8" height="18" rx="1.4"/><line x1="6.4" y1="11" x2="9.6" y2="11"/><line x1="6.4" y1="15" x2="9.6" y2="15"/><line x1="15.4" y1="7.5" x2="17.6" y2="7.5"/><line x1="15.4" y1="11.5" x2="17.6" y2="11.5"/><line x1="15.4" y1="15.5" x2="17.6" y2="15.5"/>',
+  code:'<polyline points="8.5 7 3.5 12 8.5 17"/><polyline points="15.5 7 20.5 12 15.5 17"/>',
+  hourglass:'<path d="M6.5 3h11"/><path d="M6.5 21h11"/><path d="M7.5 3v3.2c0 2.3 4.5 3.9 4.5 5.8s-4.5 3.5-4.5 5.8V21"/><path d="M16.5 3v3.2c0 2.3-4.5 3.9-4.5 5.8s4.5 3.5 4.5 5.8V21"/>',
+  userplus:'<circle cx="9" cy="8" r="3.6"/><path d="M2.5 21a6.5 6.5 0 0 1 13 0"/><line x1="19" y1="7" x2="19" y2="13"/><line x1="16" y1="10" x2="22" y2="10"/>',
   shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/>',
   chart:'<line x1="3" y1="21" x2="21" y2="21"/><rect x="5" y="11" width="4" height="8"/><rect x="11" y="6" width="4" height="13"/><rect x="17" y="14" width="4" height="5"/>',
@@ -242,29 +250,45 @@ function hbeAdminCampus(sess, cfg){
 
 /* one navigation for every console page */
 function hbeAdminNav(college, sess, active){
+  var cfg = hbeGetConfig(), su = hbeIsSuper(sess);
   var items = [];
-  if(hbeIsSuper(sess)) items.push({ k:"clients", href:"admin-clients.html", label:"Clients" });
+  if(su) items.push({ k:"clients", href:"admin-clients.html", label:"Clients", i:"grid" });
   items = items.concat([
-    { k:"analytics",  href:"admin-analytics.html",  label:"Analytics" },
-    { k:"students",   href:"admin-reports.html",    label:"Students" },
-    { k:"roster",     href:"admin-roster.html",     label:"Roster" },
-    { k:"commercial", href:"admin-commercial.html", label:"Commercial" },
-    { k:"profile",    href:"admin-profile.html",    label:"Profile" }
+    { k:"analytics",  href:"admin-analytics.html",  label:"Analytics",  i:"chart" },
+    { k:"students",   href:"admin-reports.html",    label:"Students",   i:"users" },
+    { k:"roster",     href:"admin-roster.html",     label:"Roster",     i:"list" },
+    { k:"commercial", href:"admin-commercial.html", label:"Commercial", i:"rupee" },
+    { k:"profile",    href:"admin-profile.html",    label:"Profile",    i:"building" }
   ]);
-  if(hbeIsSuper(sess)){
-    items.push({ k:"builder", href:"admin.html",      label:"Builder" });
-    items.push({ k:"data",    href:"admin-data.html", label:"Data" });
+  if(su){
+    items.push({ k:"builder", href:"admin.html",      label:"Builder", i:"settings" });
+    items.push({ k:"data",    href:"admin-data.html", label:"Data",    i:"code" });
   }
-  var links = items.map(function(i){
-    return '<a class="nav-link' + (i.k === active ? " on" : "") + '" href="' + i.href + '">' + i.label + "</a>";
+
+  var tabs = items.map(function(i){
+    return '<a class="ctab' + (i.k === active ? " on" : "") + '" href="' + i.href + '">' +
+           ico(i.i) + "<span>" + i.label + "</span></a>";
   }).join("");
 
-  links += hbeIsSuper(sess)
-    ? '<span class="badge brand">' + ico("shield") + " HQ</span>"
-    : '<span class="badge">' + ico("users") + " Placement cell</span>";
-  links += '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">' + ico("logout") + " Sign out</a>";
+  var who = sess.name || (su ? "Hitbullseye HQ" : "Placement Cell");
 
-  return hbeNav(college, links).replace('<div class="nav-links">', '<div class="nav-links dense">');
+  return '<nav class="cnav"><div class="cnav-top"><div class="cnav-in">' +
+      '<a class="logo-plate" href="index.html?college=' + college.id + '" title="' + hbeEsc(college.name) + '">' +
+        '<img src="' + college.logo + '" alt="' + hbeEsc(college.name) + '"' + hbeLogoStyle(college, 0, 32) + '></a>' +
+      '<div class="co">' + hbeEsc(college.shortName || college.name) + '<small>Assessment Portal</small></div>' +
+      '<div class="sep"></div>' +
+      '<div class="logo-plate bare"><img src="' + cfg.brand.logo + '" alt="Hitbullseye"></div>' +
+
+      '<div class="cnav-acct">' +
+        '<span class="scope ' + (su ? "hq" : "") + '">' + ico(su ? "shield" : "users") +
+          "<span>" + (su ? "All clients" : "This campus") + "</span></span>" +
+        '<div class="me"><span class="avatar">' + hbeInitials(who) + "</span>" +
+          '<span class="txt"><b>' + hbeEsc(who) + "</b><em>" + hbeEsc(sess.email || "") + "</em></span></div>" +
+        '<a class="icon-btn" href="#" title="Sign out" onclick="hbeLogout();return false">' + ico("logout") + "</a>" +
+      "</div>" +
+    '</div></div>' +
+    '<div class="cnav-tabs"><div class="cnav-in"><div class="ctabs">' + tabs + "</div></div></div>" +
+  "</nav>";
 }
 
 /* commercial roll-up for one campus */
@@ -458,6 +482,73 @@ function hbeAcadFor(college, raw){
 }
 
 /* ---------------- seed demo data ---------------- */
+/* =====================================================================
+   SIGN-UP PROGRESS
+   A student on the master list moves through three states:
+     invited    - the college uploaded them, they have not started
+     verified   - email OTP cleared, an account exists, form not submitted
+     registered - the form is submitted (they are in the students list)
+   Only the middle state needs storing; the other two are derived.
+   ===================================================================== */
+function hbeAgo(iso){
+  if(!iso) return "—";
+  var then = new Date(iso).getTime();
+  if(isNaN(then)) return "—";
+  var mins = Math.round((Date.now() - then) / 60000);
+  if(mins < 1)  return "just now";
+  if(mins < 60) return mins + " min ago";
+  var hrs = Math.round(mins / 60);
+  if(hrs < 24)  return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+  var days = Math.round(hrs / 24);
+  if(days < 31) return days + (days === 1 ? " day ago" : " days ago");
+  var mo = Math.round(days / 30);
+  return mo + (mo === 1 ? " month ago" : " months ago");
+}
+
+function hbeSignups(){ return hbeJson(K_SIGN, {}) || {}; }
+function hbeSignKey(collegeId, uid){ return collegeId + "|" + String(uid || "").toLowerCase(); }
+
+function hbeMarkSignup(collegeId, uid, email, step){
+  if(!collegeId || !uid) return;
+  var all = hbeSignups(), k = hbeSignKey(collegeId, uid);
+  var was = all[k] || {};
+  all[k] = { collegeId:collegeId, uid:uid, email:email || was.email || "",
+             step: step || was.step || "verified",
+             startedAt: was.startedAt || new Date().toISOString(),
+             touchedAt: new Date().toISOString() };
+  hbeSet(K_SIGN, JSON.stringify(all));
+}
+function hbeSignupOf(collegeId, uid){ return hbeSignups()[hbeSignKey(collegeId, uid)] || null; }
+
+/* what stage is one master-list row at? */
+function hbeRowStage(college, row){
+  var byEmail = hbeStudentByEmail(row.email);
+  var byId = !byEmail && hbeStudents().filter(function(x){
+    return x.collegeId === college.id && String(x.rollNo||"").toLowerCase() === String(row.uid||"").toLowerCase();
+  })[0];
+  var st = byEmail || byId;
+  if(st) return { stage:"registered", student:st,
+                  attempted: hbeResultList(st).length > 0, at: st.registeredAt };
+  var sg = hbeSignupOf(college.id, row.uid);
+  if(sg) return { stage:"verified", student:null, attempted:false, at: sg.startedAt, step: sg.step };
+  return { stage:"invited", student:null, attempted:false, at:null };
+}
+
+/* the whole campus funnel in one call */
+function hbeFunnel(college){
+  var rows = college.roster || [];
+  var f = { total:rows.length, registered:0, verified:0, invited:0, attempted:0, rows:[] };
+  rows.forEach(function(r){
+    var g = hbeRowStage(college, r);
+    f[g.stage]++;
+    if(g.attempted) f.attempted++;
+    f.rows.push({ row:r, g:g });
+  });
+  f.accounts = f.registered + f.verified;              /* anyone who got in at all */
+  f.pct = function(n){ return f.total ? Math.round(n * 100 / f.total) : 0; };
+  return f;
+}
+
 function hbeSeedStudents(){
   var cfg = hbeGetConfig();
   var seed = [
@@ -562,6 +653,29 @@ function hbeSeedStudents(){
     }
   });
   if(touched) hbeSaveConfig(cfg);
+
+  /* a realistic middle of the funnel: some students verified their email and
+     stopped before submitting the form. Deterministic, so the numbers hold still. */
+  if(!hbeGet(K_SIGN)){
+    var sign = {}, now = Date.now();
+    var done = {};                                     /* emails already registered, from `out` */
+    out.forEach(function(x){ done[String(x.email).toLowerCase()] = 1; });
+
+    Object.keys(cfg.colleges).forEach(function(k){
+      var col = cfg.colleges[k];
+      var open = (col.roster || []).filter(function(r){ return !done[String(r.email).toLowerCase()]; });
+      var take = Math.min(open.length, Math.max(1, Math.round(open.length * 0.45)));
+      open.slice(0, take).forEach(function(r, i){
+        sign[hbeSignKey(k, r.uid)] = {
+          collegeId:k, uid:r.uid, email:r.email,
+          step: i % 3 === 0 ? "form-open" : "verified",
+          startedAt: new Date(now - (i + 2) * 43200000).toISOString(),
+          touchedAt: new Date(now - (i + 1) * 21600000).toISOString()
+        };
+      });
+    });
+    hbeSet(K_SIGN, JSON.stringify(sign));
+  }
 
   return out;
 }

@@ -19,7 +19,7 @@
     <div>
       <span class="eyebrow">Placement cell console</span>
       <h1 style="font-size:28px;margin-top:12px">Student master list</h1>
-      <p class="sm mut">The list your campus shares with us. Only these IDs can register.</p>
+      <p class="sm mut">The list your campus uploads &mdash; and exactly how far each student has got.</p>
     </div>
     <div class="row" style="gap:10px;flex-wrap:wrap">
       <label class="btn btn-ghost btn-sm" style="margin:0">Upload CSV
@@ -28,6 +28,8 @@
       <button class="btn btn-sm" onclick="M.newRow()">+ Add student</button>
     </div>
   </div>
+
+  <section class="mt" id="funnel"></section>
 
   <section class="stats mt" id="kpi"></section>
 
@@ -74,8 +76,11 @@
       <select id="fCol" onchange="M.switchCampus(this.value)"></select>
       <select id="fStatus" onchange="M.draw()">
         <option value="">All rows</option>
-        <option value="done">Registered</option>
-        <option value="pending">Not registered yet</option>
+        <option value="registered">Registration complete</option>
+        <option value="verified">Account created, form pending</option>
+        <option value="invited">Not started</option>
+        <option value="attempted">Test attempted</option>
+        <option value="bad">Needs attention</option>
       </select>
     </div>
 
@@ -132,6 +137,7 @@ var M = (function(){
   /* ---------------- helpers ---------------- */
   function roster(){ return c.roster || (c.roster = []); }
   function fieldById(id){ return (c.fields||[]).filter(function(f){ return f.id === id; })[0] || null; }
+  var MAILRE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
   function isRegistered(email){ return !!hbeStudentByEmail(email); }
   function save(){ hbeSaveConfig(cfg); }
 
@@ -163,8 +169,13 @@ var M = (function(){
     var q = g("q").value.trim().toLowerCase();
     var st = g("fStatus").value;
     return roster().map(function(r, i){ r._i = i; return r; }).filter(function(r){
-      if(st === "done" && !isRegistered(r.email)) return false;
-      if(st === "pending" && isRegistered(r.email)) return false;
+      if(st){
+        var gg = hbeRowStage(c, r);
+        var badRow = !r.uid || !MAILRE.test(r.email||"");
+        if(st === "attempted"){ if(!gg.attempted) return false; }
+        else if(st === "bad"){ if(!badRow) return false; }
+        else if(gg.stage !== st) return false;
+      }
       if(q){
         var hay = [r.uid, r.name, r.email, r.department, r.programme, r.course, r.session].join(" ").toLowerCase();
         if(hay.indexOf(q) === -1) return false;
@@ -183,11 +194,33 @@ var M = (function(){
       if(dupes[k]) dupCount++; else dupes[k] = 1;
     });
 
+    var f = hbeFunnel(c);
+    drawFunnel(f, bad + dupCount);
+
+    /* the funnel above carries the counts - this row is about the list itself */
+    var byDept = {}, noDept = 0;
+    all.forEach(function(r){
+      if(r.department) byDept[r.department] = (byDept[r.department] || 0) + 1; else noDept++;
+    });
+    var deptCount = Object.keys(byDept).length;
+    var onBooks = ((c.profile || {}).departments || [])
+      .reduce(function(a,b){ return a + (+b.finalYear || 0); }, 0);
+
+    var lastReg = null;
+    f.rows.forEach(function(x){
+      if(x.g.at && (!lastReg || x.g.at > lastReg)) lastReg = x.g.at;
+    });
+
     g("kpi").innerHTML =
-      kpi("On the master list", all.length, c.name) +
-      kpi("Registered", reg, all.length ? Math.round(reg*100/all.length) + "% of the list" : "—") +
-      kpi("Not registered yet", all.length - reg, "Can still register") +
-      kpi("Needs attention", bad + dupCount, bad + " invalid · " + dupCount + " duplicate IDs");
+      kpi("Coverage of final year", onBooks ? Math.round(all.length * 100 / onBooks) + "%" : "—",
+          onBooks ? all.length + " uploaded of " + onBooks.toLocaleString() + " on your books"
+                  : "add final-year strength in Profile") +
+      kpi("Departments on the list", deptCount,
+          noDept ? noDept + " rows have no department" : "every row is tagged") +
+      kpi("Rows needing attention", bad + dupCount,
+          bad + " invalid email · " + dupCount + " duplicate IDs") +
+      kpi("Last activity", lastReg ? hbeAgo(lastReg) : "—",
+          lastReg ? "most recent student to get through" : "nobody has started yet");
 
     var l = filtered();
     g("count").textContent = l.length + " of " + all.length + " rows";
@@ -202,7 +235,7 @@ var M = (function(){
       "<th>University ID</th><th>Student</th><th>Department</th><th>Programme · Course</th>" +
       "<th>Session</th><th>Status</th><th></th></tr></thead><tbody>" +
       l.map(function(r){
-        var done = isRegistered(r.email);
+        var gg   = hbeRowStage(c, r);
         var bad  = !r.uid || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(r.email||"");
         return "<tr>" +
           '<td><b>'+hbeEsc(r.uid||"—")+"</b></td>" +
@@ -212,9 +245,7 @@ var M = (function(){
           '<td><span class="trunc" title="'+hbeEsc(r.course||"")+'">'+hbeEsc(r.course||"—")+"</span>" +
             '<br><span class="xs mut">'+hbeEsc(r.programme||"—")+"</span></td>" +
           "<td>"+hbeEsc(r.session||"—")+"</td>" +
-          "<td>" + (bad ? '<span class="badge err">Invalid row</span>'
-                        : done ? '<span class="badge ok">Registered</span>'
-                               : '<span class="badge warn">Pending</span>') + "</td>" +
+          "<td>" + stageCell(gg, bad) + "</td>" +
           '<td><div class="row" style="gap:6px">' +
             '<button class="icon-btn" style="width:30px;height:30px" title="Edit" onclick="M.edit('+r._i+')">'+ico("edit")+"</button>" +
             '<button class="icon-btn" style="width:30px;height:30px" title="Remove" onclick="M.del('+r._i+')">'+ico("x")+"</button>" +
@@ -222,8 +253,75 @@ var M = (function(){
       }).join("") + "</tbody></table></div>";
   }
 
+  /* ------------- the view the placement cell actually asks for ------------ */
+  function drawFunnel(f, attention){
+    var steps = [
+      { k:"total",      label:"On your list",      n:f.total,      i:"list",
+        note:"students you uploaded" },
+      { k:"accounts",   label:"Account created",   n:f.accounts,   i:"userplus",
+        note:"cleared the email OTP" },
+      { k:"registered", label:"Registration done", n:f.registered, i:"check",
+        note:"form submitted and confirmed" },
+      { k:"attempted",  label:"Test attempted",    n:f.attempted,  i:"medal",
+        note:"sat at least one assessment" }
+    ];
+
+    var body = steps.map(function(x, i){
+      var pct  = f.total ? Math.round(x.n * 100 / f.total) : 0;
+      var drop = i ? steps[i-1].n - x.n : 0;
+      return '<button class="fstep i' + i + '" onclick="M.jump(\'' + x.k + '\')">' +
+        '<span class="ic">' + ico(x.i) + '</span>' +
+        '<span class="n">' + x.n + '</span>' +
+        '<span class="lb">' + x.label + '</span>' +
+        '<span class="bar"><i style="width:' + Math.max(pct, 2) + '%"></i></span>' +
+        '<span class="pc">' + pct + '% of the list</span>' +
+        '<span class="nt">' + x.note + '</span>' +
+        (i && drop > 0 ? '<span class="drop">' + drop + ' dropped off here</span>' : '') +
+      '</button>';
+    }).join('');
+
+    var chips =
+      chip("verified", "warn", f.verified, "started but form still pending") +
+      chip("invited",  "",     f.invited,  "never signed in") +
+      (attention ? chip("bad", "err", attention, "rows need attention") : "");
+
+    g("funnel").innerHTML =
+      '<div class="card">' +
+        '<div class="row-b sec-head"><div><h2>Where your students have got to</h2>' +
+          '<p class="sm mut">Out of the ' + f.total + ' students ' +
+            hbeEsc(c.shortName || c.name) + ' uploaded. Tap any step to filter the table.</p></div>' +
+          '<span class="badge brand">' + f.pct(f.registered) + '% complete</span></div>' +
+        '<div class="funnel">' + body + '</div>' +
+        '<div class="row mt" style="gap:9px;flex-wrap:wrap">' + chips + '</div>' +
+      '</div>';
+  }
+
+  function chip(key, cls, n, text){
+    return '<button class="fchip ' + cls + '" onclick="M.jump(\'' + key + '\')">' +
+           '<b>' + n + '</b><span>' + text + '</span></button>';
+  }
+
+  function jump(k){
+    var map = { total:"", accounts:"verified", registered:"registered",
+                attempted:"attempted", verified:"verified", invited:"invited", bad:"bad" };
+    g("fStatus").value = map[k] != null ? map[k] : "";
+    draw();
+    g("table").scrollIntoView({ behavior:"smooth", block:"center" });
+  }
+
   function kpi(l,v,sub){
     return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+
+  function stageCell(gg, bad){
+    if(bad) return '<span class="badge err">Invalid row</span>';
+    if(gg.stage === "registered")
+      return '<span class="badge ok">Registered</span><br><span class="xs mut">' +
+             (gg.attempted ? "test attempted" : "test not taken") + '</span>';
+    if(gg.stage === "verified")
+      return '<span class="badge warn">Account created</span><br><span class="xs mut">' +
+             (gg.step === "form-open" ? "opened the form" : "form not submitted") + '</span>';
+    return '<span class="badge">Not started</span><br><span class="xs mut">never signed in</span>';
   }
 
   /* ---------------- add / edit ---------------- */
@@ -231,7 +329,9 @@ var M = (function(){
     editIndex = i;
     var r = i > -1 ? roster()[i] : { uid:"", email:"", name:"", department:"", programme:"", course:"", session:"" };
     g("editTitle").textContent = i > -1 ? "Edit student" : "Add a student";
-    g("editBadge").textContent = i > -1 ? (isRegistered(r.email) ? "Already registered" : "Not registered yet") : "New row";
+    var stg = { registered:"Already registered", verified:"Account created, form pending",
+                invited:"Not started" };
+    g("editBadge").textContent = i > -1 ? stg[hbeRowStage(c, r).stage] : "New row";
     g("e_uid").value = r.uid || "";
     g("e_email").value = r.email || "";
     g("e_name").value = r.name || "";
@@ -345,10 +445,17 @@ var M = (function(){
   }
 
   function exportCsv(){
-    var head = ["University ID","Email","Name","Department","Programme","Course","Session","Status"];
+    var head = ["University ID","Email","Name","Department","Programme","Course","Session",
+                "Stage","Account created","Registration complete","Test attempted"];
+    var stg = { registered:"Registration complete", verified:"Account created, form pending",
+                invited:"Not started" };
     var rows = roster().map(function(r){
+      var gg = hbeRowStage(c, r);
       return [r.uid, r.email, r.name, r.department, r.programme, r.course, r.session,
-              isRegistered(r.email) ? "Registered" : "Pending"]
+              stg[gg.stage],
+              gg.stage === "invited" ? "No" : "Yes",
+              gg.stage === "registered" ? "Yes" : "No",
+              gg.attempted ? "Yes" : "No"]
         .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
     });
     var blob = new Blob([head.join(",") + "\n" + rows.join("\n")], { type:"text/csv" });
@@ -367,7 +474,8 @@ var M = (function(){
   brand(); draw();
   return { draw:draw, edit:openEditor, newRow:function(){ openEditor(-1); }, del:del,
            save:saveRow, cancel:cancel, deptChanged:deptChanged, progChanged:progChanged,
-           bulkAdd:bulkAdd, upload:upload, exportCsv:exportCsv, switchCampus:switchCampus };
+           bulkAdd:bulkAdd, upload:upload, exportCsv:exportCsv, switchCampus:switchCampus,
+           jump:jump };
 })();
 </script>
 </body>

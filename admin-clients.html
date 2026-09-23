@@ -72,6 +72,7 @@ var K = (function(){
       var c  = cfg.colleges[k];
       var pf = c.profile || {};
       var m  = hbeCommercial(c);
+      var fn    = hbeFunnel(c);
       var studs = hbeStudents().filter(function(x){ return x.collegeId === k; });
       var attempts = 0;
       studs.forEach(function(x){ attempts += hbeResultList(x).length; });
@@ -85,7 +86,7 @@ var K = (function(){
                      !!(pf.nomenclature && pf.nomenclature.uid), (c.roster||[]).length > 0 ];
       var done = checks.filter(Boolean).length;
 
-      return { k:k, c:c, pf:pf, m:m, spocs:spocs, depts:depts, strength:strength,
+      return { k:k, c:c, pf:pf, m:m, fn:fn, spocs:spocs, depts:depts, strength:strength,
                finalYr:finalYr, students:studs.length, attempts:attempts,
                tests:hbeTests(c).length, roster:(c.roster||[]).length,
                complete: Math.round(done * 100 / checks.length) };
@@ -96,20 +97,25 @@ var K = (function(){
   function draw(){
     var l = rows();
     var value = 0, due = 0, strength = 0, students = 0, pending = 0;
+    var onList = 0, reg = 0, started = 0;
     l.forEach(function(r){
       value += r.m.value; due += r.m.due; strength += r.strength;
       students += r.students; if(r.complete < 100) pending++;
+      onList += r.fn.total; reg += r.fn.registered; started += r.fn.verified;
     });
 
     g("kpi").innerHTML =
       kpi("Clients", l.length, strength.toLocaleString() + " students on their books") +
-      kpi("Registered with us", students, l.reduce(function(a,b){ return a+b.roster; },0) + " on the master lists") +
+      kpi("Registration complete", reg,
+          (onList ? Math.round(reg*100/onList) : 0) + "% of the " + onList + " names uploaded") +
       kpi("Contracted value", hbeMoney(value), hbeMoney(due) + " outstanding") +
+      kpi("Mid-way, needs a nudge", started,
+          "accounts created but the form is still pending") +
       kpi("Profiles incomplete", pending, pending ? "chase these campuses" : "everything submitted");
 
     g("table").innerHTML = '<div class="tbl-wrap"><table style="min-width:1080px"><thead><tr>' +
       "<th>Client</th><th>Profile</th><th>SPOC</th><th>Departments</th><th>Strength</th>" +
-      "<th>Assessments</th><th>Registered</th><th>Account</th><th></th></tr></thead><tbody>" +
+      "<th>Assessments</th><th>Sign-up progress</th><th>Account</th><th></th></tr></thead><tbody>" +
       l.map(function(r){
         var sp = r.spocs[0] || {};
         var cls = r.complete === 100 ? "ok" : r.complete >= 60 ? "warn" : "err";
@@ -123,12 +129,12 @@ var K = (function(){
                 (r.spocs.length > 1 ? '<br><span class="badge">+'+(r.spocs.length-1)+" more</span>" : "")
               : '<span class="badge warn">not given</span>') + "</td>" +
           "<td><b>"+r.depts.length+'</b><br><span class="xs mut">'+
-            r.depts.slice(0,2).map(function(d){ return hbeEsc(d.name); }).join(", ").slice(0,28) +
+            hbeEsc(clip(r.depts.slice(0,2).map(function(d){ return d.name; }).join(", "), 28)) +
             (r.depts.length > 2 ? "…" : "") + "</span></td>" +
           "<td><b>"+(r.strength ? r.strength.toLocaleString() : "—")+"</b>" +
             '<br><span class="xs mut">'+(r.finalYr ? r.finalYr.toLocaleString()+" final year" : "")+"</span></td>" +
           "<td>"+r.tests+'<br><span class="xs mut">'+r.attempts+" attempts</span></td>" +
-          "<td>"+r.students+" / "+r.roster+'<br><span class="xs mut">registered / on list</span></td>' +
+          "<td>" + progCell(r.fn) + "</td>" +
           "<td>"+hbeMoney(r.m.value)+"<br>" +
             (r.m.due ? '<span class="badge '+(r.m.overdue?"err":"warn")+'">'+hbeMoney(r.m.due)+" due</span>"
                      : '<span class="badge ok">settled</span>') + "</td>" +
@@ -150,8 +156,8 @@ var K = (function(){
         '<div class="aud">'+ico("file")+"<span>" +
           hbeEsc(((r.pf.nomenclature||{}).uid) || "University ID") + " · " +
           hbeEsc(((r.pf.nomenclature||{}).department) || "Department") + "</span></div>" +
-        '<div class="res"><div><b>'+r.students+'</b><span>Registered</span></div>' +
-          "<div><b>"+r.attempts+'</b><span>Attempts</span></div>' +
+        '<div class="res"><div><b>'+r.fn.registered+'</b><span>Registered</span></div>' +
+          "<div><b>"+r.fn.verified+'</b><span>Pending</span></div>' +
           "<div><b>"+hbeMoney(r.m.due)+'</b><span>Due</span></div></div>' +
         '<div class="foot">' +
           '<button class="btn btn-sm" onclick="K.open(\''+r.k+'\',\'admin-analytics.html\')">Analytics'+ico("arrow")+"</button>" +
@@ -160,6 +166,21 @@ var K = (function(){
         "</div></div>";
     }).join("");
   }
+
+  /* a three-segment bar: registered / started / not started */
+  function progCell(f){
+    var a = f.pct(f.registered), b = f.pct(f.verified), cc = Math.max(0, 100 - a - b);
+    return '<div class="minibar" title="' + f.registered + ' registered, ' + f.verified +
+             ' started, ' + f.invited + ' not started">' +
+             '<i class="ok" style="width:' + a + '%"></i>' +
+             '<i class="warn" style="width:' + b + '%"></i>' +
+             '<i class="idle" style="width:' + cc + '%"></i></div>' +
+           '<span class="xs mut">' + f.registered + " done · " + f.verified +
+             " started · " + f.invited + " not started</span>";
+  }
+
+  /* cut plain text, never escaped markup */
+  function clip(t, n){ t = String(t || ""); return t.length > n ? t.slice(0, n - 1) + "…" : t; }
 
   function kpi(l,v,sub){
     return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
@@ -172,13 +193,15 @@ var K = (function(){
 
   function csv(){
     var head = ["Client","City","Profile %","Last updated","SPOC","SPOC email","SPOCs",
-                "Departments","Total strength","Final year","Assessments","Registered",
-                "On master list","Attempts","Contract value","Outstanding","Next due"];
+                "Departments","Total strength","Final year","Assessments",
+                "On master list","Accounts created","Registration complete","Not started",
+                "Attempts","Contract value","Outstanding","Next due"];
     var lines = rows().map(function(r){
       var sp = r.spocs[0] || {};
       return [r.c.name, r.c.campus, r.complete, r.pf.updatedAt || "", sp.name || "", sp.email || "",
-              r.spocs.length, r.depts.length, r.strength, r.finalYr, r.tests, r.students,
-              r.roster, r.attempts, r.m.value, r.m.due, r.m.nextDue || ""]
+              r.spocs.length, r.depts.length, r.strength, r.finalYr, r.tests,
+              r.fn.total, r.fn.accounts, r.fn.registered, r.fn.invited,
+              r.attempts, r.m.value, r.m.due, r.m.nextDue || ""]
         .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(",");
     });
     var blob = new Blob([head.join(",")+"\n"+lines.join("\n")], {type:"text/csv"});

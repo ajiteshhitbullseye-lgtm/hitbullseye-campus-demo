@@ -42,7 +42,7 @@
   <!-- funnel -->
   <section class="card mt">
     <div class="sec-head"><h2>Registration funnel</h2>
-      <p class="sm mut">Master list → registered → attempted this assessment.</p></div>
+      <p class="sm mut">Master list → account created → registered → attempted this assessment.</p></div>
     <div id="funnel"></div>
   </section>
 
@@ -161,22 +161,27 @@ var A = (function(){
       kpi("Clearing 40%", done.length ? Math.round(pass*100/done.length) + "%" : "—", pass + " of " + done.length + " attempts");
 
     /* ---- funnel ---- */
-    var onList = (c.roster || []).length;
+    var fn = hbeFunnel(c);
+    var onList = fn.total;
     var steps = [
-      { l:"On the master list", v:onList },
-      { l:"Registered",         v:list.length },
-      { l:"Attempted",          v:done.length },
-      { l:"Cleared 40%",        v:pass }
+      { l:"On the master list",   v:onList,       n:"uploaded by the campus" },
+      { l:"Account created",      v:fn.accounts,  n:"cleared the email OTP" },
+      { l:"Registration complete",v:list.length,  n:"form submitted" },
+      { l:"Attempted",            v:done.length,  n:"sat this assessment" },
+      { l:"Cleared 40%",          v:pass,         n:"scored 40% or more" }
     ];
     var top = Math.max(onList, list.length, 1);
     g("funnel").innerHTML = steps.map(function(x, i){
       var w = Math.round(x.v * 100 / top);
-      return '<div style="margin-bottom:14px">' +
+      var drop = i && steps[i-1].v > x.v ? steps[i-1].v - x.v : 0;
+      return '<div class="fline">' +
         '<div class="row-b" style="margin-bottom:6px">' +
-          '<span class="sm" style="font-weight:650;color:var(--ink)">'+x.l+"</span>" +
+          '<span class="sm" style="font-weight:650;color:var(--ink)">'+x.l+
+            ' <span class="xs mut" style="font-weight:500">'+x.n+"</span></span>" +
           '<span class="sm mut"><b style="color:var(--ink)">'+x.v+"</b>" +
-            (i && steps[i-1].v >= x.v ? " · " + Math.round(x.v*100/steps[i-1].v) + "% of previous" : "") + "</span></div>" +
-        '<div class="bar' + (i === 3 ? " ok" : "") + '"><i style="width:'+Math.max(w,1)+'%"></i></div></div>';
+            (i && steps[i-1].v >= x.v ? " · " + Math.round(x.v*100/steps[i-1].v) + "% of previous" : "") +
+            (drop ? ' <span class="xs" style="color:var(--err)">↓'+drop+"</span>" : "") + "</span></div>" +
+        '<div class="bar' + (i === steps.length-1 ? " ok" : "") + '"><i style="width:'+Math.max(w,1)+'%"></i></div></div>';
     }).join("");
 
     /* ---- distribution ---- */

@@ -241,6 +241,7 @@ var V = (function(){
       department: row.department, course: row.course, session: row.session,
       at: Date.now()
     });
+    hbeMarkSignup(c.id, row.uid, row.email, "verified");   /* the cell can now see this account exists */
     hbeToast("Verified. Opening your form.","check",2500);
     setTimeout(function(){ location.href = "register.html?college=" + encodeURIComponent(c.id); }, 500);
   }

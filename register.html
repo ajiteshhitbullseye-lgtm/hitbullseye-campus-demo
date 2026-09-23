@@ -246,6 +246,7 @@ var R = (function(){
   };
 
   function showReview(){
+    if(gate) hbeMarkSignup(gate.collegeId, gate.uid, gate.email, "form-open");
     var rows = "";
     (c.fields || []).forEach(function(f){
       if(!hbeFieldVisible(f, values)) return;
