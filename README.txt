@@ -62,16 +62,17 @@ THE FLOW (as agreed in the meeting)
 THREE LOGINS
 ------------
 SUPER ADMIN  hq-login.html   (its own URL, not the campus one)
-             super@hitbullseye.com / super@123   Hitbullseye HQ
+             super@demo.com / super@123   Hitbullseye HQ
    A MASTER LOGIN - there is NO campus to pick at sign-in. You land on the
-   Clients page, which lists every campus at once. Every other tab carries a
-   campus dropdown at the top right, so you switch client from inside the tab
-   and the page redraws in place - no going back to a chooser.
+   Clients page, which lists every campus at once. The CAMPUS SWITCHER sits in
+   the app bar, top right, in the same place on EVERY tab including Clients.
+   Pick a client there and you stay on the tab you were on, now showing that
+   client. A college admin never sees it.
    Tabs: Clients, Analytics, Students, Roster, Commercial, Campus profile,
    Form builder, Data & API.
 
 COLLEGE ADMIN  login.html?as=admin
-               admin@hitbullseye.com / admin@123   the placement cell
+               admin@demo.com / admin@123   the placement cell
    ONE campus only (chosen at sign-in, no campus switcher anywhere).
    Analytics, Students, Roster, Commercial (their own account),
    Campus profile. NO Clients page, NO form builder, NO Data/JSON page.
@@ -150,6 +151,31 @@ CONSOLE PAGES
                           through the inputs.
    admin.html             FORM BUILDER            (super admin only)
    admin-data.html        DATA & API - JSON in/out (super admin only)
+                          plus BULK STUDENT UPLOAD: paste a CSV or pick a file
+                          and it lands on the campus master list. Headers are
+                          matched loosely (University ID / Roll No / SAP ID /
+                          Registration Number all mean the same column) and a
+                          file with no header is read positionally. Add a
+                          CAMPUS column and one file loads several clients at
+                          once. Three modes - add and skip duplicates, add and
+                          update existing IDs, or replace the whole list.
+                          Replace never drops a student who has already
+                          registered. "Check the file" reports, before writing
+                          anything, how many rows will be added, updated,
+                          skipped and rejected, with the line number and the
+                          reason for every rejection.
+
+   admin.html             FORM BUILDER also carries DEPARTMENT-WISE FORM:
+                          a grid of every tunable field against every
+                          department. Untick a box and that department never
+                          sees the field - not shown, not required. Tick a
+                          field everywhere and its rule is removed entirely.
+                          "all" on a column header toggles a whole department.
+                          First name, last name, email, University ID and
+                          Department itself are always asked, so they are not
+                          listed. This writes the same showIf rule the form
+                          engine already reads, so the live form picks it up
+                          with no other change.
    The console has an "All assessments" filter: pick one paper and the cohort
    narrows to the students that paper is open to, with that paper's scores.
 
@@ -168,9 +194,11 @@ SIGN-UP FUNNEL    (Roster page, top)
                      verified   - cleared the email OTP, an ACCOUNT EXISTS,
                                   the form is NOT submitted yet
                      registered - the form is submitted and confirmed
-                  The four-step funnel shows On your list -> Account created
-                  -> Registration done -> Test attempted, with how many
-                  dropped off at each step. Every step is clickable and
+                  The funnel shows three numbers and no repetition:
+                  Students on your list -> Accounts created -> Test attempted,
+                  with how many dropped off at each step. Chips underneath
+                  split the middle: finished the form / started but pending /
+                  never signed in. Every step is clickable and
                   filters the table underneath. Two chips below break the
                   pending half apart: started-but-not-finished vs never
                   signed in. The table's Status column, the status filter
@@ -221,7 +249,7 @@ Export / Import   the whole configuration as JSON
 
 SIGN-IN (PROTOTYPE)
 -------------------
-Admin     admin@hitbullseye.com  /  admin@123
+Admin     admin@demo.com  /  admin@123
 Student   any registered email (the one-time code is shown on screen)
 
 Access code + fresh IDs to test the full flow (the verify page lists them

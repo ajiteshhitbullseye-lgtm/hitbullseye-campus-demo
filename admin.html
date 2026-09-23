@@ -43,7 +43,6 @@
     <div>
       <div class="panel">
         <h3>Campus</h3>
-        <select id="colSel" onchange="B.switchCollege(this.value)"></select>
         <button class="btn btn-soft btn-block btn-sm" style="margin-top:11px" onclick="B.addCollege()">+ Add a campus</button>
 
         <div class="mini" style="margin-top:18px">
@@ -145,6 +144,22 @@
       </div>
 
       <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px">
+          <h3 style="margin:0">Department-wise form</h3>
+          <div class="row" style="gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="B.deptAllOn()">Show all everywhere</button>
+            <button class="btn btn-sm" onclick="B.deptSave()">Apply</button>
+          </div>
+        </div>
+        <p class="sm mut" style="margin-bottom:14px">
+          One form per campus, tuned per department. Untick a box and that department
+          never sees the field &mdash; it is not shown and not required. A field ticked
+          everywhere carries no rule at all.
+        </p>
+        <div id="deptMatrix"></div>
+      </div>
+
+      <div class="panel mt">
         <div class="row-b" style="margin-bottom:14px">
           <h3 style="margin:0">Form fields</h3>
           <button class="btn btn-sm" onclick="B.addField()">+ Add field</button>
@@ -206,7 +221,7 @@ var B = (function(){
   /* ---------------- load ---------------- */
   function load(){
     var c = C();
-    g("colSel").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    gOpt("colSel").innerHTML = Object.keys(cfg.colleges).map(function(k){
       return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
 
     g("c_name").value = c.name; g("c_short").value = c.shortName||"";
@@ -245,7 +260,7 @@ var B = (function(){
     g("t_url").value = y.dashboardUrl||"dashboard.html";
 
     g("openForm").href = "register.html?college=" + cid;
-    hbeApplyTheme(c); nav(); fields();
+    hbeApplyTheme(c); nav(); fields(); deptMatrix();
   }
 
   /* ---------------- field list ---------------- */
@@ -423,6 +438,123 @@ var B = (function(){
   }
   function lines(v){ return v.split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
 
+  /* ================= department-wise form ================= */
+
+  function deptList(){
+    var d = (C().fields || []).filter(function(f){ return f.id === "department"; })[0];
+    var fromField = (d && d.options) || [];
+    if(fromField.length) return fromField.slice();
+    return (((C().profile || {}).departments) || []).map(function(x){ return x.name; });
+  }
+
+  /* identity fields are always asked, so they are not worth tuning */
+  var DEPT_FIXED = { firstName:1, lastName:1, email:1, universityId:1, department:1 };
+  function tunable(){
+    return (C().fields || []).filter(function(f){ return !DEPT_FIXED[f.id]; });
+  }
+
+  function deptOn(f, dept){
+    var r = f.showIf;
+    if(!r || r.field !== "department") return true;
+    return (r.values || []).indexOf(dept) > -1;
+  }
+
+  function shortDept(d){
+    d = String(d || "");
+    return d.length > 20 ? d.slice(0, 19) + "\u2026" : d;
+  }
+
+  function deptMatrix(){
+    var depts = deptList(), flds = tunable(), box = g("deptMatrix");
+
+    if(!depts.length){
+      box.innerHTML = '<div class="empty">' + ico("building") + "<h3>No departments yet</h3>" +
+        '<p class="sm mut">Give the Department field some options, or fill them in on the ' +
+        "campus profile, and they appear here.</p></div>";
+      return;
+    }
+    if(!flds.length){
+      box.innerHTML = '<div class="empty">' + ico("file") + "<h3>Nothing to tune</h3>" +
+        '<p class="sm mut">Every field on this form is one of the always-asked ones.</p></div>';
+      return;
+    }
+
+    box.innerHTML =
+      '<div class="tbl-wrap"><table class="matrix"><thead><tr><th class="lead">Field</th>' +
+      depts.map(function(d, di){
+        return '<th title="' + hbeEsc(d) + '"><span>' + hbeEsc(shortDept(d)) + "</span>" +
+               '<button class="colTog" onclick="B.deptCol(' + di + ')">all</button></th>';
+      }).join("") + "</tr></thead><tbody>" +
+      flds.map(function(f, fi){
+        var every = depts.every(function(d){ return deptOn(f, d); });
+        var none  = depts.every(function(d){ return !deptOn(f, d); });
+        return '<tr><td class="lead"><b>' + hbeEsc(f.label) + "</b>" +
+            '<br><span class="xs mut">' + hbeEsc(f.id) + " \u00b7 " + hbeEsc(f.type) +
+            (f.required ? " \u00b7 required" : "") + "</span>" +
+            (every ? "" : '<br><span class="badge ' + (none ? "err" : "warn") + '">' +
+                          (none ? "hidden everywhere" : "varies by department") + "</span>") +
+          "</td>" +
+          depts.map(function(d, di){
+            return '<td class="cell"><label class="dcheck"><input type="checkbox"' +
+              (deptOn(f, d) ? " checked" : "") +
+              ' data-f="' + fi + '" data-d="' + di + '"><span></span></label></td>';
+          }).join("") + "</tr>";
+      }).join("") + "</tbody></table></div>" +
+      '<p class="xs mut" style="margin-top:12px">' + flds.length + " tunable fields \u00d7 " +
+        depts.length + " departments. First name, last name, email, University ID and " +
+        "Department itself are always asked, so they are not listed. Press " +
+        "<b>Apply</b> to write the rules.</p>";
+  }
+
+  function deptCol(di){
+    var boxes = g("deptMatrix").querySelectorAll('input[data-d="' + di + '"]');
+    var anyOff = false;
+    Array.prototype.forEach.call(boxes, function(b){ if(!b.checked) anyOff = true; });
+    Array.prototype.forEach.call(boxes, function(b){ b.checked = anyOff; });
+  }
+
+  function deptAllOn(){
+    Array.prototype.forEach.call(
+      g("deptMatrix").querySelectorAll("input[type=checkbox]"),
+      function(b){ b.checked = true; });
+    deptSave();
+  }
+
+  function deptSave(){
+    var depts = deptList(), flds = tunable();
+    if(!depts.length || !flds.length) return;
+
+    grabAll();                                  /* keep whatever else is on screen */
+
+    var picked = {};
+    flds.forEach(function(f, fi){ picked[fi] = []; });
+    Array.prototype.forEach.call(
+      g("deptMatrix").querySelectorAll("input[type=checkbox]"),
+      function(b){
+        if(b.checked) picked[+b.getAttribute("data-f")].push(depts[+b.getAttribute("data-d")]);
+      });
+
+    var hidden = 0, ruled = 0;
+    flds.forEach(function(f, fi){
+      var on = picked[fi] || [];
+      var target = (C().fields || []).filter(function(x){ return x.id === f.id; })[0];
+      if(!target) return;
+      if(on.length === depts.length){
+        if(target.showIf && target.showIf.field === "department") delete target.showIf;
+      } else {
+        target.showIf = { field:"department", values:on };
+        ruled++; hidden += depts.length - on.length;
+      }
+    });
+
+    hbeSaveConfig(cfg);
+    cfg = hbeGetConfig();
+    deptMatrix(); fields();
+    hbeToast(ruled
+      ? ruled + " field(s) now depend on department \u00b7 " + hidden + " field/department pairs hidden"
+      : "Every field is shown to every department.", "check", 4200);
+  }
+
   /* ---------------- actions ---------------- */
   var api = {
     tog: function(i){ var b=g("fb_"+i); b.className = b.className.indexOf("on")>-1 ? "fl-body" : "fl-body on"; },
@@ -469,6 +601,7 @@ var B = (function(){
       setTimeout(function(){ api.tog(C().fields.length-1); }, 40);
     },
     switchCollege: function(v){ grabAll(); hbeSaveConfig(cfg); cid=v; hbeSet("hbe_last_college_v2",v); load(); },
+    deptCol: deptCol, deptAllOn: deptAllOn, deptSave: deptSave,
     addCollege: function(){
       var nm = prompt("Name of the new campus:");
       if(!nm) return;

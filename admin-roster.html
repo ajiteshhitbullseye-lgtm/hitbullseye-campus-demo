@@ -74,9 +74,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
         <input id="q" placeholder="Search by ID, name, email or department" oninput="M.draw()">
       </div>
-      <select id="fCol" onchange="M.switchCampus(this.value)"></select>
       <select id="fStatus" onchange="M.draw()">
         <option value="">All rows</option>
+        <option value="accounts">Account created (any stage)</option>
         <option value="registered">Registration complete</option>
         <option value="verified">Account created, form pending</option>
         <option value="invited">Not started</option>
@@ -131,9 +131,9 @@ var M = (function(){
     g("uidLabel").innerHTML = hbeEsc((c.gate||{}).idLabel || "University ID") + '<span class="req">*</span>';
   }
 
-  g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+  gOpt("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
     return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
-  if(!hbeIsSuper(sess)) g("fCol").style.display = "none";
+  if(!hbeIsSuper(sess)) gOpt("fCol").style.display = "none";
 
   /* ---------------- helpers ---------------- */
   function roster(){ return c.roster || (c.roster = []); }
@@ -175,6 +175,7 @@ var M = (function(){
         var badRow = !r.uid || !MAILRE.test(r.email||"");
         if(st === "attempted"){ if(!gg.attempted) return false; }
         else if(st === "bad"){ if(!badRow) return false; }
+        else if(st === "accounts"){ if(gg.stage === "invited") return false; }
         else if(gg.stage !== st) return false;
       }
       if(q){
@@ -257,13 +258,11 @@ var M = (function(){
   /* ------------- the view the placement cell actually asks for ------------ */
   function drawFunnel(f, attention){
     var steps = [
-      { k:"total",      label:"On your list",      n:f.total,      i:"list",
-        note:"students you uploaded" },
-      { k:"accounts",   label:"Account created",   n:f.accounts,   i:"userplus",
-        note:"cleared the email OTP" },
-      { k:"registered", label:"Registration done", n:f.registered, i:"check",
-        note:"form submitted and confirmed" },
-      { k:"attempted",  label:"Test attempted",    n:f.attempted,  i:"medal",
+      { k:"total",     label:"Students on your list", n:f.total,     i:"list",
+        note:"uploaded by your campus" },
+      { k:"accounts",  label:"Accounts created",      n:f.accounts,  i:"userplus",
+        note:"signed in and started" },
+      { k:"attempted", label:"Test attempted",        n:f.attempted, i:"medal",
         note:"sat at least one assessment" }
     ];
 
@@ -282,16 +281,18 @@ var M = (function(){
     }).join('');
 
     var chips =
-      chip("verified", "warn", f.verified, "started but form still pending") +
-      chip("invited",  "",     f.invited,  "never signed in") +
+      chip("registered", "ok",   f.registered, "finished the form") +
+      chip("verified",   "warn", f.verified,   "started, form still pending") +
+      chip("invited",    "",     f.invited,    "never signed in") +
       (attention ? chip("bad", "err", attention, "rows need attention") : "");
 
     g("funnel").innerHTML =
       '<div class="card">' +
         '<div class="row-b sec-head"><div><h2>Where your students have got to</h2>' +
-          '<p class="sm mut">Out of the ' + f.total + ' students ' +
-            hbeEsc(c.shortName || c.name) + ' uploaded. Tap any step to filter the table.</p></div>' +
-          '<span class="badge brand">' + f.pct(f.registered) + '% complete</span></div>' +
+          '<p class="sm mut">Of the ' + f.total + ' students ' +
+            hbeEsc(c.shortName || c.name) + ' uploaded, ' + f.accounts +
+            ' have created an account. Tap any number to filter the table.</p></div>' +
+          '<span class="badge brand">' + f.pct(f.accounts) + '% signed up</span></div>' +
         '<div class="funnel">' + body + '</div>' +
         '<div class="row mt" style="gap:9px;flex-wrap:wrap">' + chips + '</div>' +
       '</div>';
@@ -303,7 +304,7 @@ var M = (function(){
   }
 
   function jump(k){
-    var map = { total:"", accounts:"verified", registered:"registered",
+    var map = { total:"", accounts:"accounts", registered:"registered",
                 attempted:"attempted", verified:"verified", invited:"invited", bad:"bad" };
     g("fStatus").value = map[k] != null ? map[k] : "";
     draw();

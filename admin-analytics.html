@@ -30,7 +30,6 @@
 
   <section class="card mt">
     <div class="toolbar" style="margin-bottom:0">
-      <select id="fCol" onchange="A.campus(this.value)"></select>
       <select id="fTest" onchange="A.draw()"></select>
       <select id="fDept" onchange="A.draw()"></select>
       <select id="fSession" onchange="A.draw()"></select>
@@ -114,9 +113,9 @@ var A = (function(){
   }
 
   function fillFilters(){
-    g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+    gOpt("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
       return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
-    g("fCol").style.display = hbeIsSuper(sess) ? "" : "none";
+    gOpt("fCol").style.display = hbeIsSuper(sess) ? "" : "none";
 
     var tests = hbeTests(c);
     g("fTest").innerHTML = tests.map(function(t){

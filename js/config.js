@@ -25,10 +25,10 @@ var HBE_DEFAULT_CONFIG = {
   brand: {
     product: "Hitbullseye",
     logo: "assets/hitbullseye-real.png",
-    supportEmail: "campus.support@hitbullseye.com",
+    supportEmail: "campus.support@demo.com",
     /* three logins: Hitbullseye super admin, the college placement cell, the student */
-    superAdmin: { email: "super@hitbullseye.com", password: "super@123", name: "Hitbullseye HQ" },
-    admin:      { email: "admin@hitbullseye.com", password: "admin@123", name: "Placement Cell" },
+    superAdmin: { email: "super@demo.com", password: "super@123", name: "Hitbullseye HQ" },
+    admin:      { email: "admin@demo.com", password: "admin@123", name: "Placement Cell" },
 
     steps: [
       { icon:"lock",   title:"Enter the campus access code",

@@ -57,7 +57,6 @@
 
       <div class="panel mt">
         <h3>Campus</h3>
-        <select id="fCol" onchange="D.campus(this.value)"></select>
         <div class="kv" style="margin-top:14px"><span>Master list rows</span><b id="nRoster">0</b></div>
         <div class="kv"><span>Registered students</span><b id="nStudents">0</b></div>
         <div class="kv"><span>Assessments</span><b id="nTests">0</b></div>
@@ -110,6 +109,59 @@
     </div>
   </div>
 
+  <section class="card mt-l">
+    <div class="row-b sec-head">
+      <div>
+        <h2>Bulk upload students</h2>
+        <p class="sm mut">
+          Drop in a CSV and it lands on the campus master list &mdash; the list that
+          decides who is allowed to register. Add a <code>Campus</code> column and one
+          file can load several clients at once.
+        </p>
+      </div>
+      <span class="badge brand">HQ only</span>
+    </div>
+
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <label class="btn btn-sm" style="margin:0">Choose CSV file
+        <input type="file" accept=".csv,.txt" onchange="D.bulkFile(this)" style="display:none"></label>
+      <button class="btn btn-ghost btn-sm" onclick="D.bulkSample()">Load a sample</button>
+      <button class="btn btn-ghost btn-sm" onclick="D.bulkCheck()">Check the file</button>
+      <button class="btn btn-ghost btn-sm" onclick="D.bulkClear()">Clear</button>
+      <span class="xs mut" id="bulkFileName" style="align-self:center"></span>
+    </div>
+
+    <div class="mini" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+      <div>
+        <label>Load into</label>
+        <select id="bulkCol"></select>
+        <div class="hint">A <code>Campus</code> column in the file overrides this per row.</div>
+      </div>
+      <div>
+        <label>How to apply</label>
+        <select id="bulkMode">
+          <option value="add">Add to the existing list (skip duplicates)</option>
+          <option value="update">Add, and update rows whose ID already exists</option>
+          <option value="replace">Replace the whole list for that campus</option>
+        </select>
+        <div class="hint">Replace never removes students who have already registered.</div>
+      </div>
+    </div>
+
+    <textarea id="bulkCsv" rows="8"
+      placeholder="University ID, Email, Name, Department, Programme, Course, Session&#10;2210991212, neha.arora@chitkara.edu.in, Neha Arora, Institute of Engineering &amp; Technology, B.E., Computer Science &amp; Engineering, 2022-2026"
+      style="font-family:'Courier New',monospace;font-size:12.5px"></textarea>
+
+    <div id="bulkReport" class="mt"></div>
+
+    <div class="row mt" style="gap:12px;flex-wrap:wrap">
+      <button class="btn btn-lg" onclick="D.bulkApply()">Upload to the master list</button>
+      <span class="xs mut" style="align-self:center">
+        Nothing is written until you press this, and the check above tells you what will happen.
+      </span>
+    </div>
+  </section>
+
   <footer class="foot row-b">
     <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
     <span>Same JSON the backend will serve in production.</span>
@@ -156,7 +208,7 @@ var D = (function(){
     g("nFields").textContent   = (c.fields || []).length;
   }
 
-  g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
+  gOpt("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
     return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
 
   g("a_base").value = api.base; g("a_config").value = api.config;
@@ -339,6 +391,255 @@ var D = (function(){
     hbeToast("Endpoints saved.", "check", 2500);
   }
 
+  /* ================= bulk student upload ================= */
+  var MAILRE = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+
+  function bulkInit(){
+    var sel = g("bulkCol");
+    sel.innerHTML = Object.keys(cfg.colleges).map(function(k){
+      return '<option value="' + k + '"' + (k === cid ? " selected" : "") + ">" +
+             hbeEsc(cfg.colleges[k].name) + "</option>"; }).join("");
+  }
+
+  /* split a CSV line, honouring "quoted, values" */
+  function splitCsv(line){
+    var out = [], cur = "", q = false;
+    for(var i = 0; i < line.length; i++){
+      var ch = line[i];
+      if(q){
+        if(ch === '"' && line[i+1] === '"'){ cur += '"'; i++; }
+        else if(ch === '"') q = false;
+        else cur += ch;
+      } else if(ch === '"') q = true;
+      else if(ch === ","){ out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map(function(x){ return x.trim(); });
+  }
+
+  var HEAD_ALIAS = {
+    campus:"campus", college:"campus",
+    universityid:"uid", uid:"uid", id:"uid", rollno:"uid", rollnumber:"uid",
+    registrationnumber:"uid", sapid:"uid", enrolmentnumber:"uid", enrollmentnumber:"uid",
+    email:"email", emailaddress:"email", emailonrecord:"email",
+    name:"name", fullname:"name", studentname:"name",
+    department:"department", school:"department", dept:"department",
+    programme:"programme", program:"programme",
+    course:"course", specialisation:"course", specialization:"course", branch:"course",
+    session:"session", batch:"session"
+  };
+  function normKey(h){ return String(h||"").toLowerCase().replace(/[^a-z]/g, ""); }
+
+  /* turn the textarea into rows, with or without a header line */
+  function bulkParse(){
+    var txt = g("bulkCsv").value.replace(/\r/g, "").trim();
+    if(!txt) return { rows:[], cols:[], error:"Nothing pasted yet." };
+
+    var lines = txt.split("\n").filter(function(l){ return l.trim(); });
+    var first = splitCsv(lines[0]);
+    var mapped = first.map(function(h){ return HEAD_ALIAS[normKey(h)] || null; });
+    var hasHeader = mapped.filter(Boolean).length >= 2;
+
+    var cols = hasHeader ? mapped
+      : ["uid","email","name","department","programme","course","session"];
+    var body = hasHeader ? lines.slice(1) : lines;
+
+    var rows = body.map(function(l, i){
+      var p = splitCsv(l), r = { _line: i + (hasHeader ? 2 : 1) };
+      cols.forEach(function(k, ci){ if(k) r[k] = p[ci] || ""; });
+      return r;
+    });
+    return { rows:rows, cols:cols, hasHeader:hasHeader, error:null };
+  }
+
+  /* work out, without writing anything, what this file would do */
+  function bulkPlan(){
+    var parsed = bulkParse();
+    if(parsed.error) return { error: parsed.error };
+
+    var fallback = g("bulkCol").value;
+    var mode = g("bulkMode").value;
+    var seen = {}, plan = {}, bad = [];
+
+    parsed.rows.forEach(function(r){
+      var slug = r.campus ? matchCampus(r.campus) : fallback;
+      if(!slug){ bad.push({ line:r._line, why:'unknown campus "' + r.campus + '"' }); return; }
+      if(!r.uid){ bad.push({ line:r._line, why:"no University ID" }); return; }
+      if(!r.email){ bad.push({ line:r._line, why:"no email" }); return; }
+      if(!MAILRE.test(r.email)){ bad.push({ line:r._line, why:"email looks wrong: " + r.email }); return; }
+
+      var key = slug + "|" + r.uid.toLowerCase();
+      if(seen[key]){ bad.push({ line:r._line, why:"ID " + r.uid + " is repeated in this file" }); return; }
+      seen[key] = 1;
+
+      var p = plan[slug] || (plan[slug] = { add:[], update:[], skip:[] });
+      var live = (cfg.colleges[slug].roster || []);
+      var hit = live.filter(function(x){
+        return String(x.uid).toLowerCase() === r.uid.toLowerCase(); })[0];
+
+      var row = { uid:r.uid, email:r.email, name:r.name || "",
+                  department:r.department || "", programme:r.programme || "",
+                  course:r.course || "", session:r.session || "" };
+      if(!hit) p.add.push(row);
+      else if(mode === "add") p.skip.push(row);
+      else p.update.push(row);
+    });
+
+    return { plan:plan, bad:bad, mode:mode, total:parsed.rows.length, hasHeader:parsed.hasHeader };
+  }
+
+  function matchCampus(name){
+    var n = String(name).toLowerCase().trim();
+    var keys = Object.keys(cfg.colleges);
+    for(var i = 0; i < keys.length; i++){
+      var c2 = cfg.colleges[keys[i]];
+      if(keys[i] === n) return keys[i];
+      if(String(c2.name).toLowerCase() === n) return keys[i];
+      if(String(c2.shortName || "").toLowerCase() === n) return keys[i];
+    }
+    return null;
+  }
+
+  function bulkCheck(){
+    var r = bulkPlan();
+    var box = g("bulkReport");
+    if(r.error){ box.innerHTML = '<div class="alert">' + ico("alert") + "<div>" + r.error + "</div></div>"; return null; }
+
+    var slugs = Object.keys(r.plan);
+    var add = 0, upd = 0, skip = 0;
+    slugs.forEach(function(k){
+      add += r.plan[k].add.length; upd += r.plan[k].update.length; skip += r.plan[k].skip.length;
+    });
+
+    box.innerHTML =
+      '<div class="stats" style="margin-bottom:16px">' +
+        st_("Rows read", r.total, r.hasHeader ? "header row detected" : "no header, positional") +
+        st_("Will be added", add, slugs.length + " campus(es) touched") +
+        st_(r.mode === "add" ? "Already on the list" : "Will be updated",
+            r.mode === "add" ? skip : upd,
+            r.mode === "add" ? "skipped, nothing overwritten" : "matched by University ID") +
+        st_("Rejected", r.bad.length, r.bad.length ? "see below" : "every row is usable") +
+      "</div>" +
+
+      (slugs.length
+        ? '<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Campus</th><th>On the list now</th>' +
+            "<th>Adding</th><th>Updating</th><th>Skipping</th><th>After upload</th></tr></thead><tbody>" +
+          slugs.map(function(k){
+            var p = r.plan[k], now = (cfg.colleges[k].roster || []).length;
+            var after = r.mode === "replace" ? (p.add.length + p.update.length)
+                                             : now + p.add.length;
+            return "<tr><td><b>" + hbeEsc(cfg.colleges[k].name) + "</b></td>" +
+              "<td>" + now + "</td><td>" + p.add.length + "</td><td>" + p.update.length +
+              "</td><td>" + p.skip.length + "</td><td><b>" + after + "</b></td></tr>";
+          }).join("") + "</tbody></table></div>"
+        : "") +
+
+      (r.bad.length
+        ? '<div class="alert mt">' + ico("alert") +
+          "<div><b>" + r.bad.length + " row(s) will be skipped</b><br>" +
+          r.bad.slice(0, 12).map(function(b){
+            return '<span class="xs">line ' + b.line + " \u2014 " + hbeEsc(b.why) + "</span>";
+          }).join("<br>") +
+          (r.bad.length > 12 ? '<br><span class="xs mut">\u2026 and ' + (r.bad.length - 12) + " more</span>" : "") +
+          "</div></div>"
+        : "");
+
+    return r;
+  }
+
+  function bulkApply(){
+    var r = bulkCheck();
+    if(!r || r.error) return;
+    var slugs = Object.keys(r.plan);
+    if(!slugs.length){ hbeToast("Nothing usable in that file.", "alert"); return; }
+
+    var mode = r.mode;
+    if(mode === "replace" &&
+       !confirm("Replace the master list for " + slugs.length + " campus(es)?\n" +
+                "Students who have already registered are kept.")) return;
+
+    var live = hbeGetConfig(), added = 0, updated = 0, kept = 0;
+
+    slugs.forEach(function(k){
+      var p = r.plan[k];
+      var col = live.colleges[k];
+      var list = col.roster || (col.roster = []);
+
+      if(mode === "replace"){
+        /* anyone already registered must stay on the list, or they vanish */
+        var safe = list.filter(function(x){ return !!hbeStudentByEmail(x.email); });
+        kept += safe.length;
+        var incoming = p.add.concat(p.update);
+        var haveUid = {};
+        safe.forEach(function(x){ haveUid[String(x.uid).toLowerCase()] = 1; });
+        col.roster = safe.concat(incoming.filter(function(x){
+          return !haveUid[String(x.uid).toLowerCase()]; }));
+        added += col.roster.length - safe.length;
+        return;
+      }
+
+      p.add.forEach(function(row){ list.push(row); added++; });
+      p.update.forEach(function(row){
+        var hit = list.filter(function(x){
+          return String(x.uid).toLowerCase() === row.uid.toLowerCase(); })[0];
+        if(!hit) return;
+        Object.keys(row).forEach(function(f){ if(row[f]) hit[f] = row[f]; });
+        updated++;
+      });
+    });
+
+    hbeSaveConfig(live);
+    cfg = hbeGetConfig(); c = cfg.colleges[cid];
+
+    log("Bulk upload \u2014 " + added + " added, " + updated + " updated" +
+        (kept ? ", " + kept + " registered students kept" : "") +
+        " across " + slugs.length + " campus(es)", "ok");
+    brand();
+    bulkCheck();
+    hbeToast("<b>" + added + "</b> students added" + (updated ? ", " + updated + " updated" : "") +
+             " to the master list.", "check", 4500);
+  }
+
+  function bulkFile(inp){
+    var f = inp.files[0]; if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(e){
+      g("bulkCsv").value = e.target.result;
+      g("bulkFileName").textContent = f.name + " \u00b7 " + Math.round(f.size / 1024) + " KB";
+      bulkCheck();
+    };
+    rd.readAsText(f);
+    inp.value = "";
+  }
+
+  function bulkSample(){
+    var k = g("bulkCol").value, col = cfg.colleges[k];
+    var d = ((col.profile || {}).departments || [])[0] || { name:"Department" };
+    var stem = ((col.roster || [])[0] || {}).uid || "1000001";
+    var dom = String(((col.roster || [])[0] || {}).email || "student@campus.edu").split("@")[1];
+    var n = parseInt(String(stem).replace(/\D/g, ""), 10) || 1000001;
+    var lines = ["Campus,University ID,Email,Name,Department,Programme,Course,Session"];
+    ["Aditi Raman","Karan Vohra","Meher Singh"].forEach(function(nm, i){
+      lines.push([col.shortName || k, (n + 900 + i), nm.toLowerCase().replace(" ", ".") + "@" + dom,
+                  nm, d.name, "B.Tech", "Computer Science", "2022-2026"].join(","));
+    });
+    g("bulkCsv").value = lines.join("\n");
+    g("bulkFileName").textContent = "sample, not a real file";
+    bulkCheck();
+  }
+
+  function bulkClear(){
+    g("bulkCsv").value = "";
+    g("bulkFileName").textContent = "";
+    g("bulkReport").innerHTML = "";
+  }
+
+  function st_(l, v, sub){
+    return '<div class="stat"><div class="lbl">' + l + '</div><div class="val">' + v +
+           '</div><div class="sub">' + hbeEsc(sub) + "</div></div>";
+  }
+
   function down(what){
     var payload, name;
     if(what === "config"){ payload = cfg.colleges[cid]; name = cid + "-config.json"; }
@@ -355,8 +656,12 @@ var D = (function(){
   function campus(v){ cid = v; hbeSet("hbe_last_college_v2", v); brand(); tab(mode); }
 
   brand(); tab("config");
+  bulkInit();
+
   return { tab:tab, fetchNow:fetchNow, file:file, apply:apply, saveApi:saveApi,
-           down:down, campus:campus, loadSample:loadSample };
+           down:down, campus:campus, loadSample:loadSample,
+           bulkFile:bulkFile, bulkCheck:bulkCheck, bulkApply:bulkApply,
+           bulkSample:bulkSample, bulkClear:bulkClear };
 })();
 </script>
 </body>

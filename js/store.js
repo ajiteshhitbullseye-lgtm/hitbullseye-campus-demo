@@ -4,7 +4,9 @@
    opened straight from disk. In production each block maps to an API.
    ===================================================================== */
 
-var K_CFG   = "hbe_cfg_v5";
+var K_CFG   = "hbe_cfg_v6";   /* v6: demo logins moved off the real company domain.
+                                 Bumping the key drops any saved copy that still
+                                 holds the old addresses. */
 var K_STUD  = "hbe_students_v10";
 var K_SESS  = "hbe_session_v2";
 var K_LASTC = "hbe_last_college_v2";
@@ -249,6 +251,24 @@ function hbeAdminCampus(sess, cfg){
 }
 
 /* one navigation for every console page */
+/* A control a page used to own that now lives in the app bar. Returns a
+   detached stand-in so old code can still write to it without throwing. */
+var _hbeStubs = {};
+function gOpt(id){
+  var el = document.getElementById(id);
+  if(el) return el;
+  if(!_hbeStubs[id]) _hbeStubs[id] = document.createElement("select");
+  return _hbeStubs[id];
+}
+
+/* switch the whole console to another client, staying on the same tab */
+function hbeGoCampus(slug){
+  if(!slug) return;
+  hbeSet(K_LASTC, slug);
+  var page = location.pathname.split("/").pop() || "admin-clients.html";
+  location.href = page + "?college=" + encodeURIComponent(slug);
+}
+
 function hbeAdminNav(college, sess, active){
   var cfg = hbeGetConfig(), su = hbeIsSuper(sess);
   var items = [];
@@ -272,6 +292,19 @@ function hbeAdminNav(college, sess, active){
 
   var who = sess.name || (su ? "Hitbullseye HQ" : "Placement Cell");
 
+  /* HQ switches client from here, on every tab, in the same place */
+  var picker = "";
+  if(su){
+    picker = '<label class="campus-pick" title="Which client are you looking at?">' +
+      ico("building") +
+      '<select onchange="hbeGoCampus(this.value)">' +
+        Object.keys(cfg.colleges).map(function(k){
+          return '<option value="' + k + '"' + (k === college.id ? " selected" : "") + ">" +
+                 hbeEsc(cfg.colleges[k].shortName || cfg.colleges[k].name) + "</option>";
+        }).join("") +
+      "</select></label>";
+  }
+
   /* pages carry a static eyebrow; it should name the console you are in */
   var eb = document.getElementById("who");
   if(eb) eb.textContent = su ? "Hitbullseye HQ · all clients" : "Placement cell console";
@@ -284,8 +317,8 @@ function hbeAdminNav(college, sess, active){
       '<div class="logo-plate bare"><img src="' + cfg.brand.logo + '" alt="Hitbullseye"></div>' +
 
       '<div class="cnav-acct">' +
-        '<span class="scope ' + (su ? "hq" : "") + '">' + ico(su ? "shield" : "users") +
-          "<span>" + (su ? "All clients" : "This campus") + "</span></span>" +
+        picker +
+        (su ? "" : '<span class="scope">' + ico("users") + "<span>This campus</span></span>") +
         '<div class="me"><span class="avatar">' + hbeInitials(who) + "</span>" +
           '<span class="txt"><b>' + hbeEsc(who) + "</b><em>" + hbeEsc(sess.email || "") + "</em></span></div>" +
         '<a class="icon-btn" href="#" title="Sign out" onclick="hbeLogout();return false">' + ico("logout") + "</a>" +
