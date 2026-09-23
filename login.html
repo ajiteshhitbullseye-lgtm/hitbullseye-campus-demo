@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Sign in · Hitbullseye</title>
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
 </head>
 <body>
 
@@ -35,6 +36,7 @@
   <!-- ---------- right form ---------- -->
   <section class="auth-form">
     <div class="auth-box">
+      <div class="auth-lock" id="authLock"></div>
       <h2 style="margin-bottom:6px">Sign in</h2>
       <p class="sm mut" style="margin-bottom:22px">Choose how you want to continue.</p>
 
@@ -49,7 +51,7 @@
           <label>Registered email address</label>
           <div class="inline">
             <input type="email" id="sEmail" placeholder="you@college.edu">
-            <button class="btn btn-soft" id="sSend" onclick="L.send()">Send code</button>
+            <button class="btn" id="sSend" onclick="L.send()">Send code</button>
           </div>
           <div class="err" id="sErr"></div>
         </div>
@@ -99,6 +101,11 @@
         <a href="index.html">&#8592; Back to welcome page</a>
       </p>
     </div>
+
+    <p class="auth-legal">
+      Your details are used only for this campus assessment.
+      Questions? <a href="#" id="supportLink">Write to us</a>.
+    </p>
   </section>
 </div>
 
@@ -111,6 +118,15 @@ var L = (function(){
   var cfg = hbeGetConfig(), id = hbeCollegeId(cfg), c = cfg.colleges[id];
   hbeApplyTheme(c);
   hbeStudents();                                   /* make sure demo data exists */
+
+  document.getElementById("authLock").innerHTML =
+    '<span class="plate"><img src="' + c.logo + '" alt="' + hbeEsc(c.name) + '"' +
+      hbeLogoStyle(c, 0, 34) + '></span>' +
+    '<span class="txt"><b>' + hbeEsc(c.shortName || c.name) + "</b>Assessment Portal</span>";
+
+  var sup = document.getElementById("supportLink");
+  sup.href = "mailto:" + (cfg.brand.supportEmail || "");
+  sup.textContent = cfg.brand.supportEmail || "Write to us";
 
   var cl = document.getElementById("cLogo");
   cl.src = c.logo;

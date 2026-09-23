@@ -1,0 +1,237 @@
+/* =====================================================================
+   HITBULLSEYE — REFINEMENT LAYER
+   Loaded after app.css. Everything here is polish: depth, motion,
+   rhythm and the small details. No layout is redefined from scratch.
+   ===================================================================== */
+
+:root{
+  --sh-soft:0 1px 2px rgba(10,21,35,.03), 0 12px 28px -14px rgba(10,21,35,.16);
+  --sh-lift:0 2px 6px rgba(10,21,35,.05), 0 28px 54px -24px rgba(10,21,35,.3);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+/* ---------------- page furniture ---------------- */
+body{
+  background:
+    radial-gradient(900px 500px at 92% -4%, rgba(var(--brand-rgb),.045), transparent 65%),
+    radial-gradient(760px 480px at -6% 22%, rgba(var(--accent-rgb),.05), transparent 62%),
+    var(--bg);
+  background-attachment:fixed;
+}
+::selection{background:rgba(var(--brand-rgb),.16);color:var(--ink)}
+
+/* a scrollbar that does not fight the palette */
+*{scrollbar-width:thin;scrollbar-color:#c3cede transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#c9d4e2;border:3px solid transparent;background-clip:content-box;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:#a9b8cc;background-clip:content-box}
+
+/* keyboard users get a ring everywhere, mouse users never see it */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+textarea:focus-visible,label:focus-visible,[tabindex]:focus-visible{
+  outline:none;box-shadow:var(--ring);border-radius:10px
+}
+
+/* ---------------- entrance, staggered ---------------- */
+@keyframes hbeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes hbeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes hbeSheen{0%{transform:translateX(-120%)}60%,100%{transform:translateX(260%)}}
+
+.rise{animation:hbeIn .6s var(--ease) both}
+main > *{animation:hbeIn .55s var(--ease) both}
+main > *:nth-child(1){animation-delay:.02s}
+main > *:nth-child(2){animation-delay:.07s}
+main > *:nth-child(3){animation-delay:.12s}
+main > *:nth-child(4){animation-delay:.17s}
+main > *:nth-child(5){animation-delay:.21s}
+main > *:nth-child(n+6){animation-delay:.25s}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
+
+/* ---------------- hero ---------------- */
+.hero{
+  padding-bottom:clamp(108px,12vw,164px);
+  background:
+   radial-gradient(1100px 560px at 86% -20%, rgba(var(--accent-rgb),.34), transparent 62%),
+   radial-gradient(820px 560px at 0% 108%, rgba(255,255,255,.17), transparent 64%),
+   radial-gradient(620px 420px at 42% 50%, rgba(255,255,255,.07), transparent 70%),
+   linear-gradient(152deg, var(--brand) 0%, var(--brand-dk) 78%);
+}
+/* a soft shoulder, so the cards below do not sit on a hard straight edge.
+   clip-path keeps the existing noise overlay intact. */
+.hero{-webkit-clip-path:ellipse(150% 100% at 50% 0%);clip-path:ellipse(150% 100% at 50% 0%)}
+.hero-grid{position:relative;z-index:2}
+.hero h1{text-shadow:0 2px 30px rgba(0,0,0,.18)}
+.hero .lede{font-size:17px;line-height:1.66}
+.glass{animation:hbeFloat 7.5s ease-in-out 1s infinite}
+.glass:hover{animation-play-state:paused}
+.hero-stats b{letter-spacing:-.02em}
+
+/* the primary CTA gets a slow sheen */
+.hero-cta .btn-accent{position:relative;overflow:hidden}
+.hero-cta .btn-accent::after{
+  content:"";position:absolute;top:0;bottom:0;width:38%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+  animation:hbeSheen 4.6s ease-in-out 1.8s infinite;pointer-events:none
+}
+
+/* ---------------- branded page band (dashboard, report) ----------------
+   named pband: .band is already the CTA band in app.css                  */
+.pband{position:relative;overflow:hidden;color:#fff;padding:30px 0 78px;margin-bottom:-46px;
+  background:
+    radial-gradient(760px 380px at 88% -30%, rgba(var(--accent-rgb),.3), transparent 62%),
+    linear-gradient(150deg, var(--brand) 0%, var(--brand-dk) 82%);
+  -webkit-clip-path:ellipse(160% 100% at 50% 0%);clip-path:ellipse(160% 100% at 50% 0%)}
+.pband::before{content:"";position:absolute;inset:0;opacity:.24;
+  background-image:radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);background-size:26px 26px}
+.pband-in{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+  gap:20px;flex-wrap:wrap}
+.pband h1{color:#fff}
+.pband .sm{color:rgba(255,255,255,.82)}
+.pband .eyebrow{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.26)}
+.pband-av{width:56px;height:56px;border-radius:16px;font-size:18px;
+  background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.28);box-shadow:none}
+.pband-side{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badge.light{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.26)}
+.pband-stats{position:relative;z-index:5}
+.report-band{padding:30px 0 84px;margin-bottom:-52px}
+.report-band .btn-line{backdrop-filter:blur(6px)}
+@media print{ .pband{background:#fff;color:var(--ink);clip-path:none;-webkit-clip-path:none;
+  padding:0 0 18px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+  .pband h1,.pband .sm{color:var(--ink)}
+  .pband .sm{color:var(--muted)}
+  .pband::before{display:none}
+  .pband-av{background:var(--line-2);color:var(--brand);border-color:var(--line)} }
+@media(max-width:640px){ .pband{padding:24px 0 70px} }
+
+/* ---------------- cards, panels, sections ---------------- */
+.card,.panel{box-shadow:var(--sh-soft);transition:box-shadow .24s var(--ease),border-color .24s}
+.card:hover,.panel:hover{box-shadow:var(--sh-lift)}
+
+/* a hairline accent above every section title */
+.sec-head > div > h2::before,.sec-head > h2::before{
+  content:"";display:block;width:32px;height:3px;border-radius:99px;margin-bottom:11px;
+  background:linear-gradient(90deg,var(--brand),rgba(var(--brand-rgb),.25))
+}
+
+.stat{position:relative;overflow:hidden;transition:transform .22s var(--ease),box-shadow .22s}
+.stat:hover{transform:translateY(-3px);box-shadow:var(--sh-lift)}
+.stat::after{content:"";position:absolute;top:0;left:0;width:100%;height:2px;
+  background:linear-gradient(90deg,var(--brand),transparent 72%);opacity:.55}
+.stat .val{letter-spacing:-.03em}
+
+/* step cards on the welcome page */
+.howto .st{box-shadow:var(--sh-soft)}
+.howto .st:hover{box-shadow:var(--sh-lift);border-color:rgba(var(--brand-rgb),.28)}
+.howto .st::after{content:"";position:absolute;inset:0;border-radius:var(--r-lg);pointer-events:none;
+  background:linear-gradient(160deg,rgba(var(--brand-rgb),.05),transparent 42%);opacity:0;transition:opacity .24s}
+.howto .st:hover::after{opacity:1}
+
+/* ---------------- tables ---------------- */
+.tbl-wrap{border-radius:var(--r-md);border:1px solid var(--line);overflow:auto;background:#fff}
+.tbl-wrap table{border-collapse:separate;border-spacing:0}
+.tbl-wrap thead th{position:sticky;top:0;z-index:2;background:#f7fafd;
+  border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+.tbl-wrap tbody tr{transition:background .14s}
+.tbl-wrap tbody tr:hover{background:rgba(var(--brand-rgb),.035)}
+.tbl-wrap tbody tr:last-child td{border-bottom:0}
+
+/* ---------------- forms ---------------- */
+input[type=text],input[type=email],input[type=tel],input[type=password],
+input[type=number],input[type=date],select,textarea{
+  transition:border-color .16s,box-shadow .16s,background .16s
+}
+input:hover:not(:focus),select:hover:not(:focus),textarea:hover:not(:focus){border-color:#cfdbea}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236d7f96' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;background-size:16px;
+  padding-right:38px;appearance:none;-webkit-appearance:none;text-overflow:ellipsis}
+.toolbar select{max-width:260px}
+.toolbar{gap:10px;flex-wrap:wrap}
+
+/* ---------------- buttons ---------------- */
+.btn{letter-spacing:-.005em}
+.btn-ghost{box-shadow:var(--sh-soft)}
+.btn-soft:hover{transform:translateY(-2px)}
+
+/* ---------------- auth pages ---------------- */
+.auth-form{display:flex;align-items:center;justify-content:center}
+.auth-box{width:100%}
+.auth-art h2{text-shadow:0 2px 28px rgba(0,0,0,.2)}
+.auth-art::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.26;
+  background-image:radial-gradient(rgba(255,255,255,.2) 1px, transparent 1px);background-size:26px 26px
+}
+.auth-art > *{position:relative;z-index:2}
+
+/* ---------------- sign-in panel ---------------- */
+.auth-form{flex-direction:column;justify-content:center}
+.auth-lock{display:flex;align-items:center;gap:13px;margin-bottom:26px;padding-bottom:22px;
+  border-bottom:1px solid var(--line)}
+.auth-lock .plate{min-height:52px;min-width:88px;display:flex;align-items:center;justify-content:center;
+  padding:7px 13px;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh-soft)}
+.auth-lock .plate img{max-height:34px;max-width:132px;width:auto;object-fit:contain;display:block}
+.auth-lock .txt{font-size:11.5px;color:var(--muted);line-height:1.5;letter-spacing:.02em}
+.auth-lock .txt b{display:block;font-family:'Plus Jakarta Sans';font-size:15px;font-weight:700;
+  color:var(--ink);letter-spacing:-.015em}
+.auth-legal{max-width:412px;width:100%;margin:26px auto 0;font-size:11.5px;line-height:1.6;
+  color:var(--muted);text-align:center}
+
+.auth.hq .auth-form{background:#0c1522}
+.auth.hq .auth-box h2,.auth.hq .auth-box label{color:#fff}
+.auth.hq .auth-box .sm.mut,.auth.hq .auth-box .xs.mut{color:rgba(255,255,255,.58)}
+.auth.hq .auth-lock{border-bottom-color:rgba(255,255,255,.12)}
+.auth.hq .auth-lock .txt b{color:#fff}
+.auth.hq .auth-lock .plate{background:#fff;border-color:rgba(255,255,255,.2)}
+.auth.hq input{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.16);color:#fff}
+.auth.hq input::placeholder{color:rgba(255,255,255,.34)}
+.auth.hq input:hover:not(:focus){border-color:rgba(255,255,255,.3)}
+.auth.hq input:focus{background:rgba(255,255,255,.08);border-color:var(--accent)}
+.auth.hq .demo-id{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)}
+.auth.hq .demo-id b{color:var(--accent)}
+.auth.hq .demo-id:hover{border-color:var(--accent);background:rgba(255,255,255,.08)}
+.auth.hq .badge.brand{background:rgba(var(--accent-rgb),.16);color:var(--accent)}
+/* HQ is not a campus - the CTA wears the Hitbullseye amber, not a client colour */
+.auth.hq .btn{background:linear-gradient(180deg,var(--accent),rgba(var(--accent-rgb),.88));
+  color:#3d2a00;box-shadow:0 14px 30px -14px rgba(var(--accent-rgb),.95)}
+.auth.hq .btn:hover{background:var(--accent);color:#3d2a00}
+.auth.hq a{color:var(--accent)}
+.auth.hq .xs.mut a{color:var(--accent)}
+
+@media(max-width:860px){
+  .auth{grid-template-columns:1fr}
+  .auth-art{min-height:auto;padding:28px 22px 34px}
+  .auth-art h2{margin-top:18px;font-size:25px}
+  .auth-art .ticks,.auth-art .hero-stats{display:none}
+}
+
+/* the demo-credentials card should look tappable */
+.demo-id{transition:border-color .18s,box-shadow .18s,transform .18s var(--ease)}
+.demo-id:hover{border-color:var(--brand);box-shadow:var(--sh-soft);transform:translateY(-2px)}
+
+/* ---------------- badges, chips, empty states ---------------- */
+.badge{transition:background .16s,color .16s}
+.empty{padding:46px 24px;text-align:center;border:1px dashed var(--line);border-radius:var(--r-lg);
+  background:linear-gradient(180deg,#fff,var(--line-2))}
+.empty svg{width:34px;height:34px;color:#b6c4d6;margin-bottom:10px}
+.empty h3{margin-bottom:4px}
+
+/* ---------------- console chrome ---------------- */
+.cnav-acct .me .avatar{box-shadow:0 6px 14px -8px rgba(var(--brand-rgb),.9)}
+.ctab{position:relative}
+.ctab.on::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;border-radius:2px;
+  background:var(--brand)}
+
+/* ---------------- footer ---------------- */
+.foot{margin-top:clamp(44px,6vw,72px);padding-top:26px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--muted)}
+
+/* ---------------- print ---------------- */
+@media print{
+  .demo-strip,.cnav,.nav,.toolbar,.btn,.icon-btn,#toast{display:none !important}
+  body{background:#fff}
+  .card,.panel,.stat{box-shadow:none;border-color:#dbe3ee;break-inside:avoid}
+}

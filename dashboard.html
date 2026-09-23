@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>My Dashboard · Hitbullseye</title>
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
 </head>
 <body>
 
@@ -13,23 +14,26 @@
 
 <div id="nav"></div>
 
-<main class="wrap" style="padding-top:26px;padding-bottom:60px">
-
-  <div class="row-b rise">
-    <div class="row" style="gap:14px">
-      <div class="avatar" id="av" style="width:52px;height:52px;border-radius:14px;font-size:17px"></div>
+<header class="pband" id="pband">
+  <div class="wrap pband-in">
+    <div class="row" style="gap:16px">
+      <div class="avatar pband-av" id="av"></div>
       <div>
-        <h1 style="font-size:26px" id="hi"></h1>
-        <p class="sm mut" id="sub"></p>
+        <span class="eyebrow">My dashboard</span>
+        <h1 style="font-size:28px;margin-top:10px" id="hi"></h1>
+        <p class="sm" id="sub"></p>
       </div>
     </div>
-    <div class="row" style="gap:10px">
+    <div class="pband-side">
       <span class="badge ok">Registered</span>
-      <span class="badge brand" id="regno"></span>
+      <span class="badge light" id="regno"></span>
     </div>
   </div>
+</header>
 
-  <div id="stats" class="mt"></div>
+<main class="wrap" style="padding-bottom:60px">
+
+  <div id="stats" class="pband-stats"></div>
 
   <section class="mt-l">
     <div class="row-b" style="margin-bottom:18px">

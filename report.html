@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Performance Report · Hitbullseye</title>
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
 <style>
   @media print{ .nav,.no-print{display:none!important} body{background:#fff} .card{box-shadow:none;border-color:#ddd} }
 </style>
@@ -16,10 +17,10 @@
 
 <div id="nav"></div>
 
-<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+<main style="padding-bottom:60px">
   <div id="page"></div>
 
-  <footer class="foot row-b no-print">
+  <footer class="foot row-b no-print wrap">
     <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
     <span>Report generated automatically from the student's attempt.</span>
   </footer>
@@ -36,7 +37,8 @@
 
   var qid = hbeParam("id");
   var st  = qid ? hbeStudentById(qid) : hbeStudentById(s.id);
-  if(!st){ document.getElementById("page").innerHTML = '<div class="card center"><h2>Report not found</h2></div>'; return; }
+  if(!st){ document.getElementById("page").innerHTML =
+    '<div class="wrap" style="padding-top:30px"><div class="card center"><h2>Report not found</h2></div></div>'; return; }
   if(s.role === "student" && st.id !== s.id){ st = hbeStudentById(s.id); }   /* students only see their own */
 
   var cfg = hbeGetConfig();
@@ -60,12 +62,12 @@
 
   if(!r){
     document.getElementById("page").innerHTML =
-      '<div class="card center" style="padding:60px 26px">' +
+      '<div class="wrap" style="padding-top:30px"><div class="card center" style="padding:60px 26px">' +
       '<div class="f-ico" style="margin:0 auto;background:var(--warn-bg);color:var(--warn)">' + ico("alert") + "</div>" +
       '<h2 style="margin-top:14px">No attempt yet</h2>' +
       '<p class="mut" style="margin-top:8px">'+hbeEsc(st.name)+' has not attempted any assessment so far.</p>' +
       (isAdmin ? '<a class="btn btn-ghost mt" href="admin-reports.html">Back to all students</a>'
-               : '<a class="btn mt" href="test.html">Start the assessment</a>') + "</div>";
+               : '<a class="btn mt" href="test.html">Start the assessment</a>') + "</div></div>";
     return;
   }
 
@@ -99,19 +101,20 @@
   document.getElementById("page").innerHTML =
 
   /* ---- header ---- */
-  '<div class="row-b rise">' +
-    '<div class="row" style="gap:14px">' +
-      '<div class="avatar" style="width:54px;height:54px;border-radius:15px;font-size:18px">'+hbeInitials(st.name)+"</div>" +
-      "<div><h1 style=\"font-size:26px\">"+hbeEsc(st.name)+"</h1>" +
-      '<p class="sm mut">'+hbeEsc(st.regNo)+" · "+hbeEsc(c.name)+" · "+hbeEsc(st.course||"")+"</p></div>" +
+  '<header class="pband report-band"><div class="wrap pband-in">' +
+    '<div class="row" style="gap:16px">' +
+      '<div class="avatar pband-av">'+hbeInitials(st.name)+"</div>" +
+      '<div><span class="eyebrow">Score card</span>' +
+        '<h1 style="font-size:28px;margin-top:10px">'+hbeEsc(st.name)+"</h1>" +
+        '<p class="sm">'+hbeEsc(st.regNo)+" · "+hbeEsc(c.name)+" · "+hbeEsc(st.course||"")+"</p></div>" +
     "</div>" +
-    '<div class="row no-print" style="gap:10px">' +
-      (isAdmin ? '<a class="btn btn-ghost btn-sm" href="admin-reports.html">'+ico("back")+" All students</a>" : "") +
-      '<button class="btn btn-sm" onclick="window.print()">'+ico("file")+" Download / print</button>" +
+    '<div class="pband-side no-print">' +
+      (isAdmin ? '<a class="btn btn-line btn-sm" href="admin-reports.html">'+ico("back")+" All students</a>" : "") +
+      '<button class="btn btn-line btn-sm" onclick="window.print()">'+ico("file")+" Download / print</button>" +
     "</div>" +
-  "</div>" +
+  "</div></header>" +
 
-  switcher +
+  '<div class="wrap pband-stats">' + switcher +
   /* ---- summary ---- */
   '<section class="card mt rise">' +
     '<div class="row-b sec-head">' +
@@ -183,7 +186,8 @@
                : '<a class="btn" href="dashboard.html">'+ico("back")+" Back to dashboard</a>" +
                  '<button class="btn btn-ghost" onclick="hbeToast(\'Prototype: practice sets live in the main Hitbullseye portal.\',\'info\')">Start practice on weak areas</button>') +
     "</div>" +
-  "</section>";
+  "</section>" +
+  "</div>";                                    /* closes .wrap.pband-stats */
 
   function st_(l,v,sub){
     return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+sub+"</div></div>";

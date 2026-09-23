@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Student Reports · Hitbullseye Admin</title>
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
 </head>
 <body>
 
@@ -86,14 +87,7 @@ var A = (function(){
   function brand(){
     c = cfg.colleges[cid];
     hbeApplyTheme(c);
-    document.getElementById("nav").innerHTML = hbeNav(c,
-      '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
-      '<a class="nav-link on" href="admin-reports.html">Students</a>' +
-      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
-      '<a class="nav-link" href="admin.html">Builder</a>' +
-      '<a class="nav-link" href="admin-data.html">Data</a>' +
-      '<span class="badge brand">'+ico("shield")+' Admin</span>' +
-      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    document.getElementById("nav").innerHTML = hbeAdminNav(c, sess, "students");
   }
   brand();
 
