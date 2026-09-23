@@ -43,7 +43,7 @@
   var c   = cfg.colleges[st.collegeId];
   hbeApplyTheme(c);
 
-  var isAdmin = s.role === "admin";
+  var isAdmin = hbeIsAdminish(s);
   document.getElementById("nav").innerHTML = hbeNav(c,
     (isAdmin
       ? '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +

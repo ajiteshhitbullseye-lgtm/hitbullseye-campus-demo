@@ -97,31 +97,25 @@
 <script>
 var A = (function(){
 
-  var s = hbeSession();
-  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-analytics.html"; return {}; }
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
 
   var cfg = hbeGetConfig();
-  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
-  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var cid = hbeAdminCampus(sess, cfg);
   var c   = cfg.colleges[cid];
   var g   = function(x){ return document.getElementById(x); };
 
   function brand(){
     c = cfg.colleges[cid];
     hbeApplyTheme(c);
-    g("nav").innerHTML = hbeNav(c,
-      '<a class="nav-link on" href="admin-analytics.html">Analytics</a>' +
-      '<a class="nav-link" href="admin-reports.html">Students</a>' +
-      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
-      '<a class="nav-link" href="admin.html">Builder</a>' +
-      '<a class="nav-link" href="admin-data.html">Data</a>' +
-      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("nav").innerHTML = hbeAdminNav(c, sess, "analytics");
     g("sub").textContent = c.name + " · " + (c.campus || "");
   }
 
   function fillFilters(){
     g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
       return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+    g("fCol").style.display = hbeIsSuper(sess) ? "" : "none";
 
     var tests = hbeTests(c);
     g("fTest").innerHTML = tests.map(function(t){
@@ -286,7 +280,10 @@ var A = (function(){
   }
 
   /* ---------------- actions ---------------- */
-  function campus(v){ cid = v; hbeSet("hbe_last_college_v2", v); brand(); fillFilters(); draw(); }
+  function campus(v){
+    if(!hbeIsSuper(sess)) return;
+    cid = v; hbeSet("hbe_last_college_v2", v); brand(); fillFilters(); draw();
+  }
   function pickDept(d){ g("fDept").value = d; draw(); window.scrollTo({top:0,behavior:"smooth"}); }
   function reset(){ g("fDept").value = ""; g("fSession").value = ""; draw(); }
   function open(id){ location.href = "report.html?id=" + encodeURIComponent(id) + "&test=" + encodeURIComponent(currentTest().id); }

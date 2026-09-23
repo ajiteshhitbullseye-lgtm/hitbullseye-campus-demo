@@ -76,12 +76,11 @@
 <script src="js/store.js"></script>
 <script>
 var A = (function(){
-  var s = hbeSession();
-  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-reports.html"; return {}; }
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
 
   var cfg = hbeGetConfig();
-  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
-  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var cid = hbeAdminCampus(sess, cfg);
   var c   = cfg.colleges[cid];
 
   function brand(){
@@ -105,7 +104,8 @@ var A = (function(){
 
   /* filters */
   var fc = document.getElementById("fCol");
-  fc.innerHTML = '<option value="">All campuses</option>' + Object.keys(cfg.colleges).map(function(k){
+  if(!hbeIsSuper(sess)) fc.style.display = "none";
+  fc.innerHTML = (hbeIsSuper(sess) ? '<option value="">All campuses</option>' : "") + Object.keys(cfg.colleges).map(function(k){
     return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
 
   function campusTests(){
@@ -156,6 +156,7 @@ var A = (function(){
     var so = document.getElementById("fSort").value;
 
     var l = hbeStudents().filter(function(x){
+      if(!hbeIsSuper(sess) && x.collegeId !== cid) return false;
       if(col && x.collegeId !== col) return false;
       if(dp && x.department !== dp) return false;
       if(tst){                                   /* only the cohort that assessment is open to */
@@ -185,7 +186,7 @@ var A = (function(){
 
   function draw(){
     var choice = document.getElementById("fCol").value;
-    if(choice && choice !== cid && cfg.colleges[choice]){
+    if(hbeIsSuper(sess) && choice && choice !== cid && cfg.colleges[choice]){
       cid = choice; hbeSet("hbe_last_college_v2", cid); brand(); fillTests();
     }
     var l = filtered();

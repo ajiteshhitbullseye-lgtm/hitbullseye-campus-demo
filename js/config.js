@@ -26,7 +26,9 @@ var HBE_DEFAULT_CONFIG = {
     product: "Hitbullseye",
     logo: "assets/hitbullseye-real.png",
     supportEmail: "campus.support@hitbullseye.com",
-    admin: { email: "admin@hitbullseye.com", password: "admin@123" },
+    /* three logins: Hitbullseye super admin, the college placement cell, the student */
+    superAdmin: { email: "super@hitbullseye.com", password: "super@123", name: "Hitbullseye HQ" },
+    admin:      { email: "admin@hitbullseye.com", password: "admin@123", name: "Placement Cell" },
 
     steps: [
       { icon:"lock",   title:"Enter the campus access code",
@@ -127,6 +129,32 @@ var HBE_DEFAULT_CONFIG = {
 
       /* ---------- assessments (audience = who can see it) ----------
          empty list in audience  ->  visible to everybody on the campus      */
+
+      /* ---------- what the placement cell fills in (Campus profile tab) ---------- */
+      profile: {
+        website: "https://www.chitkara.edu.in", established: "2002",
+        strength: { total: 12000, finalYear: 2600 },
+        contact: { name:"Dr. Neha Arora", role:"Head, Placement Cell",
+                   email:"placements@chitkara.edu.in", phone:"+91 98150 00001" },
+        nomenclature: { uid:"University Roll Number", department:"Department / School",
+                        programme:"Programme", course:"Course / Branch", session:"Session" },
+        updatedAt: "2026-08-12"
+      },
+
+      /* ---------- commercial: what they bought, what is due ---------- */
+      commercial: {
+        clientName: "Chitkara University",
+        contract: { id:"HB-CU-2026-01", start:"01 Apr 2026", end:"31 Mar 2027", po:"PO-CU-8841" },
+        rate: 120,
+        items: [
+          { id:"INV-2026-014", item:"Aptitude Cycle 1", tests:1, licences:1200, amount:144000,
+            status:"Paid",    invoiced:"05 Aug 2026", due:"20 Aug 2026", paid:"12 Aug 2026" },
+          { id:"INV-2026-041", item:"Technical Screening", tests:1, licences:600, amount:66000,
+            status:"Due",     invoiced:"02 Sep 2026", due:"30 Sep 2026", paid:"" },
+          { id:"INV-2026-052", item:"Business Case & Analytics", tests:1, licences:300, amount:36000,
+            status:"Overdue", invoiced:"10 Aug 2026", due:"05 Sep 2026", paid:"" }
+        ]
+      },
       tests: [
         { id:"cu-apt-1", name:"Campus Placement Aptitude Test \u2014 Cycle 1", tag:"Aptitude",
           durationMin:60, questions:60,
@@ -302,6 +330,30 @@ var HBE_DEFAULT_CONFIG = {
           course:"Finance", session:"2024-2026" }
       ],
 
+
+      profile: {
+        website: "https://www.lpu.in", established: "2005",
+        strength: { total: 30000, finalYear: 7200 },
+        contact: { name:"Rajat Sethi", role:"Career Services",
+                   email:"careers@lpu.in", phone:"+91 98140 00002" },
+        nomenclature: { uid:"LPU Registration Number", department:"School",
+                        programme:"Programme", course:"Course / Specialisation", session:"Session" },
+        updatedAt: "2026-08-20"
+      },
+
+      commercial: {
+        clientName: "Lovely Professional University",
+        contract: { id:"HB-LPU-2026-03", start:"01 Jun 2026", end:"31 May 2027", po:"PO-LPU-2291" },
+        rate: 95,
+        items: [
+          { id:"INV-2026-021", item:"Aptitude Benchmark", tests:1, licences:4000, amount:380000,
+            status:"Paid", invoiced:"12 Jun 2026", due:"30 Jun 2026", paid:"25 Jun 2026" },
+          { id:"INV-2026-048", item:"Software Skills Test", tests:1, licences:1500, amount:142500,
+            status:"Due",  invoiced:"05 Sep 2026", due:"05 Oct 2026", paid:"" },
+          { id:"INV-2026-049", item:"Management Aptitude", tests:1, licences:900, amount:85500,
+            status:"Due",  invoiced:"05 Sep 2026", due:"05 Oct 2026", paid:"" }
+        ]
+      },
       tests: [
         { id:"lpu-apt-1", name:"LPU Aptitude Benchmark Test", tag:"Aptitude",
           durationMin:45, questions:50,
@@ -450,6 +502,28 @@ var HBE_DEFAULT_CONFIG = {
           course:"Business Analytics", session:"2024-2026" }
       ],
 
+
+      profile: {
+        website: "https://www.upes.ac.in", established: "2003",
+        strength: { total: 14000, finalYear: 3100 },
+        contact: { name:"Ms. Ritu Bhatt", role:"Placement Cell",
+                   email:"placements@upes.ac.in", phone:"+91 99170 00003" },
+        nomenclature: { uid:"SAP ID", department:"School",
+                        programme:"Programme", course:"Specialisation", session:"Session" },
+        updatedAt: "2026-08-28"
+      },
+
+      commercial: {
+        clientName: "UPES",
+        contract: { id:"HB-UPES-2026-02", start:"01 May 2026", end:"30 Apr 2027", po:"PO-UPES-7734" },
+        rate: 110,
+        items: [
+          { id:"INV-2026-033", item:"Placement Readiness Cycle 1", tests:1, licences:2500, amount:275000,
+            status:"Paid", invoiced:"20 Jul 2026", due:"10 Aug 2026", paid:"04 Aug 2026" },
+          { id:"INV-2026-055", item:"Tech Stack Screening", tests:1, licences:1200, amount:132000,
+            status:"Due",  invoiced:"08 Sep 2026", due:"08 Oct 2026", paid:"" }
+        ]
+      },
       tests: [
         { id:"upes-apt-1", name:"UPES Placement Readiness Test \u2014 Cycle 1", tag:"Aptitude",
           durationMin:60, questions:60,
@@ -613,6 +687,30 @@ var HBE_DEFAULT_CONFIG = {
           course:"Electronics & Communication", session:"2022-2026" }
       ],
 
+
+      profile: {
+        website: "https://www.thapar.edu", established: "1956",
+        strength: { total: 9500, finalYear: 2100 },
+        contact: { name:"Dr. A. S. Grewal", role:"Training & Placement Cell",
+                   email:"tnp@thapar.edu", phone:"+91 98720 00004" },
+        nomenclature: { uid:"Thapar Roll Number", department:"Department",
+                        programme:"Programme", course:"Course / Branch", session:"Session" },
+        updatedAt: "2026-09-01"
+      },
+
+      commercial: {
+        clientName: "Thapar Institute of Engineering & Technology",
+        contract: { id:"HB-TIET-2026-05", start:"01 Jul 2026", end:"30 Jun 2027", po:"PO-TIET-5512" },
+        rate: 140,
+        items: [
+          { id:"INV-2026-038", item:"Placement Aptitude Cycle 1", tests:1, licences:1800, amount:252000,
+            status:"Paid",    invoiced:"28 Jul 2026", due:"15 Aug 2026", paid:"09 Aug 2026" },
+          { id:"INV-2026-057", item:"Core Engineering Technical", tests:1, licences:1100, amount:154000,
+            status:"Due",     invoiced:"10 Sep 2026", due:"10 Oct 2026", paid:"" },
+          { id:"INV-2026-058", item:"LMTSOM Management Aptitude", tests:1, licences:250, amount:35000,
+            status:"Overdue", invoiced:"01 Aug 2026", due:"01 Sep 2026", paid:"" }
+        ]
+      },
       tests: [
         { id:"tha-apt-1", name:"Thapar Placement Aptitude Test \u2014 Cycle 1", tag:"Aptitude",
           durationMin:75, questions:70,
@@ -771,6 +869,30 @@ var HBE_DEFAULT_CONFIG = {
           department:"Amity Business School", programme:"MBA", course:"Finance", session:"2024-2026" }
       ],
 
+
+      profile: {
+        website: "https://www.amity.edu", established: "1995",
+        strength: { total: 21000, finalYear: 4800 },
+        contact: { name:"Prof. S. Iyer", role:"Corporate Resource Centre",
+                   email:"crc@amity.edu", phone:"+91 99990 00005" },
+        nomenclature: { uid:"Enrolment Number", department:"School / Institute",
+                        programme:"Programme", course:"Specialisation", session:"Session" },
+        updatedAt: "2026-09-04"
+      },
+
+      commercial: {
+        clientName: "Amity University",
+        contract: { id:"HB-AMITY-2026-04", start:"01 Apr 2026", end:"31 Mar 2027", po:"PO-AMI-3390" },
+        rate: 105,
+        items: [
+          { id:"INV-2026-026", item:"Placement Readiness Test", tests:1, licences:3000, amount:315000,
+            status:"Paid", invoiced:"18 Jul 2026", due:"05 Aug 2026", paid:"31 Jul 2026" },
+          { id:"INV-2026-060", item:"ASET Domain Test", tests:1, licences:1400, amount:147000,
+            status:"Due",  invoiced:"12 Sep 2026", due:"12 Oct 2026", paid:"" },
+          { id:"INV-2026-061", item:"Legal Reasoning Test", tests:1, licences:400, amount:42000,
+            status:"Due",  invoiced:"12 Sep 2026", due:"12 Oct 2026", paid:"" }
+        ]
+      },
       tests: [
         { id:"amity-apt-1", name:"Amity Placement Readiness Test", tag:"Aptitude",
           durationMin:90, questions:75,

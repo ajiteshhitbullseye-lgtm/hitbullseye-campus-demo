@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Campus Profile · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow">Placement cell console</span>
+      <h1 style="font-size:28px;margin-top:12px">Campus profile</h1>
+      <p class="sm mut">Tell us how your campus is organised. The registration form picks these up straight away.</p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <select id="fCol" onchange="P.campus(this.value)" style="width:auto;min-width:210px"></select>
+      <span class="badge" id="savedAt"></span>
+      <button class="btn btn-sm" onclick="P.saveAll()">Save profile</button>
+    </div>
+  </div>
+
+  <div class="alert info mt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/></svg>
+    <div>What you enter here writes straight into the student form — the labels students see,
+      and the department / programme / course dropdowns they pick from.</div>
+  </div>
+
+  <div class="split mt">
+
+    <!-- ============ LEFT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Institute details</h3>
+        <div class="mini">
+          <div class="full"><label>Official name</label><input id="p_name"></div>
+          <div><label>Short name</label><input id="p_short"></div>
+          <div><label>City</label><input id="p_city"></div>
+          <div><label>Website</label><input id="p_web"></div>
+          <div><label>Established</label><input id="p_est"></div>
+          <div><label>Total strength</label><input type="number" id="p_total"></div>
+          <div><label>Final-year strength</label><input type="number" id="p_final"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Placement cell contact</h3>
+        <div class="mini">
+          <div class="full"><label>Name</label><input id="p_cname"></div>
+          <div class="full"><label>Designation</label><input id="p_crole"></div>
+          <div class="full"><label>Email</label><input type="email" id="p_cmail"></div>
+          <div class="full"><label>Phone</label><input id="p_cphone"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>What do you call it?</h3>
+        <p class="sm mut" style="margin-bottom:12px">
+          Every campus names things differently. These become the labels on the student form.
+        </p>
+        <div class="mini">
+          <div class="full"><label>Student ID field</label><input id="n_uid" placeholder="University Roll Number"></div>
+          <div class="full"><label>Department level</label><input id="n_dept" placeholder="Department / School"></div>
+          <div class="full"><label>Programme level</label><input id="n_prog" placeholder="Programme"></div>
+          <div class="full"><label>Course level</label><input id="n_course" placeholder="Course / Branch"></div>
+          <div class="full"><label>Session / batch</label><input id="n_session" placeholder="Session"></div>
+        </div>
+        <div class="preview mt" id="namePreview"></div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT ============ -->
+    <div>
+      <div class="panel">
+        <div class="row-b" style="margin-bottom:6px">
+          <h3 style="margin:0">Departments &amp; what they offer</h3>
+          <button class="btn btn-sm" onclick="P.addDept()">+ Add department</button>
+        </div>
+        <p class="sm mut" style="margin-bottom:14px">
+          These feed the dependent dropdowns: pick a department on the form and only its
+          programmes show, pick a programme and only its courses show.
+        </p>
+        <div id="deptList"></div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Sessions you run</h3>
+        <p class="sm mut" style="margin-bottom:12px">Comma separated, e.g. <code>2022-2026, 2023-2027, 2024-2026</code></p>
+        <input type="text" id="p_sessions">
+      </div>
+
+      <div class="panel mt">
+        <h3>Snapshot</h3>
+        <div class="stats" style="grid-template-columns:1fr 1fr" id="snap"></div>
+      </div>
+
+      <div class="row mt" style="gap:12px;flex-wrap:wrap">
+        <button class="btn btn-lg grow" style="min-width:230px" onclick="P.saveAll()">Save profile</button>
+        <a class="btn btn-ghost" id="previewForm" href="verify.html">See the student form</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span id="foot"></span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var P = (function(){
+
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
+
+  var cfg = hbeGetConfig();
+  var cid = hbeAdminCampus(sess, cfg);
+  var c   = cfg.colleges[cid];
+  var g   = function(x){ return document.getElementById(x); };
+  var depts = [];                       /* working copy: [{name, programmes:[], courses:[], strength}] */
+
+  /* ---------------- read the current config into the editor ---------------- */
+  function fieldById(id){ return (c.fields||[]).filter(function(f){ return f.id === id; })[0] || null; }
+
+  function readDepts(){
+    var d = fieldById("department"), pr = fieldById("programme"), cr = fieldById("course");
+    var names = (d && d.options) || [];
+    return names.map(function(n){
+      var progs = (pr && pr.optionsMap && pr.optionsMap[n]) || [];
+      var crsKey = (cr && cr.dependsOn === "programme") ? null : n;
+      var courses = crsKey ? ((cr && cr.optionsMap && cr.optionsMap[crsKey]) || [])
+                           : uniqFrom(cr, progs);
+      return { name:n, programmes:progs.slice(), courses:courses.slice(), strength:"" };
+    });
+  }
+  function uniqFrom(cr, progs){
+    var out = [], seen = {};
+    progs.forEach(function(p){
+      ((cr && cr.optionsMap && cr.optionsMap[p]) || []).forEach(function(x){
+        if(!seen[x]){ seen[x] = 1; out.push(x); }
+      });
+    });
+    return out;
+  }
+
+  function load(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    g("nav").innerHTML = hbeAdminNav(c, sess, "profile");
+
+    var sel = g("fCol");
+    sel.innerHTML = Object.keys(cfg.colleges).map(function(k){
+      return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+    sel.style.display = hbeIsSuper(sess) ? "" : "none";
+
+    var pf = c.profile || (c.profile = {});
+    var st = pf.strength || {}, ct = pf.contact || {}, nm = pf.nomenclature || {};
+
+    g("p_name").value  = c.name || "";
+    g("p_short").value = c.shortName || "";
+    g("p_city").value  = c.campus || "";
+    g("p_web").value   = pf.website || "";
+    g("p_est").value   = pf.established || "";
+    g("p_total").value = st.total || "";
+    g("p_final").value = st.finalYear || "";
+
+    g("p_cname").value  = ct.name || "";
+    g("p_crole").value  = ct.role || "";
+    g("p_cmail").value  = ct.email || "";
+    g("p_cphone").value = ct.phone || "";
+
+    g("n_uid").value     = nm.uid || (c.gate||{}).idLabel || "University ID";
+    g("n_dept").value    = nm.department || labelOf("department", "Department / School");
+    g("n_prog").value    = nm.programme  || labelOf("programme", "Programme");
+    g("n_course").value  = nm.course     || labelOf("course", "Course");
+    g("n_session").value = nm.session    || labelOf("session", "Session");
+
+    var sf = fieldById("session");
+    var sess_list = (sf && sf.optionsMap && (sf.optionsMap["*"] || [])) || (sf && sf.options) || [];
+    g("p_sessions").value = sess_list.join(", ");
+
+    g("savedAt").textContent = pf.updatedAt ? "saved " + pf.updatedAt : "not saved yet";
+    g("previewForm").href = "verify.html?college=" + cid;
+    g("foot").textContent = "Feeds the registration form for " + c.name;
+
+    depts = readDepts();
+    drawDepts(); snapshot(); preview();
+  }
+
+  function labelOf(id, fb){ var f = fieldById(id); return f ? f.label : fb; }
+
+  /* ---------------- departments editor ---------------- */
+  function drawDepts(){
+    g("deptList").innerHTML = depts.map(function(d, i){
+      return '<div class="fl"><div class="fl-head">' +
+        '<span class="nm">'+hbeEsc(d.name || "New department")+"</span>" +
+        '<span class="badge">'+d.programmes.length+" programmes</span>" +
+        '<span class="badge">'+d.courses.length+" courses</span>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="P.tog('+i+')" title="Edit">'+ico("edit")+"</button>" +
+        '<button class="icon-btn" style="width:30px;height:30px" onclick="P.delDept('+i+')" title="Remove">'+ico("x")+"</button>" +
+      "</div>" +
+      '<div class="fl-body" id="db_'+i+'"><div class="mini">' +
+        '<div class="full"><label>Department / school name</label>' +
+          '<input id="d'+i+'_name" value="'+hbeEsc(d.name)+'" oninput="P.touch()"></div>' +
+        '<div class="full"><label>Programmes offered (comma separated)</label>' +
+          '<input id="d'+i+'_prog" value="'+hbeEsc(d.programmes.join(", "))+'" oninput="P.touch()"></div>' +
+        '<div class="full"><label>Courses / branches (comma separated)</label>' +
+          '<input id="d'+i+'_course" value="'+hbeEsc(d.courses.join(", "))+'" oninput="P.touch()"></div>' +
+        '<div><label>Students in this department</label>' +
+          '<input type="number" id="d'+i+'_str" value="'+hbeEsc(d.strength||"")+'" oninput="P.touch()"></div>' +
+      "</div></div></div>";
+    }).join("") || '<div class="empty">'+ico("users")+"<h3>No departments yet</h3>" +
+                   '<p class="sm mut">Add the first one — the form needs at least one.</p></div>';
+  }
+
+  function grabDepts(){
+    depts = depts.map(function(d, i){
+      if(!g("d"+i+"_name")) return d;
+      return {
+        name: g("d"+i+"_name").value.trim(),
+        programmes: csv(g("d"+i+"_prog").value),
+        courses: csv(g("d"+i+"_course").value),
+        strength: g("d"+i+"_str").value
+      };
+    }).filter(function(d){ return d.name; });
+  }
+  function csv(v){ return String(v||"").split(",").map(function(x){ return x.trim(); }).filter(Boolean); }
+
+  /* ---------------- save back into the form config ---------------- */
+  function saveAll(){
+    grabDepts();
+    if(!depts.length){ hbeToast("Add at least one department first.", "alert"); return; }
+
+    c.name      = g("p_name").value.trim() || c.name;
+    c.shortName = g("p_short").value.trim() || c.shortName;
+    c.campus    = g("p_city").value.trim();
+
+    c.profile = {
+      website: g("p_web").value.trim(),
+      established: g("p_est").value.trim(),
+      strength: { total: +g("p_total").value || 0, finalYear: +g("p_final").value || 0 },
+      contact: { name:g("p_cname").value.trim(), role:g("p_crole").value.trim(),
+                 email:g("p_cmail").value.trim(), phone:g("p_cphone").value.trim() },
+      nomenclature: { uid:g("n_uid").value.trim(), department:g("n_dept").value.trim(),
+                      programme:g("n_prog").value.trim(), course:g("n_course").value.trim(),
+                      session:g("n_session").value.trim() },
+      departments: depts,
+      updatedAt: new Date().toISOString().slice(0,10)
+    };
+
+    /* ---- labels ---- */
+    c.gate = c.gate || {};
+    c.gate.idLabel = g("n_uid").value.trim() || c.gate.idLabel;
+    setLabel("universityId", g("n_uid").value.trim());
+    setLabel("department",   g("n_dept").value.trim());
+    setLabel("programme",    g("n_prog").value.trim());
+    setLabel("course",       g("n_course").value.trim());
+    setLabel("session",      g("n_session").value.trim());
+
+    /* ---- dropdown options ---- */
+    var dF = fieldById("department"), pF = fieldById("programme"), cF = fieldById("course"), sF = fieldById("session");
+    if(dF) dF.options = depts.map(function(d){ return d.name; });
+
+    if(pF){
+      pF.dependsOn = "department";
+      pF.optionsMap = {};
+      depts.forEach(function(d){ pF.optionsMap[d.name] = d.programmes.slice(); });
+    }
+    if(cF){
+      cF.dependsOn = "department";               /* profile keeps it simple: courses per department */
+      cF.optionsMap = {};
+      depts.forEach(function(d){ cF.optionsMap[d.name] = d.courses.slice(); });
+    }
+    if(sF){
+      var list = csv(g("p_sessions").value);
+      sF.dependsOn = "programme";
+      sF.optionsMap = { "*": list };
+    }
+
+    hbeSaveConfig(cfg);
+    g("savedAt").textContent = "saved just now";
+    g("savedAt").className = "badge ok";
+    snapshot(); preview(); drawDepts();
+    hbeToast("Campus profile saved — the student form is updated.", "check", 4000);
+  }
+
+  function setLabel(id, label){
+    if(!label) return;
+    var f = fieldById(id);
+    if(f) f.label = label;
+  }
+
+  /* ---------------- side panels ---------------- */
+  function snapshot(){
+    grabDepts();
+    var progs = 0, courses = 0, strength = 0;
+    depts.forEach(function(d){ progs += d.programmes.length; courses += d.courses.length; strength += (+d.strength || 0); });
+    g("snap").innerHTML =
+      mini("Departments", depts.length) +
+      mini("Programmes", progs) +
+      mini("Courses", courses) +
+      mini("Mapped strength", strength || (c.profile && c.profile.strength ? c.profile.strength.total : 0));
+  }
+  function mini(l, v){
+    return '<div class="stat" style="padding:16px"><div class="lbl">'+l+'</div><div class="val" style="font-size:24px">'+v+"</div></div>";
+  }
+
+  function preview(){
+    g("namePreview").innerHTML =
+      '<div class="xs mut" style="margin-bottom:8px">This is how the form will read:</div>' +
+      ["n_uid","n_dept","n_prog","n_course","n_session"].map(function(k){
+        return '<div class="kv" style="padding:8px 0"><span>' +
+          ({n_uid:"ID field",n_dept:"Level 1",n_prog:"Level 2",n_course:"Level 3",n_session:"Batch"})[k] +
+          "</span><b>" + hbeEsc(g(k).value || "—") + "</b></div>";
+      }).join("");
+  }
+
+  function touch(){ snapshot(); preview(); }
+  function tog(i){ var b = g("db_"+i); b.className = b.className.indexOf("on") > -1 ? "fl-body" : "fl-body on"; }
+  function addDept(){
+    grabDepts();
+    depts.push({ name:"New department", programmes:[], courses:[], strength:"" });
+    drawDepts(); snapshot();
+    setTimeout(function(){ tog(depts.length-1); }, 40);
+  }
+  function delDept(i){
+    grabDepts();
+    if(!confirm('Remove "' + depts[i].name + '" from the profile?')) return;
+    depts.splice(i,1); drawDepts(); snapshot();
+  }
+  function campus(v){
+    if(!hbeIsSuper(sess)) return;
+    cid = v; hbeSet("hbe_last_college_v2", v); load();
+  }
+
+  ["n_uid","n_dept","n_prog","n_course","n_session"].forEach(function(k){
+    document.addEventListener("input", function(e){ if(e.target && e.target.id === k) preview(); });
+  });
+
+  load();
+  return { saveAll:saveAll, addDept:addDept, delDept:delDept, tog:tog, touch:touch, campus:campus };
+})();
+</script>
+</body>
+</html>

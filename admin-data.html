@@ -122,12 +122,11 @@
 <script>
 var D = (function(){
 
-  var s = hbeSession();
-  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-data.html"; return {}; }
+  var sess = hbeRequireAdmin("superadmin");      /* HQ tool */
+  if(!sess) return {};
 
   var cfg = hbeGetConfig();
-  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
-  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var cid = hbeAdminCampus(sess, cfg);
   var c   = cfg.colleges[cid];
   var mode = "config";
   var g   = function(x){ return document.getElementById(x); };
@@ -143,13 +142,7 @@ var D = (function(){
   function brand(){
     c = cfg.colleges[cid];
     hbeApplyTheme(c);
-    g("nav").innerHTML = hbeNav(c,
-      '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
-      '<a class="nav-link" href="admin-reports.html">Students</a>' +
-      '<a class="nav-link" href="admin-roster.html">Master list</a>' +
-      '<a class="nav-link" href="admin.html">Builder</a>' +
-      '<a class="nav-link on" href="admin-data.html">Data</a>' +
-      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("nav").innerHTML = hbeAdminNav(c, sess, "data");
     g("campusBadge").textContent = c.name;
     counts();
     url();

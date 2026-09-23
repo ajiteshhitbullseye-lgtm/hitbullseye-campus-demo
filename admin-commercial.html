@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Commercial · Hitbullseye</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow" id="eyebrow"></span>
+      <h1 style="font-size:28px;margin-top:12px" id="title">Commercial</h1>
+      <p class="sm mut" id="sub"></p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <select id="fCol" onchange="C.campus(this.value)" style="width:auto;min-width:210px"></select>
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-sm" onclick="C.csv()">Export</button>
+    </div>
+  </div>
+
+  <!-- super admin only: every client at a glance -->
+  <section id="allClients" style="display:none">
+    <div class="stats mt" id="hqKpi"></div>
+    <section class="card mt">
+      <div class="sec-head"><h2>All clients</h2>
+        <p class="sm mut">Click a row to open that client's account.</p></div>
+      <div id="clientTable"></div>
+    </section>
+  </section>
+
+  <!-- one campus -->
+  <section class="stats mt" id="kpi"></section>
+
+  <div class="media-split mt" style="align-items:stretch">
+    <section class="card">
+      <div class="sec-head"><h2>Licence usage</h2>
+        <p class="sm mut" id="useSub"></p></div>
+      <div id="usage"></div>
+    </section>
+
+    <section class="card">
+      <div class="sec-head"><h2>Account</h2>
+        <p class="sm mut">Contract and who we bill.</p></div>
+      <div id="account"></div>
+    </section>
+  </div>
+
+  <section class="card mt">
+    <div class="sec-head row-b">
+      <div><h2>Purchases &amp; invoices</h2>
+        <p class="sm mut">What was bought, what is paid, what is due.</p></div>
+      <span class="badge" id="dueBadge"></span>
+    </div>
+    <div id="invoices"></div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Prototype figures. In production this comes from the billing system.</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script>
+var C = (function(){
+
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
+
+  var cfg = hbeGetConfig();
+  var cid = hbeAdminCampus(sess, cfg);
+  var c   = cfg.colleges[cid];
+  var g   = function(x){ return document.getElementById(x); };
+  var isHQ = hbeIsSuper(sess);
+
+  function brand(){
+    c = cfg.colleges[cid];
+    hbeApplyTheme(c);
+    g("nav").innerHTML = hbeAdminNav(c, sess, "commercial");
+    g("eyebrow").textContent = isHQ ? "Hitbullseye HQ" : "Placement cell console";
+    g("title").textContent = isHQ ? "Commercial across clients" : "Our account";
+    g("sub").textContent = (c.commercial && c.commercial.clientName) || c.name;
+
+    var sel = g("fCol");
+    sel.innerHTML = Object.keys(cfg.colleges).map(function(k){
+      return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+    sel.style.display = isHQ ? "" : "none";          /* a college admin has one campus */
+    g("allClients").style.display = isHQ ? "" : "none";
+  }
+
+  function usedLicences(slug){
+    return hbeStudents().filter(function(x){ return x.collegeId === slug; }).length;
+  }
+
+  /* ---------------- HQ roll-up ---------------- */
+  function drawHQ(){
+    if(!isHQ) return;
+    var rows = Object.keys(cfg.colleges).map(function(k){
+      var col = cfg.colleges[k], m = hbeCommercial(col);
+      return { k:k, name:(col.commercial && col.commercial.clientName) || col.name,
+               m:m, used:usedLicences(k) };
+    });
+    var value = 0, paid = 0, due = 0, overdue = 0, lic = 0, used = 0;
+    rows.forEach(function(r){
+      value += r.m.value; paid += r.m.paid; due += r.m.due;
+      overdue += r.m.overdue; lic += r.m.licences; used += r.used;
+    });
+
+    g("hqKpi").innerHTML =
+      kpi("Contracted value", hbeMoney(value), rows.length + " clients") +
+      kpi("Collected", hbeMoney(paid), value ? Math.round(paid*100/value) + "% of contracted" : "—") +
+      kpi("Outstanding", hbeMoney(due), overdue ? hbeMoney(overdue) + " overdue" : "nothing overdue") +
+      kpi("Licences", used + " / " + lic, "used across all campuses");
+
+    g("clientTable").innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+      "<th>Client</th><th>Contract</th><th>Licences</th><th>Value</th><th>Collected</th>" +
+      "<th>Outstanding</th><th>Next due</th><th></th></tr></thead><tbody>" +
+      rows.map(function(r){
+        var pct = r.m.licences ? Math.round(r.used*100/r.m.licences) : 0;
+        return '<tr style="cursor:pointer" onclick="C.campus(\''+r.k+'\')">' +
+          '<td><span class="nm">'+hbeEsc(r.name)+"</span><br>" +
+            '<span class="xs mut">'+hbeEsc(cfg.colleges[r.k].campus||"")+"</span></td>" +
+          "<td>"+hbeEsc((r.m.com.contract||{}).id||"—")+"</td>" +
+          "<td>"+r.used+" / "+r.m.licences+'<br><span class="xs mut">'+(pct < 1 && r.used ? "<1" : pct)+"% used</span></td>" +
+          "<td>"+hbeMoney(r.m.value)+"</td>" +
+          '<td><span class="badge ok">'+hbeMoney(r.m.paid)+"</span></td>" +
+          "<td>" + (r.m.due ? '<span class="badge '+(r.m.overdue?"err":"warn")+'">'+hbeMoney(r.m.due)+"</span>"
+                            : '<span class="badge ok">clear</span>') + "</td>" +
+          "<td>"+hbeEsc(r.m.nextDue || "—")+"</td>" +
+          '<td><span class="btn btn-soft btn-sm">Open</span></td></tr>';
+      }).join("") + "</tbody></table></div>";
+  }
+
+  /* ---------------- one campus ---------------- */
+  function draw(){
+    var m = hbeCommercial(c), used = usedLicences(cid);
+    var left = Math.max(0, m.licences - used);
+    var pct = m.licences ? Math.min(100, Math.round(used*100/m.licences)) : 0;
+
+    g("kpi").innerHTML =
+      kpi("Licences bought", m.licences, m.tests + " assessments on the contract") +
+      kpi("Used", used, pct + "% of the licences") +
+      kpi("Remaining", left, left ? "can still register" : "top-up needed") +
+      kpi("Outstanding", hbeMoney(m.due), m.overdue ? hbeMoney(m.overdue) + " overdue" : (m.due ? "due " + (m.nextDue||"") : "all clear"));
+
+    g("useSub").textContent = used + " of " + m.licences + " licences used · " + left + " left";
+    g("usage").innerHTML =
+      '<div class="bar ' + (pct > 90 ? "err" : pct > 70 ? "warn" : "ok") + '" style="height:14px">' +
+        '<i style="width:'+Math.max(pct,2)+'%"></i></div>' +
+      '<div class="row-b" style="margin-top:10px">' +
+        '<span class="xs mut">0</span><span class="xs mut">'+m.licences+" licences</span></div>" +
+      '<div class="divider"></div>' +
+      m.items.map(function(i){
+        var u = Math.min(used, +i.licences || 0);
+        var p = i.licences ? Math.round(u*100/i.licences) : 0;
+        return '<div style="margin-bottom:14px">' +
+          '<div class="row-b" style="margin-bottom:6px">' +
+            '<span class="sm" style="font-weight:650;color:var(--ink)">'+hbeEsc(i.item)+"</span>" +
+            '<span class="sm mut">'+i.licences+" licences</span></div>" +
+          '<div class="bar mid"><i style="width:'+Math.max(p,2)+'%"></i></div></div>';
+      }).join("");
+
+    var ct = m.com.contract || {};
+    g("account").innerHTML =
+      '<div class="kv"><span>Client</span><b>'+hbeEsc(m.com.clientName || c.name)+"</b></div>" +
+      '<div class="kv"><span>Contract</span><b>'+hbeEsc(ct.id || "—")+"</b></div>" +
+      '<div class="kv"><span>Period</span><b>'+hbeEsc((ct.start||"—")+" — "+(ct.end||"—"))+"</b></div>" +
+      '<div class="kv"><span>PO number</span><b>'+hbeEsc(ct.po || "—")+"</b></div>" +
+      '<div class="kv"><span>Rate per student</span><b>'+hbeMoney(m.com.rate || 0)+"</b></div>" +
+      '<div class="kv"><span>Contracted value</span><b>'+hbeMoney(m.value)+"</b></div>" +
+      '<div class="kv"><span>Billing contact</span><b>'+hbeEsc(((c.profile||{}).contact||{}).name || "—")+"<br>" +
+        '<span class="xs mut">'+hbeEsc(((c.profile||{}).contact||{}).email || "")+"</span></b></div>";
+
+    g("dueBadge").innerHTML = m.due
+      ? '<span class="badge '+(m.overdue?"err":"warn")+'">'+hbeMoney(m.due)+" outstanding</span>"
+      : '<span class="badge ok">All settled</span>';
+
+    g("invoices").innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+      "<th>Invoice</th><th>Item</th><th>Licences</th><th>Amount</th><th>Invoiced</th>" +
+      "<th>Due</th><th>Status</th></tr></thead><tbody>" +
+      m.items.map(function(i){
+        var cls = i.status === "Paid" ? "ok" : i.status === "Overdue" ? "err" : "warn";
+        return "<tr><td><b>"+hbeEsc(i.id)+"</b></td>" +
+          '<td class="wrap">'+hbeEsc(i.item)+"</td>" +
+          "<td>"+i.licences+"</td><td><b>"+hbeMoney(i.amount)+"</b></td>" +
+          "<td>"+hbeEsc(i.invoiced||"—")+"</td><td>"+hbeEsc(i.due||"—")+"</td>" +
+          '<td><span class="badge '+cls+'">'+hbeEsc(i.status)+"</span>" +
+            (i.paid ? '<br><span class="xs mut">paid '+hbeEsc(i.paid)+"</span>" : "") + "</td></tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+
+  function kpi(l,v,sub){
+    return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
+  }
+
+  function campus(v){
+    if(!hbeIsSuper(sess)) return;
+    cid = v; hbeSet("hbe_last_college_v2", v);
+    brand(); drawHQ(); draw();
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function csv(){
+    var rows = [], head = ["Client","Invoice","Item","Licences","Amount","Invoiced","Due","Status","Paid on"];
+    var keys = isHQ ? Object.keys(cfg.colleges) : [cid];
+    keys.forEach(function(k){
+      var col = cfg.colleges[k], m = hbeCommercial(col);
+      m.items.forEach(function(i){
+        rows.push([ (m.com.clientName||col.name), i.id, i.item, i.licences, i.amount,
+                    i.invoiced, i.due, i.status, i.paid ]
+          .map(function(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }).join(","));
+      });
+    });
+    var blob = new Blob([head.join(",")+"\\n"+rows.join("\\n")], {type:"text/csv"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (isHQ ? "all-clients" : cid) + "-commercial.csv";
+    a.click();
+    hbeToast("Exported " + rows.length + " lines.", "down", 3500);
+  }
+
+  brand(); drawHQ(); draw();
+  return { campus:campus, csv:csv };
+})();
+</script>
+</body>
+</html>

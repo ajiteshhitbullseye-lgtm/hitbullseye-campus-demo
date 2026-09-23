@@ -59,7 +59,24 @@ THE FLOW (as agreed in the meeting)
    student has attempted more than one, and campus rank is computed inside
    that assessment only.
 
-ADMIN  (login.html?as=admin)
+THREE LOGINS
+------------
+SUPER ADMIN  super@hitbullseye.com / super@123   Hitbullseye HQ
+   Every campus. Analytics, Students, Master list, Commercial (all clients),
+   Campus profile, Form builder, Data & API. Can switch campus anywhere.
+
+COLLEGE ADMIN  admin@hitbullseye.com / admin@123   the placement cell
+   ONE campus only (chosen at sign-in, no campus switcher anywhere).
+   Analytics, Students, Master list, Commercial (their own account),
+   Campus profile. NO form builder, NO Data/JSON page.
+
+STUDENT  any registered email + the one-time code shown on screen.
+
+On the sign-in page the admin tab shows both logins as click-to-fill cards,
+the same way the student demo email fills itself.
+
+
+CONSOLE PAGES  (login.html?as=admin)
    admin-analytics.html   COHORT ANALYTICS - the bulk view
                           KPIs, registration funnel, score distribution,
                           section-wise averages, department table, top ten,
@@ -68,9 +85,22 @@ ADMIN  (login.html?as=admin)
    admin-reports.html     every student, every attempt (row level)
    admin-roster.html      the STUDENT MASTER LIST
    admin.html             the form builder
-   admin-data.html        DATA & API - pull config / master list / students
-                          from a JSON endpoint, or paste / upload JSON.
-                          Download any of them as JSON too.
+   admin-commercial.html  COMMERCIAL
+                          College admin: licences bought / used / remaining,
+                          contract, billing contact, invoices with Paid / Due /
+                          Overdue and the next due date.
+                          Super admin: the same per client PLUS an "All clients"
+                          roll-up - contracted value, collected, outstanding,
+                          licences used, next due per campus. Export CSV.
+   admin-profile.html     CAMPUS PROFILE - what the college fills in
+                          Institute details, strength, placement-cell contact,
+                          NOMENCLATURE (what they call the ID field, department,
+                          programme, course, session) and the DEPARTMENTS with
+                          their programmes and courses.
+                          Saving writes straight into the form config: field
+                          labels, the gate ID label and the dependent dropdowns.
+   admin.html             FORM BUILDER            (super admin only)
+   admin-data.html        DATA & API - JSON in/out (super admin only)
    The console has an "All assessments" filter: pick one paper and the cohort
    narrows to the students that paper is open to, with that paper's scores.
 

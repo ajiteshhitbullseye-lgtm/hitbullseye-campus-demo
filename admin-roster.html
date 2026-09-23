@@ -109,12 +109,11 @@
 <script>
 var M = (function(){
 
-  var s = hbeSession();
-  if(!s || s.role !== "admin"){ location.href = "login.html?as=admin&next=admin-roster.html"; return {}; }
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
 
   var cfg = hbeGetConfig();
-  var cid = hbeParam("college") || s.collegeId || hbeCollegeId(cfg);
-  if(!cfg.colleges[cid]) cid = hbeCollegeId(cfg);
+  var cid = hbeAdminCampus(sess, cfg);
   var c   = cfg.colleges[cid];
   var editIndex = -1;
   var g   = function(x){ return document.getElementById(x); };
@@ -122,19 +121,13 @@ var M = (function(){
   function brand(){
     c = cfg.colleges[cid];
     hbeApplyTheme(c);
-    g("nav").innerHTML = hbeNav(c,
-      '<a class="nav-link" href="admin-analytics.html">Analytics</a>' +
-      '<a class="nav-link" href="admin-reports.html">Students</a>' +
-      '<a class="nav-link on" href="admin-roster.html">Master list</a>' +
-      '<a class="nav-link" href="admin.html">Builder</a>' +
-      '<a class="nav-link" href="admin-data.html">Data</a>' +
-      '<span class="badge brand">'+ico("shield")+' Admin</span>' +
-      '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">'+ico("logout")+' Sign out</a>');
+    g("nav").innerHTML = hbeAdminNav(c, sess, "roster");
     g("uidLabel").innerHTML = hbeEsc((c.gate||{}).idLabel || "University ID") + '<span class="req">*</span>';
   }
 
   g("fCol").innerHTML = Object.keys(cfg.colleges).map(function(k){
     return '<option value="'+k+'"'+(k===cid?" selected":"")+">"+hbeEsc(cfg.colleges[k].name)+"</option>"; }).join("");
+  if(!hbeIsSuper(sess)) g("fCol").style.display = "none";
 
   /* ---------------- helpers ---------------- */
   function roster(){ return c.roster || (c.roster = []); }
@@ -367,6 +360,7 @@ var M = (function(){
   }
 
   function switchCampus(v){
+    if(!hbeIsSuper(sess)) return;
     cid = v; hbeSet("hbe_last_college_v2", v); cancel(); brand(); draw();
   }
 

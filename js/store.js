@@ -194,6 +194,83 @@ function hbeFieldVisible(field, values){
   return (r.values || []).indexOf(v) > -1;
 }
 
+/* ---------------- roles: superadmin | admin | student ---------------- */
+function hbeIsSuper(sess){ return !!sess && sess.role === "superadmin"; }
+function hbeIsAdminish(sess){ return !!sess && (sess.role === "admin" || sess.role === "superadmin"); }
+
+/* guard for every console page. level "superadmin" locks the page to HQ. */
+function hbeRequireAdmin(level){
+  var sess = hbeSession();
+  var page = location.pathname.split("/").pop();
+  var ok = hbeIsAdminish(sess) && (level !== "superadmin" || hbeIsSuper(sess));
+  if(!ok){
+    location.href = "login.html?as=admin&next=" + encodeURIComponent(page);
+    return null;
+  }
+  return sess;
+}
+
+/* a college admin is locked to their own campus; HQ can move around */
+function hbeAdminCampus(sess, cfg){
+  if(hbeIsSuper(sess)) {
+    var want = hbeParam("college") || hbeGet(K_LASTC) || sess.collegeId;
+    return cfg.colleges[want] ? want : Object.keys(cfg.colleges)[0];
+  }
+  return cfg.colleges[sess.collegeId] ? sess.collegeId : Object.keys(cfg.colleges)[0];
+}
+
+/* one navigation for every console page */
+function hbeAdminNav(college, sess, active){
+  var items = [
+    { k:"analytics",  href:"admin-analytics.html",  label:"Analytics" },
+    { k:"students",   href:"admin-reports.html",    label:"Students" },
+    { k:"roster",     href:"admin-roster.html",     label:"Master list" },
+    { k:"commercial", href:"admin-commercial.html", label:"Commercial" },
+    { k:"profile",    href:"admin-profile.html",    label:"Profile" }
+  ];
+  if(hbeIsSuper(sess)){
+    items.push({ k:"builder", href:"admin.html",      label:"Builder" });
+    items.push({ k:"data",    href:"admin-data.html", label:"Data" });
+  }
+  var links = items.map(function(i){
+    return '<a class="nav-link' + (i.k === active ? " on" : "") + '" href="' + i.href + '">' + i.label + "</a>";
+  }).join("");
+
+  links += hbeIsSuper(sess)
+    ? '<span class="badge brand">' + ico("shield") + " HQ</span>"
+    : '<span class="badge">' + ico("users") + " Placement cell</span>";
+  links += '<a class="btn btn-ghost btn-sm" href="#" onclick="hbeLogout();return false">' + ico("logout") + " Sign out</a>";
+
+  return hbeNav(college, links).replace('<div class="nav-links">', '<div class="nav-links dense">');
+}
+
+/* commercial roll-up for one campus */
+function hbeCommercial(college){
+  var com = college.commercial || { items: [] };
+  var items = com.items || [];
+  var licences = 0, value = 0, paid = 0, due = 0, overdue = 0, tests = 0, nextDue = null;
+  items.forEach(function(i){
+    licences += (+i.licences || 0);
+    value    += (+i.amount || 0);
+    tests    += (+i.tests || 0);
+    if(i.status === "Paid") paid += (+i.amount || 0);
+    else {
+      due += (+i.amount || 0);
+      if(i.status === "Overdue") overdue += (+i.amount || 0);
+      if(!nextDue) nextDue = i.due;
+    }
+  });
+  return { com:com, items:items, licences:licences, value:value, paid:paid,
+           due:due, overdue:overdue, tests:tests, nextDue:nextDue };
+}
+function hbeMoney(n){
+  n = Math.round(+n || 0);
+  var s = String(n), out = "", last3 = s.slice(-3), rest = s.slice(0, -3);
+  if(rest) out = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + last3;
+  else out = last3;
+  return "₹" + out;
+}
+
 /* ---------------- students ---------------- */
 function hbeStudents(){
   var list = hbeJson(K_STUD, null);
