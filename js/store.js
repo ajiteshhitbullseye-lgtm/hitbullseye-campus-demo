@@ -7,7 +7,7 @@
 var K_CFG   = "hbe_cfg_v6";   /* v6: demo logins moved off the real company domain.
                                  Bumping the key drops any saved copy that still
                                  holds the old addresses. */
-var K_STUD  = "hbe_students_v10";
+var K_STUD  = "hbe_students_v11";   /* v11: results come from simulated question-level rows (hb-analytics.js) */
 var K_SESS  = "hbe_session_v2";
 var K_LASTC = "hbe_last_college_v2";
 var K_GATE  = "hbe_gate_v1";      /* verified University ID pass */
@@ -275,6 +275,7 @@ function hbeAdminNav(college, sess, active){
   if(su) items.push({ k:"clients", href:"admin-clients.html", label:"Clients", i:"grid" });
   items = items.concat([
     { k:"analytics",  href:"admin-analytics.html",  label:"Analytics",  i:"chart" },
+    { k:"insights",   href:"admin-insights.html",   label:"Insights",   i:"target" },
     { k:"students",   href:"admin-reports.html",    label:"Students",   i:"users" },
     { k:"roster",     href:"admin-roster.html",     label:"Roster",     i:"list" },
     { k:"commercial", href:"admin-commercial.html", label:"Commercial", i:"rupee" },
@@ -283,6 +284,7 @@ function hbeAdminNav(college, sess, active){
   if(su){
     items.push({ k:"builder", href:"admin.html",      label:"Builder", i:"settings" });
     items.push({ k:"data",    href:"admin-data.html", label:"Data",    i:"code" });
+    items.push({ k:"engine",  href:"admin-engine.html", label:"Engine", i:"rocket" });
   }
 
   var tabs = items.map(function(i){
@@ -359,6 +361,8 @@ function hbeMoney(n){
 function hbeStudents(){
   var list = hbeJson(K_STUD, null);
   if(!list){ list = hbeSeedStudents(); hbeSaveStudents(list); }
+  /* seeded students' scores are derived from their simulated answer rows */
+  if(typeof HBX !== "undefined") list = HBX.syncSeeded(list);
   return list;
 }
 function hbeSaveStudents(l){ hbeSet(K_STUD, JSON.stringify(l)); }
@@ -805,7 +809,9 @@ function hbeSeedStudents(){
         course:{label:"Course", value:course},
         session:{label:"Session", value:sess}
       },
-      result: null
+      result: null,
+      _seedRaw: r[7] || null,          /* seed marks per section (out of 15) → simulation profile */
+      _seedIdx: i
     };
     /* results: one per test the student is allowed to see */
     if(r[7]){

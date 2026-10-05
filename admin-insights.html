@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Deep Insights · Hitbullseye Admin</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
+<link rel="stylesheet" href="css/analytics.css">
+<style>
+  .flag{display:inline-flex;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;margin:2px 4px 2px 0;white-space:nowrap}
+  .flag.err{background:var(--err-bg);color:var(--err)} .flag.warn{background:var(--warn-bg);color:var(--warn)} .flag.info{background:#eaf1fc;color:#2563c9}
+  .qa-tbl{min-width:1080px;table-layout:fixed}
+  .qa-tbl th,.qa-tbl td{white-space:normal!important;vertical-align:top}
+  .qa-tbl th:nth-child(1){width:44px} .qa-tbl th:nth-child(2){width:300px} .qa-tbl th:nth-child(3){width:86px}
+  .qa-tbl th:nth-child(4){width:88px} .qa-tbl th:nth-child(5){width:126px} .qa-tbl th:nth-child(6){width:80px}
+  .qa-tbl th:nth-child(7){width:190px}
+  .qa-q{max-width:380px;color:var(--ink);font-size:13px}
+  .qa-q small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .dist{display:flex;height:9px;border-radius:99px;overflow:hidden;gap:2px;min-width:120px;margin-top:4px}
+  .dist i{display:block;height:100%}
+  .att-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) auto;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+  .att-row:first-child{border-top:0}
+  .att-row b{color:var(--ink)}
+  @media(max-width:700px){ .att-row{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow" id="who">Console</span>
+      <h1 style="font-size:28px;margin-top:12px">Deep insights</h1>
+      <p class="sm mut" id="sub"></p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-sm" onclick="I.csv()">Export question analysis</button>
+    </div>
+  </div>
+
+  <section class="card mt">
+    <div class="toolbar" style="margin-bottom:0">
+      <select id="fTest" onchange="I.draw()"></select>
+      <span class="sm mut" id="fNote"></span>
+    </div>
+  </section>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <div id="body"></div>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Computed from every answer to this paper (student_question_analytics + test_question_analytics_v2).</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/hb-engine.js"></script>
+<script src="js/hb-analytics.js"></script>
+<script src="js/hb-charts.js"></script>
+<script>
+var I = (function(){
+  var sess = hbeRequireAdmin();
+  if(!sess) return {};
+  var cfg = hbeGetConfig();
+  var cid = hbeAdminCampus(sess, cfg);
+  var c   = cfg.colleges[cid];
+  var g   = function(x){ return document.getElementById(x); };
+  var F   = HBA.format, esc = hbeEsc, pct = HBC.pct, dur = HBC.dur;
+  hbeApplyTheme(c);
+  g("nav").innerHTML = hbeAdminNav(c, sess, "insights");
+  g("sub").textContent = c.name + " · question quality, topic gaps and students who need a nudge";
+
+  var tests = hbeTests(c);
+  g("fTest").innerHTML = tests.map(function(t){ return '<option value="' + t.id + '">' + esc(t.name) + "</option>"; }).join("");
+  var lastRows = [];
+
+  function head(k, t, s){ return '<div class="an-head"><div><span class="an-kicker">' + k + "</span><h2>" + t + "</h2>" + (s ? "<p>" + s + "</p>" : "") + "</div></div>"; }
+  function kpi(l, v, s){ return '<div class="stat"><div class="lbl">' + l + '</div><div class="val">' + v + '</div><div class="sub">' + s + "</div></div>"; }
+
+  /* ---------------- item analysis (classical test theory) ---------------- */
+  function analyse(test){
+    var w = HBX.world();
+    var rows = w.rows.filter(function(x){ return x.testId === test.id; });
+    var byStu = {};
+    rows.forEach(function(x){ (byStu[x.studentId] = byStu[x.studentId] || []).push(x); });
+    var students = Object.keys(byStu).map(function(id){
+      return { id: id, score: byStu[id].reduce(function(a, x){ return a + x.score; }, 0) };
+    }).sort(function(a, b){ return b.score - a.score; });
+    var k = Math.max(1, Math.round(students.length * 0.27));
+    var top = {}, bot = {};
+    students.slice(0, k).forEach(function(s){ top[s.id] = 1; });
+    students.slice(-k).forEach(function(s){ bot[s.id] = 1; });
+
+    var paper = w.papers[test.id];
+    var items = paper.questions.map(function(q){
+      var qs = rows.filter(function(x){ return x.questionId === q.questionId; });
+      var att = qs.filter(function(x){ return x.isAttempted; });
+      var ok = att.filter(function(x){ return x.isCorrect; });
+      var rate = function(set){ var n = qs.filter(function(x){ return set[x.studentId]; }); return n.length ? n.filter(function(x){ return x.isCorrect; }).length / n.length : 0; };
+      var picks = {};
+      att.forEach(function(x){ picks[x.selectedAnswer] = (picks[x.selectedAnswer] || 0) + 1; });
+      var right = "ABCDEFGH"[q.answer];
+      var wrongPicks = Object.keys(picks).filter(function(l){ return l !== right; }).sort(function(a, b){ return picks[b] - picks[a]; });
+      var lure = wrongPicks[0];
+      var it = {
+        q: q, views: qs.length, attempts: att.length,
+        solve: qs.length ? ok.length / qs.length : 0,
+        acc: att.length ? ok.length / att.length : null,
+        time: att.length ? att.reduce(function(a, x){ return a + x.timeTaken; }, 0) / att.length : null,
+        disc: rate(top) - rate(bot),
+        picks: picks, right: right,
+        lure: lure ? { letter: lure, text: q.choices["ABCDEFGH".indexOf(lure)], share: picks[lure] / (att.length || 1) } : null
+      };
+      var f = [];
+      if(it.disc < 0) f.push(["err", "Check the answer key: top students miss it more often"]);
+      else if(it.disc < 0.15) f.push(["warn", "Barely separates strong and weak students"]);
+      if(it.solve >= 0.85) f.push(["info", "Too easy for this cohort"]);
+      if(it.solve <= 0.12) f.push(["warn", "Too hard for this cohort"]);
+      if(q.lod === "Easy" && it.solve < 0.4) f.push(["warn", "Tagged Easy but most students miss it"]);
+      if(q.lod === "Difficult" && it.solve > 0.7) f.push(["info", "Tagged Difficult but most students solve it"]);
+      if(it.lure && it.lure.share >= 0.4 && (it.acc || 0) < 0.6) f.push(["warn", "One wrong option draws " + pct(it.lure.share) + " of answers — check its wording"]);
+      it.flags = f;
+      return it;
+    });
+    return { rows: rows, students: students, items: items, paper: paper };
+  }
+
+  function draw(){
+    var test = hbeTestById(c, g("fTest").value) || tests[0];
+    var A = analyse(test);
+    lastRows = A.items;
+    var reg = hbeStudents().filter(function(x){ return x.collegeId === cid && hbeResults(x)[test.id]; });
+    var scores = A.students.map(function(s){ return s.score; });
+    var max = A.paper.questions.reduce(function(a, q){ return a + q.marks; }, 0);
+    var avg = scores.reduce(function(a, b){ return a + b; }, 0) / (scores.length || 1);
+    var flagged = A.items.filter(function(i){ return i.flags.length; }).length;
+    g("fNote").textContent = A.students.length + " students sat this paper (" + reg.length + " registered here, the rest a simulated cohort)";
+
+    g("kpi").innerHTML =
+      kpi("Students on this paper", A.students.length, F.num(A.rows.length) + " answers analysed") +
+      kpi("Average score", F.num(avg, 1) + '<span style="font-size:16px;color:var(--muted)">/' + max + "</span>", pct(avg / max) + " of full marks") +
+      kpi("Questions flagged", flagged + '<span style="font-size:16px;color:var(--muted)">/' + A.items.length + "</span>", "for the content team to review") +
+      kpi("Hardest topic", hardestTopic(A.items), "lowest solve rate");
+
+    var html = "";
+
+    /* topics */
+    var topics = {};
+    A.items.forEach(function(i){
+      var t = topics[i.q.areaId] || (topics[i.q.areaId] = { name: i.q.areaTitle, sec: i.q.sectionName, views: 0, ok: 0, att: 0, n: 0 });
+      t.n++; t.views += i.views; t.ok += i.solve * i.views; t.att += i.attempts;
+    });
+    var tl = Object.keys(topics).map(function(k){ var t = topics[k]; t.solve = t.ok / (t.views || 1); t.attempt = t.att / (t.views || 1); return t; })
+      .sort(function(a, b){ return a.solve - b.solve; });
+    html += '<section class="an-sec">' + head("Teaching priorities", "Where this campus loses the most marks",
+      "Topics sorted by solve rate (share of students who saw a question and got it right). Start classroom revision at the top.") +
+      '<div class="an-rows"><div class="an-row head"><span>Topic</span><span>Questions</span><span>Solve rate</span><span style="text-align:right">Attempted</span></div>' +
+      tl.map(function(t){
+        return '<div class="an-row"><span class="nm"><span>' + esc(t.name) + "<small>" + esc(t.sec) + '</small></span></span><span class="num">' + t.n + '</span>' +
+          '<div class="an-meter"><i style="width:' + Math.max(2, t.solve * 100) + '%"></i></div><span class="edge flat">' + pct(t.attempt) + "</span></div>";
+      }).join("") + "</div></section>";
+
+    /* distribution */
+    html += '<section class="an-sec">' + head("Distribution", "How the whole paper scored", "") +
+      '<div class="an-card"><div class="an-chart" id="dist"></div></div></section>';
+
+    /* item analysis */
+    html += '<section class="an-sec">' + head("Question quality", "Item analysis for the content team",
+      "Solve rate = share of everyone who saw it and got it right. Discrimination = solve rate in the top 27% minus the bottom 27% (above 0.3 is good, below 0 means check the key). The bar shows how answers split across options.") +
+      '<div class="tbl-wrap"><table class="qa-tbl"><thead><tr><th>Q</th><th>Question</th><th>Level</th><th>Solve rate</th><th>Discrimination</th><th>Avg time</th><th>Answer split</th><th>Flags</th></tr></thead><tbody>' +
+      A.items.map(function(i){
+        var total = i.attempts || 1;
+        var split = Object.keys(i.picks).sort().map(function(l){
+          var right = l === i.right;
+          return '<i style="flex:' + i.picks[l] + ";background:" + (right ? "var(--viz-ok)" : "var(--viz-peer)") + '" title="' + l + ": " + Math.round(i.picks[l] / total * 100) + "%" + (right ? " (correct)" : "") + '"></i>';
+        }).join("");
+        return '<tr class="qa-row"><td><b>' + i.q.qno + '</b></td><td class="qa-q">' + esc(i.q.text) + "<small>" + esc(i.q.sectionName) + " · " + esc(i.q.subAreaName) + "</small></td>" +
+          "<td>" + esc(i.q.lod) + "</td><td><b>" + pct(i.solve) + "</b></td>" +
+          '<td><b style="color:' + (i.disc < 0 ? "var(--err)" : i.disc < 0.15 ? "var(--warn)" : i.disc >= 0.3 ? "var(--ok)" : "var(--ink)") + '">' + i.disc.toFixed(2) + "</b></td>" +
+          "<td>" + (i.time != null ? dur(i.time) : "—") + "</td>" +
+          '<td><div class="dist">' + split + '</div><span class="xs mut">' + (i.lure ? "Top wrong: " + esc(i.lure.text) + " (" + pct(i.lure.share) + ")" : "") + "</span></td>" +
+          "<td>" + (i.flags.map(function(f){ return '<span class="flag ' + f[0] + '">' + esc(f[1]) + "</span>"; }).join("") || '<span class="xs mut">—</span>') + "</td></tr>";
+      }).join("") + "</tbody></table></div></section>";
+
+    /* students needing attention */
+    var notes = reg.map(function(st){
+      var r = HBA.buildTestReport(HBX.dataFor(st.id), test.id);
+      if(!r) return null;
+      var why = [];
+      if(r.percentile != null && r.percentile < 30) why.push("Bottom 30% on this paper (" + F.ordinal(r.percentile) + " percentile)");
+      if(r.deep.stamina && r.deep.stamina.drop != null && r.deep.stamina.drop <= -0.15) why.push("Accuracy fell " + Math.round(-r.deep.stamina.drop * 100) + " pts in the second half");
+      if(r.patterns.rushed >= 3) why.push(r.patterns.rushed + " rushed wrong answers");
+      if(r.patterns.missedEasy >= 2) why.push(r.patterns.missedEasy + " easy questions wrong");
+      if(r.totals.attemptRate < 0.6) why.push("Attempted only " + pct(r.totals.attemptRate) + " of the paper");
+      return why.length ? { st: st, r: r, why: why } : null;
+    }).filter(Boolean).sort(function(a, b){ return b.why.length - a.why.length; });
+    html += '<section class="an-sec">' + head("Needs a nudge", "Registered students to talk to",
+      "Picked from each student's own answers, with the reason. Open the report before the conversation.") +
+      '<div class="an-card">' + (notes.length ? notes.map(function(n){
+        return '<div class="att-row"><div><b>' + esc(n.st.name) + '</b><div class="xs mut">' + esc(n.st.department || "") + " · " + Math.round(n.r.scorePct * 100) + "% score</div></div>" +
+          "<div>" + n.why.map(function(w){ return '<span class="flag warn">' + esc(w) + "</span>"; }).join("") + "</div>" +
+          '<a class="btn btn-ghost btn-sm" href="report.html?id=' + encodeURIComponent(n.st.id) + "&test=" + encodeURIComponent(test.id) + '">Open report' + ico("arrow") + "</a></div>";
+      }).join("") : '<p class="sm mut">Nobody stands out on this paper.</p>') + "</div></section>";
+
+    g("body").innerHTML = html;
+
+    /* histogram over every student on the paper */
+    var lo = Math.min.apply(null, scores), hi = Math.max.apply(null, scores), bins = [];
+    for(var v = lo; v <= hi; v++) bins.push({ from: v, to: v + 1, count: 0 });
+    scores.forEach(function(s){ bins[s - lo].count++; });
+    HBC.mount(g("dist"), HBC.histogram({ bins: bins, studentBin: null }, 0));
+  }
+
+  function hardestTopic(items){
+    var t = {};
+    items.forEach(function(i){ var x = t[i.q.areaTitle] || (t[i.q.areaTitle] = [0, 0]); x[0] += i.solve * i.views; x[1] += i.views; });
+    var k = Object.keys(t).sort(function(a, b){ return t[a][0] / t[a][1] - t[b][0] / t[b][1]; })[0];
+    return '<span style="font-size:19px">' + esc(k || "—") + "</span>";
+  }
+
+  function csv(){
+    var head = ["qno","question_id","section","topic","sub_topic","level","views","attempts","solve_rate","discrimination","avg_time_s","top_wrong_option","top_wrong_share","flags"];
+    var lines = [head.join(",")].concat(lastRows.map(function(i){
+      return [i.q.qno, i.q.questionId, i.q.sectionName, i.q.areaTitle, i.q.subAreaName, i.q.lod, i.views, i.attempts,
+        i.solve.toFixed(3), i.disc.toFixed(3), i.time != null ? Math.round(i.time) : "", i.lure ? i.lure.text : "", i.lure ? i.lure.share.toFixed(3) : "",
+        i.flags.map(function(f){ return f[1]; }).join(" | ")].map(function(v){ return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    }));
+    hbeDownloadBlob(new Blob([lines.join("\n")], { type: "text/csv" }), "question-analysis-" + (g("fTest").value || "test") + ".csv");
+  }
+
+  draw();
+  return { draw: draw, csv: csv };
+})();
+</script>
+</body>
+</html>

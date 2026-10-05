@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Analytics Engine · Hitbullseye HQ</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/polish.css">
+<link rel="stylesheet" href="css/analytics.css">
+<style>
+  .flowd{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:stretch}
+  @media(max-width:980px){ .flowd{grid-template-columns:1fr} }
+  .fbox{position:relative;border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff}
+  .fbox .k{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#2563c9}
+  .fbox b{display:block;color:var(--ink);font-size:14px;margin:4px 0}
+  .fbox p{font-size:12.5px;color:var(--muted)}
+  .fbox .n{font-family:'Plus Jakarta Sans';font-weight:800;font-size:20px;color:var(--ink);margin-top:8px}
+  .fbox.prod{background:#f7f9fd}
+  .fbox:not(:last-child)::after{content:"\2192";position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700;z-index:2}
+  @media(max-width:980px){ .fbox:not(:last-child)::after{content:"\2193";right:50%;top:auto;bottom:-15px;transform:none} }
+  .idx{min-width:980px;table-layout:fixed}
+  .idx th,.idx td{white-space:normal!important;vertical-align:top}
+  .idx th:nth-child(1){width:230px} .idx th:nth-child(2){width:80px} .idx th:nth-child(4){width:260px} .idx th:nth-child(5){width:120px}
+  .idx code{font-size:12px;background:var(--line-2);padding:2px 6px;border-radius:6px;color:var(--ink)}
+  .fields{font-size:11.5px;color:var(--muted);max-width:420px;line-height:1.6}
+  pre.doc{margin:10px 0 0;max-height:300px;overflow:auto;background:#0b1630;color:#d7e3ff;border-radius:12px;padding:12px;font-size:11.5px;line-height:1.5}
+  .pill-ok{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ok)}
+  .pill-ok i{width:8px;height:8px;border-radius:99px;background:var(--ok);display:inline-block}
+</style>
+</head>
+<body>
+
+<div class="demo-strip"><b>DEMO PROTOTYPE</b> · not a live university portal · please do not enter real personal details</div>
+
+<div id="nav"></div>
+
+<main class="wrap" style="padding-top:26px;padding-bottom:60px">
+  <div class="row-b rise">
+    <div>
+      <span class="eyebrow" id="who">Console</span>
+      <h1 style="font-size:28px;margin-top:12px">Analytics engine</h1>
+      <p class="sm mut">How every answer becomes a report. In this prototype the whole pipeline runs in the browser on simulated data; in production steps 1–3 are the existing test engine and Elasticsearch.</p>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="E.reset()">Clear live attempts</button>
+      <button class="btn btn-ghost btn-sm" onclick="E.download()">Download sample rows (JSON)</button>
+      <button class="btn btn-sm" onclick="E.rebuild()">Rebuild aggregates now</button>
+    </div>
+  </div>
+
+  <section class="stats mt" id="kpi"></section>
+
+  <section class="an-sec">
+    <div class="an-head"><div><span class="an-kicker">Data flow</span><h2>From a click to a report</h2>
+      <p>Each box is one stage. The grey ones already exist in the HitBullseye platform; the white ones are what this project adds.</p></div></div>
+    <div class="flowd" id="flow"></div>
+  </section>
+
+  <section class="an-sec">
+    <div class="an-head"><div><span class="an-kicker">Elasticsearch</span><h2>The nine indexes</h2>
+      <p>Document counts are live from the simulated pipeline. Open a row to see a real document from it.</p></div></div>
+    <div class="tbl-wrap"><table class="idx"><thead><tr><th>Index</th><th>Docs</th><th>Fields</th><th>Used in the report for</th><th></th></tr></thead><tbody id="idx"></tbody></table></div>
+  </section>
+
+  <section class="an-sec">
+    <div class="an-head"><div><span class="an-kicker">Handover</span><h2>What the developer connects</h2></div></div>
+    <div class="an-grid an-2">
+      <div class="an-card"><h3>Replace the simulation with the API</h3>
+        <ol class="sm" style="margin:10px 0 0 18px;padding:0;line-height:1.8">
+          <li><code>HBX.world()</code> builds rows here; in production the test engine already writes them to <code>student_question_analytics</code>.</li>
+          <li><code>HBA.sim.aggregate()</code> mirrors the existing aggregation job that fills the <code>*_v2</code> indexes.</li>
+          <li><code>HBA.buildStudentReport()</code> is the part that ships unchanged: give it a student's rows plus the test benchmarks.</li>
+          <li>The report service (<code>hitbullseye-reports</code>) already calls the API and embeds into the student dashboard with a signed token.</li>
+        </ol>
+      </div>
+      <div class="an-card"><h3>Fields the test engine must record</h3>
+        <p class="sm mut" style="margin-top:6px">Already in the raw index. The ones the insights depend on most:</p>
+        <ul class="sm" style="margin:10px 0 0 18px;padding:0;line-height:1.8">
+          <li><code>timeTaken</code> per question: pacing, rushed answers, time sinks, stamina</li>
+          <li><code>isAttempted</code>, <code>isCorrect</code>, <code>score</code>: accuracy, penalties, potential score</li>
+          <li><code>areaId</code>, <code>subAreaId</code>, <code>lod</code>: topic map, weak sub-topics, difficulty</li>
+          <li><code>firstViewedAt</code>: question order for stamina and pacing</li>
+          <li><code>selectedAnswer</code>: distractor analysis in Insights</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Engine: hitbullseye-reports/src/lib (bundled as js/hb-engine.js)</span>
+  </footer>
+</main>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/hb-engine.js"></script>
+<script src="js/hb-analytics.js"></script>
+<script src="js/hb-charts.js"></script>
+<script>
+var E = (function(){
+  var sess = hbeRequireAdmin("superadmin");
+  if(!sess) return {};
+  var cfg = hbeGetConfig();
+  var cid = hbeAdminCampus(sess, cfg);
+  var c = cfg.colleges[cid];
+  var g = function(x){ return document.getElementById(x); };
+  var F = HBA.format, esc = hbeEsc;
+  hbeApplyTheme(c);
+  g("nav").innerHTML = hbeAdminNav(c, sess, "engine");
+
+  /* the field lists exactly as they exist in the HitBullseye cluster */
+  var INDEXES = [
+    ["student_question_analytics", "Raw student attempts", "analyticsCalculation attemptType attemptedAt areaId areaTitle createdAt firstViewedAt isAttempted isCalculationDone isCorrect lod meta_data moduleId moduleName qno questionId questionMarks score sectionId sectionName selectedAnswer studentId subAreaId subAreaName testId testName timeTaken typeOfQues uniqueQno updatedAt", "Everything: every tag, time and result comes from these rows."],
+    ["analytics_checkpoint_v2", "Checkpoint tracker", "lastRun type", "“Data as of” on every report."],
+    ["student_analytics_v2", "Student analytics", "accuracy areaStats attempts avgScore avgTime correct lodStats sectionStats strongAreaIds studentId totalScore totalTime updatedAt views weakAreaIds wrong", "Counsellor views and quick summaries."],
+    ["question_analytics_v2", "Question analytics", "accuracy attempts avgScore avgTime correct questionId totalScore totalTime uniqueQno updatedAt views wrong", "Question difficulty across all papers."],
+    ["test_analytics_v2", "Test analytics", "accuracy attempts avgScore avgTime correct students testId testName totalScore totalTime updatedAt wrong", "Class average, number of students."],
+    ["test_question_analytics_v2", "Test-question analytics", "accuracy areaid areatitle attempts avgScore avgTime correct qno questionId sectionid sectionname subareaid subareaname testId testname totalScore totalTime uniqueQno updatedAt views wrong", "Usual time, solve rate, “easy” and “tough” questions, others’ accuracy on the same questions."],
+    ["module_analytics_v2", "Module analytics", "accuracy attempts avgScore avgTime correct moduleId moduleName students totalScore totalTime updatedAt views wrong", "Practice series totals."],
+    ["student_test_analytics_v2", "Student + test analytics", "accuracy areaStats attempts avgScore avgTime correct lodStats sectionStats strongAreaIds studentId testId testName totalScore totalTime updatedAt views weakAreaIds wrong", "Percentile, score distribution, section average and top 10%."],
+    ["student_module_analytics_v2", "Student + module analytics", "accuracy areaStats attempts avgScore avgTime correct lodStats moduleId moduleName sectionStats strongAreaIds studentId totalScore totalTime updatedAt views weakAreaIds wrong", "A student's practice-series totals."]
+  ];
+
+  function counts(w){
+    var idx = w.idx, sum = function(m){ var n = 0; m.forEach(function(v){ n += v.length; }); return n; };
+    return {
+      student_question_analytics: w.rows.length,
+      analytics_checkpoint_v2: idx.analytics_checkpoint_v2.length,
+      student_analytics_v2: idx.student_analytics_v2.size,
+      question_analytics_v2: idx.question_analytics_v2.size,
+      test_analytics_v2: idx.test_analytics_v2.size,
+      test_question_analytics_v2: sum(idx.test_question_analytics_v2),
+      module_analytics_v2: idx.module_analytics_v2.size,
+      student_test_analytics_v2: sum(idx.student_test_analytics_v2),
+      student_module_analytics_v2: idx.student_module_analytics_v2.size
+    };
+  }
+  function sample(w, name){
+    var idx = w.idx, first = function(m){ var v = m.values().next().value; return Array.isArray(v) ? v[0] : v; };
+    if(name === "student_question_analytics") return w.rows.filter(function(x){ return !/^PEER|^NAT/.test(x.studentId); })[0] || w.rows[0];
+    if(name === "analytics_checkpoint_v2") return idx.analytics_checkpoint_v2[0];
+    return first(idx[name]);
+  }
+
+  function draw(){
+    var w = HBX.world(), n = counts(w), live = HBX.liveRows();
+    var tests = {}, students = {};
+    w.rows.forEach(function(x){ tests[x.testId] = 1; students[x.studentId] = 1; });
+    g("kpi").innerHTML =
+      stat("Raw answers", F.num(w.rows.length), "rows in student_question_analytics") +
+      stat("Students", F.num(Object.keys(students).length), "25 seeded · simulated cohort · live") +
+      stat("Papers", Object.keys(tests).length, "campus assessments + practice mocks") +
+      stat("Pipeline run", w.ms + " ms", "last run " + F.dateTime(w.builtAt));
+
+    g("flow").innerHTML = [
+      ["prod", "1 · Test engine", "Student answers", "Each answer, its time and the option chosen.", F.num(live.length) + " live rows in this browser"],
+      ["prod", "2 · Raw index", "student_question_analytics", "One document per student per question.", F.num(n.student_question_analytics) + " docs"],
+      ["prod", "3 · Aggregation job", "8 × *_v2 indexes", "Rebuilt at each checkpoint (lastRun).", F.num(n.test_question_analytics_v2 + n.student_test_analytics_v2 + n.question_analytics_v2) + " aggregate docs"],
+      ["", "4 · Report engine", "Insights + plan", "Tags every answer, compares with others, builds actions.", "rules in docs/ANALYTICS.md"],
+      ["", "5 · Delivered", "Student & campus views", "Student report, progress, campus insights, JSON API, iframe embed.", "report.html · admin-insights.html"]
+    ].map(function(b){
+      return '<div class="fbox ' + b[0] + '"><div class="k">' + esc(b[1]) + "</div><b>" + esc(b[2]) + "</b><p>" + esc(b[3]) + '</p><div class="n" style="font-size:14px">' + esc(b[4]) + "</div></div>";
+    }).join("");
+
+    g("idx").innerHTML = INDEXES.map(function(ix, k){
+      var fields = ix[2].split(" ");
+      return "<tr><td><code>" + ix[0] + '</code><div class="xs mut" style="margin-top:4px">' + esc(ix[1]) + "</div></td>" +
+        "<td><b>" + F.num(n[ix[0]]) + '</b></td><td><div class="fields">' + fields.length + " fields · " + esc(fields.join(", ")) + "</div></td>" +
+        '<td class="sm">' + esc(ix[3]) + '</td><td><button class="btn btn-ghost btn-sm" onclick="E.doc(' + k + ', this)">Sample doc</button></td></tr>' +
+        '<tr id="doc' + k + '" style="display:none"><td colspan="5"><pre class="doc"></pre></td></tr>';
+    }).join("");
+  }
+  function stat(l, v, s){ return '<div class="stat"><div class="lbl">' + l + '</div><div class="val">' + v + '</div><div class="sub">' + s + "</div></div>"; }
+
+  function doc(k, btn){
+    var row = g("doc" + k), open = row.style.display !== "none";
+    if(open){ row.style.display = "none"; btn.textContent = "Sample doc"; return; }
+    var d = sample(HBX.world(), INDEXES[k][0]);
+    row.querySelector("pre").textContent = JSON.stringify(d, function(key, v){
+      if(v instanceof Map) return Object.fromEntries(v);
+      if(typeof v === "number" && !Number.isInteger(v)) return Math.round(v * 1000) / 1000;
+      return v;
+    }, 2);
+    row.style.display = "";
+    btn.textContent = "Hide";
+  }
+  function rebuild(){
+    HBX.rebuild();
+    draw();
+    hbeToast("Aggregates rebuilt from " + F.num(HBX.world().rows.length) + " raw answers in " + HBX.world().ms + " ms.", "check", 5000);
+  }
+  function reset(){
+    if(!confirm("Remove every live attempt and simulated journey saved in this browser? Seeded demo data stays.")) return;
+    HBX.clearLive();
+    draw();
+    hbeToast("Live attempts cleared.", "check");
+  }
+  function download(){
+    var rows = HBX.world().rows.filter(function(x){ return !/^PEER|^NAT/.test(x.studentId); }).slice(0, 400);
+    hbeDownloadBlob(new Blob([JSON.stringify({ hits: { hits: rows.map(function(r){ return { _index: "student_question_analytics", _source: r }; }) } }, null, 2)], { type: "application/json" }),
+      "student_question_analytics-sample.json");
+  }
+
+  draw();
+  return { doc: doc, rebuild: rebuild, reset: reset, download: download };
+})();
+</script>
+</body>
+</html>
