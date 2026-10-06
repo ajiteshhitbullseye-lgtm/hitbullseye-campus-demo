@@ -101,16 +101,19 @@
   /* ---- which view? ---- */
   var wanted = hbeParam("test"), view = hbeParam("view");
   var testIds = rep.tests.map(function(t){ return t.testId; });
-  var microId = wanted && practiceIds.indexOf(wanted) > -1 ? wanted
-              : (!testIds.length ? practiceIds[practiceIds.length - 1] : null);   /* only quick practice so far */
-  var showProgress = !microId && rep.mode === "journey" && (view === "progress" || (!wanted && view !== "test"));
+  var microId = wanted && practiceIds.indexOf(wanted) > -1 ? wanted : null;
+  /* landing page = the analytics overview, unless a test or the progress view was asked for */
+  var showOverview = !wanted && view !== "progress" && view !== "test";
+  var showProgress = !showOverview && !microId && rep.mode === "journey" && (view === "progress" || (!wanted && view !== "test"));
+  if(!showOverview && !microId && !testIds.length) microId = practiceIds[practiceIds.length - 1];
   var testId = wanted && testIds.indexOf(wanted) > -1 ? wanted : testIds[testIds.length - 1];
 
   /* ---- tabs: progress + every test (newest first) ---- */
   var tabs = '<nav class="an-tabs no-print" aria-label="Reports">' +
+    '<a class="an-tab' + (showOverview ? " on" : "") + '" href="' + href({}) + '">' + ico("grid") + "Overview</a>" +
     (rep.mode === "journey" ? '<a class="an-tab' + (showProgress ? " on" : "") + '" href="' + href({ view:"progress" }) + '">' + ico("chart") + "Progress<span>" + rep.tests.length + " tests</span></a>" : "") +
     rep.tests.slice().reverse().map(function(t){
-      return '<a class="an-tab' + (!showProgress && !microId && t.testId === testId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
+      return '<a class="an-tab' + (!showOverview && !showProgress && !microId && t.testId === testId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
         hbeEsc(t.testName.replace(/—.*$/, "").trim()) + "<span>" + Math.round(t.scorePct * 100) + "%</span></a>";
     }).join("") + "</nav>" +
     (rep.practice.length ? '<nav class="an-tabs an-tabs-q no-print" aria-label="Quick practice"><span class="an-tabs-l">Quick practice</span>' +
@@ -120,7 +123,7 @@
       }).join("") + "</nav>" : "");
 
   /* a single real attempt: offer to simulate a practice journey to show the progress view */
-  var simOffer = (!isAdmin && !microId && rep.mode === "single" && !HBX.hasSimulatedJourney(st.id))
+  var simOffer = (!isAdmin && !microId && !showOverview && rep.mode === "single" && !HBX.hasSimulatedJourney(st.id))
     ? '<div class="an-sim no-print mt"><div class="grow"><b>One test so far.</b> <span class="sm mut">Your progress report appears after your second test. ' +
       'Want to preview it? We can simulate 5 practice mocks starting from your level.</span></div>' +
       '<button class="btn btn-sm" id="simj">' + ico("chart") + " Simulate my journey</button></div>"
@@ -130,9 +133,14 @@
   var ctx = {
     st: st, data: data, college: c, href: href,
     rank: function(tid, score){ return HBX.rankOf(tid, score); },   /* student_test_analytics_v2.totalScore */
-    key: function(tid){ return HBX.answerKey(tid); }                 /* student_question_analytics: isCorrect + selectedAnswer */
+    key: function(tid){ return HBX.answerKey(tid); },                /* student_question_analytics: isCorrect + selectedAnswer */
+    /* from the host platform, not analytics: names for the toppers list, support email, and which tests are open */
+    nameOf: function(id){ var x = hbeStudentById(id); return x ? x.name : null; },
+    support: cfg.brand.supportEmail || "",
+    catalogue: { "Assessments": hbeTestsFor(c, st).length, "Placement Practice Series": HBX.PRACTICE.length, "Quick practice": HBX.QUICK.length }
   };
-  var v = microId ? HBR.questionView(ctx, HBA.buildMicroReport(data, microId))
+  var v = showOverview ? HBR.overviewView(ctx, rep.overview)
+        : microId ? HBR.questionView(ctx, HBA.buildMicroReport(data, microId))
         : showProgress ? HBR.progressView(ctx, rep.journey) : HBR.testView(ctx, HBA.buildTestReport(data, testId));
 
   function paint(){
