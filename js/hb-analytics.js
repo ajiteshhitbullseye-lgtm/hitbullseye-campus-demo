@@ -23,6 +23,7 @@ var HBX = (function(){
   "use strict";
   var sim = HBA.sim;
   var K_ATT = "hbe_attempts_v1";           /* live rows written by test.html */
+  var K_SIMJ = "hbe_simjourney_v1";        /* "simulate my journey" rows, kept apart so rows carry index fields only */
   var SIM_VERSION = 5;                      /* bump when the simulation changes */
   var DAY = 86400000;
 
@@ -263,7 +264,7 @@ var HBX = (function(){
     });
 
     /* live rows (real attempts in this browser) replace any simulated row for the same student/test */
-    var live = liveRows();
+    var live = liveRows().concat(simJourneyRows());
     var liveKeys = {};
     live.forEach(function(x){ liveKeys[x.studentId + "|" + x.testId] = 1; });
     rows = rows.filter(function(x){ return !liveKeys[x.studentId + "|" + x.testId]; }).concat(live);
@@ -359,9 +360,34 @@ var HBX = (function(){
     saveLiveRows(live);
   }
 
+  function simJourneyRows(){
+    try { return JSON.parse(localStorage.getItem(K_SIMJ) || "[]"); } catch(e){ return []; }
+  }
+  function saveSimJourney(rows){
+    try { localStorage.setItem(K_SIMJ, JSON.stringify(rows)); } catch(e){}
+    _world = null;
+  }
+
+  /* The right option for each question of a test, read from the raw index itself:
+     whatever option the students who got it right had selected (isCorrect + selectedAnswer). */
+  function answerKey(testId){
+    var key = {};
+    world().rows.forEach(function(x){
+      if(x.testId === testId && x.isCorrect && x.selectedAnswer && !key[x.questionId]) key[x.questionId] = x.selectedAnswer;
+    });
+    return key;
+  }
+
+  /* Rank among everyone who took the test, from student_test_analytics_v2.totalScore */
+  function rankOf(testId, score){
+    var docs = world().idx.student_test_analytics_v2.get(testId) || [];
+    if(!docs.length) return null;
+    return { rank: 1 + docs.filter(function(d){ return d.totalScore > score; }).length, of: docs.length };
+  }
+
   /* "Simulate my journey": practice mocks for a real student, from their measured accuracy */
   function simulateJourney(studentId){
-    var mine = liveRows().filter(function(x){ return x.studentId === studentId && x.moduleId !== "PRACTICE"; });
+    var mine = liveRows().filter(function(x){ return x.studentId === studentId && x.moduleId !== "PRACTICE"; });  /* their real attempt */
     var att = mine.filter(function(x){ return x.isAttempted; });
     var acc = att.length ? att.filter(function(x){ return x.isCorrect; }).length / att.length : 0.55;
     var p = sim.randomProfile(sim.rng("me-" + studentId), 0);
@@ -370,23 +396,22 @@ var HBX = (function(){
     var r = sim.rng("me-j-" + studentId), start = dayStart(), rows = [];
     for(var k = 0; k < 5; k++){
       sim.sit(PRACTICE[k], p, r, { studentId: studentId, nth: k, start: start - (36 - k * 7) * DAY })
-        .forEach(function(x){ x.simulated = true; rows.push(x); });
+        .forEach(function(x){ rows.push(x); });
     }
-    var live = liveRows().filter(function(x){ return !(x.studentId === studentId && x.moduleId === "PRACTICE"); });
-    saveLiveRows(live.concat(rows));
+    saveSimJourney(simJourneyRows().filter(function(x){ return x.studentId !== studentId; }).concat(rows));
   }
   function clearJourney(studentId){
-    saveLiveRows(liveRows().filter(function(x){ return !(x.studentId === studentId && x.simulated); }));
+    saveSimJourney(simJourneyRows().filter(function(x){ return x.studentId !== studentId; }));
   }
   function hasSimulatedJourney(studentId){
-    return liveRows().some(function(x){ return x.studentId === studentId && x.simulated; });
+    return simJourneyRows().some(function(x){ return x.studentId === studentId; });
   }
 
   function rebuild(){ _world = null; return world(); }
-  function clearLive(){ saveLiveRows([]); }
+  function clearLive(){ saveLiveRows([]); saveSimJourney([]); }
 
   return {
-    rebuild: rebuild, clearLive: clearLive,
+    rebuild: rebuild, clearLive: clearLive, answerKey: answerKey, rankOf: rankOf,
     BANK: BANK, ITEMS: ITEMS, PRACTICE: PRACTICE, sectionOf: sectionOf,
     paperFor: paperFor, world: world, dataFor: dataFor,
     reportFor: reportFor, testReportFor: testReportFor,

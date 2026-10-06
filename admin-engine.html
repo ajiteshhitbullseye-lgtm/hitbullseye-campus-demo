@@ -81,8 +81,10 @@
           <li><code>isAttempted</code>, <code>isCorrect</code>, <code>score</code>: accuracy, penalties, potential score</li>
           <li><code>areaId</code>, <code>subAreaId</code>, <code>lod</code>: topic map, weak sub-topics, difficulty</li>
           <li><code>firstViewedAt</code>: question order for stamina and pacing</li>
-          <li><code>selectedAnswer</code>: distractor analysis in Insights</li>
+          <li><code>selectedAnswer</code>: the option chosen; the right option is read from correct answers (<code>isCorrect</code>)</li>
         </ul>
+        <p class="sm mut" style="margin-top:10px"><b>Nothing outside these nine indexes is used.</b> Question text and the answer key are not in any index,
+        so reports show the question number, topic and option letters only. Student name and campus come from the login, not from analytics.</p>
       </div>
     </div>
   </section>

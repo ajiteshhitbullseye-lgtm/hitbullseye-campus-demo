@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/polish.css">
 <link rel="stylesheet" href="css/analytics.css">
 <style>
-  .flag{display:inline-flex;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;margin:2px 4px 2px 0;white-space:nowrap}
+  .flag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;margin:2px 4px 2px 0;white-space:normal;line-height:1.4}
   .flag.err{background:var(--err-bg);color:var(--err)} .flag.warn{background:var(--warn-bg);color:var(--warn)} .flag.info{background:#eaf1fc;color:#2563c9}
   .qa-tbl{min-width:1080px;table-layout:fixed}
   .qa-tbl th,.qa-tbl td{white-space:normal!important;vertical-align:top}
@@ -112,7 +112,9 @@ var I = (function(){
       var rate = function(set){ var n = qs.filter(function(x){ return set[x.studentId]; }); return n.length ? n.filter(function(x){ return x.isCorrect; }).length / n.length : 0; };
       var picks = {};
       att.forEach(function(x){ picks[x.selectedAnswer] = (picks[x.selectedAnswer] || 0) + 1; });
-      var right = "ABCDEFGH"[q.answer];
+      /* the right option, read from the rows themselves (selectedAnswer of correct answers) */
+      var rightRow = ok[0];
+      var right = rightRow ? rightRow.selectedAnswer : null;
       var wrongPicks = Object.keys(picks).filter(function(l){ return l !== right; }).sort(function(a, b){ return picks[b] - picks[a]; });
       var lure = wrongPicks[0];
       var it = {
@@ -122,7 +124,7 @@ var I = (function(){
         time: att.length ? att.reduce(function(a, x){ return a + x.timeTaken; }, 0) / att.length : null,
         disc: rate(top) - rate(bot),
         picks: picks, right: right,
-        lure: lure ? { letter: lure, text: q.choices["ABCDEFGH".indexOf(lure)], share: picks[lure] / (att.length || 1) } : null
+        lure: lure ? { letter: lure, share: picks[lure] / (att.length || 1) } : null
       };
       var f = [];
       if(it.disc < 0) f.push(["err", "Check the answer key: top students miss it more often"]);
@@ -179,19 +181,19 @@ var I = (function(){
 
     /* item analysis */
     html += '<section class="an-sec">' + head("Question quality", "Item analysis for the content team",
-      "Solve rate = share of everyone who saw it and got it right. Discrimination = solve rate in the top 27% minus the bottom 27% (above 0.3 is good, below 0 means check the key). The bar shows how answers split across options.") +
-      '<div class="tbl-wrap"><table class="qa-tbl"><thead><tr><th>Q</th><th>Question</th><th>Level</th><th>Solve rate</th><th>Discrimination</th><th>Avg time</th><th>Answer split</th><th>Flags</th></tr></thead><tbody>' +
+      "Solve rate = how many of the students who saw the question got it right. Discrimination = how much better the top students did on it than the bottom students (above 0.3 is good; below 0 means check the answer key). The bar shows how answers split across options A, B, C, D (green = right).") +
+      '<div class="tbl-wrap"><table class="qa-tbl"><thead><tr><th>Q</th><th>Topic</th><th>Level</th><th>Solve rate</th><th>Discrimination</th><th>Avg time</th><th>Answer split</th><th>Flags</th></tr></thead><tbody>' +
       A.items.map(function(i){
         var total = i.attempts || 1;
         var split = Object.keys(i.picks).sort().map(function(l){
           var right = l === i.right;
-          return '<i style="flex:' + i.picks[l] + ";background:" + (right ? "var(--viz-ok)" : "var(--viz-peer)") + '" title="' + l + ": " + Math.round(i.picks[l] / total * 100) + "%" + (right ? " (correct)" : "") + '"></i>';
+          return '<i style="flex:' + i.picks[l] + ";background:" + (right ? "var(--viz-ok)" : "var(--viz-peer)") + '" title="Option ' + l + ": " + Math.round(i.picks[l] / total * 100) + "%" + (right ? " (right)" : "") + '"></i>';
         }).join("");
-        return '<tr class="qa-row"><td><b>' + i.q.qno + '</b></td><td class="qa-q">' + esc(i.q.text) + "<small>" + esc(i.q.sectionName) + " · " + esc(i.q.subAreaName) + "</small></td>" +
+        return '<tr class="qa-row"><td><b>' + i.q.qno + '</b></td><td class="qa-q">' + esc(i.q.subAreaName) + "<small>" + esc(i.q.sectionName) + " › " + esc(i.q.areaTitle) + " · " + esc(i.q.questionId) + "</small></td>" +
           "<td>" + esc(i.q.lod) + "</td><td><b>" + pct(i.solve) + "</b></td>" +
           '<td><b style="color:' + (i.disc < 0 ? "var(--err)" : i.disc < 0.15 ? "var(--warn)" : i.disc >= 0.3 ? "var(--ok)" : "var(--ink)") + '">' + i.disc.toFixed(2) + "</b></td>" +
           "<td>" + (i.time != null ? dur(i.time) : "—") + "</td>" +
-          '<td><div class="dist">' + split + '</div><span class="xs mut">' + (i.lure ? "Top wrong: " + esc(i.lure.text) + " (" + pct(i.lure.share) + ")" : "") + "</span></td>" +
+          '<td><div class="dist">' + split + '</div><span class="xs mut">' + (i.right ? "Right: option " + esc(i.right) : "") + (i.lure ? " · most-picked wrong: option " + esc(i.lure.letter) + " (" + pct(i.lure.share) + ")" : "") + "</span></td>" +
           "<td>" + (i.flags.map(function(f){ return '<span class="flag ' + f[0] + '">' + esc(f[1]) + "</span>"; }).join("") || '<span class="xs mut">—</span>') + "</td></tr>";
       }).join("") + "</tbody></table></div></section>";
 
@@ -235,7 +237,7 @@ var I = (function(){
     var head = ["qno","question_id","section","topic","sub_topic","level","views","attempts","solve_rate","discrimination","avg_time_s","top_wrong_option","top_wrong_share","flags"];
     var lines = [head.join(",")].concat(lastRows.map(function(i){
       return [i.q.qno, i.q.questionId, i.q.sectionName, i.q.areaTitle, i.q.subAreaName, i.q.lod, i.views, i.attempts,
-        i.solve.toFixed(3), i.disc.toFixed(3), i.time != null ? Math.round(i.time) : "", i.lure ? i.lure.text : "", i.lure ? i.lure.share.toFixed(3) : "",
+        i.solve.toFixed(3), i.disc.toFixed(3), i.time != null ? Math.round(i.time) : "", i.lure ? i.lure.letter : "", i.lure ? i.lure.share.toFixed(3) : "",
         i.flags.map(function(f){ return f[1]; }).join(" | ")].map(function(v){ return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
     }));
     hbeDownloadBlob(new Blob([lines.join("\n")], { type: "text/csv" }), "question-analysis-" + (g("fTest").value || "test") + ".csv");

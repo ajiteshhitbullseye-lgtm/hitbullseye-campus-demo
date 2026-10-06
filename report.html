@@ -119,14 +119,11 @@
       '<button class="btn btn-sm" id="simj">' + ico("chart") + " Simulate my journey</button></div>"
     : "";
 
+  /* everything below comes from the analytics indexes only */
   var ctx = {
     st: st, data: data, college: c, href: href,
-    rank: function(tid){
-      var peers = hbeStudents().filter(function(x){ return x.collegeId === st.collegeId && hbeResults(x)[tid]; })
-        .sort(function(a, b){ return hbeResults(b)[tid].score - hbeResults(a)[tid].score; });
-      var i = peers.map(function(x){ return x.id; }).indexOf(st.id);
-      return i > -1 ? { rank: i + 1, of: peers.length } : null;
-    }
+    rank: function(tid, score){ return HBX.rankOf(tid, score); },   /* student_test_analytics_v2.totalScore */
+    key: function(tid){ return HBX.answerKey(tid); }                 /* student_question_analytics: isCorrect + selectedAnswer */
   };
   var v = showProgress ? HBR.progressView(ctx, rep.journey) : HBR.testView(ctx, HBA.buildTestReport(data, testId));
 

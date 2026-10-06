@@ -212,8 +212,7 @@ var T = (function(){
         timeTaken: Math.max(1, Math.round(t.ms / 1000)),
         selectedAnswer: att ? "ABCDEFGH"[answers[i]] : null,
         firstViewedAt: t.firstViewedAt, attemptedAt: att ? t.attemptedAt : null,
-        createdAt: t.firstViewedAt || now, updatedAt: now,
-        meta_data: { visits: t.visits, answerChanges: t.changes }
+        createdAt: t.firstViewedAt || now, updatedAt: now
       };
     });
     HBX.recordAttempt(rows);

@@ -18,8 +18,8 @@ var HBR = (function(){
   var MIX_COLOR = { "tough-cracked":"#047857", solid:"#10a36b", "smart-skip":"#6ee7b7", "slow-right":"#f59e0b",
                     skipped:"#cbd5e1", careless:"#e0453a", rushed:"#f97316", stuck:"#991b1b",
                     "concept-gap":"#f87171", "skipped-easy":"#fda4af" };
-  var VERDICT = { strong:"Strong", weak:"Weak", par:"On par", thin:"Few attempts" };
-  var TREND = { improving:"Improving", slipping:"Slipping", steady:"Steady", new:"Not enough yet" };
+  var VERDICT = { strong:"Strong", weak:"Weak", par:"Okay", thin:"Too few questions" };
+  var TREND = { improving:"Getting better", slipping:"Getting worse", steady:"No change", new:"Too early to say" };
 
   /* ---------------- small builders ---------------- */
   function head(kicker, title, sub, aside){
@@ -39,7 +39,7 @@ var HBR = (function(){
   }
   function legendMeter(top){
     return '<div class="an-legend"><span><i style="background:var(--viz-you)"></i>You</span>' +
-      '<span><i class="an-tk" style="background:var(--viz-peer)"></i>Average of other students (same questions)</span>' +
+      '<span><i class="an-tk" style="background:var(--viz-peer)"></i>Other students on the same questions</span>' +
       (top ? '<span><i class="an-tk" style="background:var(--viz-top)"></i>Top 10%</span>' : "") + "</div>";
   }
 
@@ -98,7 +98,7 @@ var HBR = (function(){
   }
 
   function targets(list){
-    return '<div class="an-card"><h3>Targets for your next test</h3><div class="sub">Set from this attempt, so they are within reach.</div>' +
+    return '<div class="an-card"><h3>Goals for your next test</h3><div class="sub">Set from this test, so they are within reach.</div>' +
       '<div class="mt-s">' + list.map(function(t){
         return '<div class="an-target"><div class="lbl">' + esc(t.label) + "<small>" + esc(t.why) + '</small></div><span class="now">' + esc(t.now) + "</span>" +
           ico("arrow") + '<span class="to">' + esc(t.target) + "</span></div>";
@@ -119,7 +119,7 @@ var HBR = (function(){
   }
 
   function topicRows(areas, subAreas){
-    return '<div class="an-rows"><div class="an-row head"><span>Topic</span><span>Right / tried</span><span>You vs others</span><span style="text-align:right">Edge</span></div>' +
+    return '<div class="an-rows"><div class="an-row head"><span>Topic</span><span>Right / tried</span><span>You (bar) vs others (mark)</span><span style="text-align:right">Vs others</span></div>' +
       areas.map(function(a){
         var subs = subAreas.filter(function(s){ return s.parentId === a.id; });
         return '<details class="an-area"><summary class="an-row"><span class="nm"><span class="car">›</span><span>' + esc(a.name) +
@@ -146,37 +146,55 @@ var HBR = (function(){
       var lead = s.avg == null ? null : s.you - s.avg;
       return '<div class="an-row"><span class="nm"><span>' + esc(s.name) + '</span></span><span class="num">' + pct(s.you) + " scored</span>" +
         meter(s.you, s.avg, s.top) + edge(lead) + "</div>";
-    }).join("") + "</div>" + (hasBench ? legendMeter(true).replace("Average of other students (same questions)", "Average of all students") : "");
+    }).join("") + "</div>" + (hasBench ? legendMeter(true).replace("Other students on the same questions", "Average student") : "");
   }
 
-  /* ---------------- question review ---------------- */
-  function review(r, rows){
+  /* ---------------- "what this means" callout ---------------- */
+  function say(lines){
+    lines = lines.filter(Boolean);
+    if(!lines.length) return "";
+    return '<div class="an-say"><i>' + ico("info") + '</i><div><span class="an-say-l">What this means</span>' +
+      lines.map(function(l){ return "<p>" + l + "</p>"; }).join("") + "</div></div>";
+  }
+  var B = function(s){ return "<b>" + esc(s) + "</b>"; };
+
+  /* ---------------- question review (index fields only: no question text) ---------------- */
+  var TAG_PLAIN = {
+    "missed-easy": "Most students get this one right, so it is a mark you can win back",
+    rushed: "Answered in under half the time others took: slow down here",
+    "time-sink": "Took more than twice the usual time and still no marks",
+    "slow-correct": "Right, but took more than twice the usual time",
+    "missed-chance": "Left blank, though most students get it right",
+    "smart-skip": "Good call: most students get this one wrong",
+    "tough-cracked": "Well done: most students get this one wrong"
+  };
+  function review(r, rows, key){
     var byQ = {};
     rows.forEach(function(x){ byQ[x.questionId] = x; });
     var counts = {};
     r.questions.forEach(function(q){ q.tags.forEach(function(t){ counts[t] = (counts[t] || 0) + 1; }); });
-    var chips = '<div class="an-filters" role="group" aria-label="Filter questions">' +
+    var chips = '<div class="an-filters" role="group" aria-label="Show questions">' +
       '<button class="an-chip on" data-f="">All ' + r.questions.length + "</button>" +
       '<button class="an-chip" data-f="status:wrong">Wrong ' + r.totals.wrong + "</button>" +
-      '<button class="an-chip" data-f="status:skipped">Skipped ' + r.totals.skipped + "</button>" +
+      '<button class="an-chip" data-f="status:skipped">Left blank ' + r.totals.skipped + "</button>" +
       Object.keys(TAGS).filter(function(t){ return counts[t]; }).map(function(t){
         return '<button class="an-chip" data-f="tag:' + t + '">' + TAGS[t] + " " + counts[t] + "</button>";
       }).join("") + "</div>";
     var list = '<div class="an-qlist">' + r.questions.map(function(q){
-      var it = HBX.ITEMS[q.questionId], row = byQ[q.questionId] || {};
-      var sel = row.selectedAnswer ? "ABCDEFGH".indexOf(row.selectedAnswer) : -1;
-      var label = q.status === "correct" ? "Correct" : q.status === "wrong" ? "Wrong" : "Skipped";
+      var row = byQ[q.questionId] || {};
+      var right = key[q.questionId];
+      var label = q.status === "correct" ? "Right" : q.status === "wrong" ? "Wrong" : "Left blank";
       return '<div class="an-q" data-status="' + q.status + '" data-tags="' + q.tags.join(" ") + '">' +
-        '<div class="top"><span class="qn">Q' + q.qno + '</span><span class="an-res ' + q.status + '">' + label + "</span>" +
-        "<span>" + esc(q.sectionName) + " · " + esc(q.subAreaName) + " · " + esc(q.lod || "") + "</span>" +
-        (q.tags.length ? '<span class="tagl">' + q.tags.map(function(t){ return TAGS[t]; }).join(" · ") + "</span>" : "") + "</div>" +
-        (it ? '<div class="txt">' + esc(it.text) + "</div>" : "") +
+        '<div class="top"><span class="qn">Question ' + q.qno + '</span><span class="an-res ' + q.status + '">' + label + "</span>" +
+        "<span>" + esc(q.sectionName) + " › " + esc(q.areaTitle) + " › " + esc(q.subAreaName) + (q.lod ? " · " + esc(q.lod) : "") + "</span></div>" +
         '<div class="ans">' +
-          (it ? "<span>Your answer: <b>" + (sel > -1 && it.choices[sel] ? esc(it.choices[sel]) : "—") + "</b></span>" +
-                (q.status !== "correct" ? "<span>Correct answer: <b>" + esc(it.choices[it.answer]) + "</b></span>" : "") : "") +
-          "<span>Your time: <b>" + dur(q.time) + "</b>" + (q.cohortTime != null ? " · usual " + dur(q.cohortTime) : "") + "</span>" +
-          (q.cohortSolveRate != null ? "<span>Solved by <b>" + pct(q.cohortSolveRate) + "</b> of students</span>" : "") +
-        "</div></div>";
+          "<span>You chose: <b>" + (row.selectedAnswer ? "Option " + esc(row.selectedAnswer) : "—") + "</b></span>" +
+          (q.status !== "correct" && right ? "<span>Right option: <b>Option " + esc(right) + "</b></span>" : "") +
+          "<span>Your time: <b>" + dur(q.time) + "</b>" + (q.cohortTime != null ? " (others: " + dur(q.cohortTime) + ")" : "") + "</span>" +
+          (q.cohortSolveRate != null ? "<span><b>" + pct(q.cohortSolveRate) + "</b> of students got it right</span>" : "") +
+        "</div>" +
+        (q.tags.length ? '<div class="tagl">' + q.tags.map(function(t){ return esc(TAG_PLAIN[t]); }).join(" · ") + "</div>" : "") +
+        "</div>";
     }).join("") + "</div>";
     return chips + list;
   }
@@ -199,76 +217,127 @@ var HBR = (function(){
   function testView(ctx, r){
     var t = r.totals, d = r.deep, st = ctx.st;
     var rows = ctx.data.attempts.filter(function(x){ return x.testId === r.testId; });
-    var res = (st.results || {})[r.testId];
-    var rankLine = ctx.rank(r.testId);
+    var rank = ctx.rank(r.testId, t.score);
+    var avg = r.cohort && r.cohort.avgScore != null ? r.cohort.avgScore : null;
+    var gain = d.potential.potential - t.score;
     var best = r.insights.filter(function(i){ return i.tone === "good"; })[0];
     var worst = r.insights.filter(function(i){ return i.tone === "bad"; })[0] || r.insights.filter(function(i){ return i.tone === "warn"; })[0];
     var first = r.actions[0];
 
+    /* one-sentence verdict */
+    var verdict = "You scored " + B(F.num(t.score) + " out of " + F.num(t.maxScore)) +
+      (r.percentile != null ? ", better than " + B(Math.round(r.percentile) + " out of every 100") + " students who took this test." : ".") +
+      (gain > 0 ? " With fewer easy mistakes it could have been " + B(F.num(d.potential.potential)) + "." : "");
+
     var html =
       '<section class="an-card rise"><div class="an-hero">' +
-        '<div class="an-ring">' + HBC.ring(r.scorePct) + '<div class="in"><b>' + Math.round(r.scorePct * 100) + '%</b><span>Score</span><small>' +
-          F.num(t.score) + " / " + F.num(t.maxScore) + " marks</small></div></div>" +
+        '<div class="an-ring">' + HBC.ring(r.scorePct) + '<div class="in"><b>' + Math.round(r.scorePct * 100) + '%</b><span>Your score</span><small>' +
+          F.num(t.score) + " of " + F.num(t.maxScore) + " marks</small></div></div>" +
         "<div>" +
-          '<div class="row-b"><div><h2 style="font-size:22px">' + esc(r.testName) + '</h2><p class="sm mut">Attempted ' + esc(F.dateTime(r.takenAt)) +
-            " · " + t.attempted + " of " + t.total + " attempted · " + dur(t.time) + " in all</p></div>" +
-            (res ? '<span class="badge ' + hbeBand(res.pct).cls + '">' + hbeBand(res.pct).label + "</span>" : "") + "</div>" +
+          '<h2 style="font-size:22px">' + esc(r.testName) + '</h2><p class="sm mut">Taken on ' + esc(F.dateTime(r.takenAt)) + " · " + dur(t.time) + " in all</p>" +
+          '<p class="an-verdict-line">' + verdict + "</p>" +
           '<div class="an-tiles mt-s">' +
-            tile("Percentile", r.percentile != null ? F.ordinal(r.percentile) : "—", r.distribution ? "of " + r.distribution.students + " students" : "awaiting comparison") +
-            tile("Accuracy", pct(t.accuracy), t.correct + " right · " + t.wrong + " wrong") +
-            tile("Campus rank", rankLine ? rankLine.rank + "<small>/" + rankLine.of + "</small>" : "—", ctx.college.shortName + " · this test") +
-            tile("Time per question", dur(r.avgTimePerQ), d.usualTimePerQ ? "usual " + dur(d.usualTimePerQ) : "") +
-            tile("Within reach", F.num(d.potential.potential) + "<small>/" + F.num(t.maxScore) + "</small>", d.potential.potential > t.score ? "+" + F.num(d.potential.potential - t.score) + " marks, no new chapters" : "no easy marks lost") +
-            tile("vs class average", r.cohort && r.cohort.avgScore != null ? F.signed(t.score - r.cohort.avgScore, 1) + "<small> marks</small>" : "—", r.cohort && r.cohort.avgScore != null ? "average " + F.num(r.cohort.avgScore, 1) : "") +
+            tile("Better than", r.percentile != null ? Math.round(r.percentile) + "<small>% of students</small>" : "—", rank ? "Rank " + rank.rank + " of " + rank.of : "") +
+            tile("Right answers", t.correct + "<small> of " + t.attempted + " tried</small>", pct(t.accuracy) + " of your answers were right") +
+            tile("Left blank", t.skipped + "<small> of " + t.total + "</small>", t.wrong + " answered wrong") +
+            tile("Average student", avg != null ? F.num(avg, 1) + "<small> marks</small>" : "—", avg != null ? "You: " + F.signed(t.score - avg, 1) + " marks" : "") +
+            tile("Time per question", dur(r.avgTimePerQ), d.usualTimePerQ ? "Others took " + dur(d.usualTimePerQ) : "") +
+            tile("Could have scored", F.num(d.potential.potential) + "<small> of " + F.num(t.maxScore) + "</small>", gain > 0 ? "+" + F.num(gain) + " by fixing easy mistakes" : "No easy marks lost") +
           "</div></div></div>" +
         '<div class="an-tldr">' +
-          (best ? '<div><i style="background:var(--ok-bg);color:var(--ok)">' + ico("medal") + "</i><div><b>" + esc(best.title) + "</b><span>Your strongest signal</span></div></div>" : "") +
-          (worst ? '<div><i style="background:var(--err-bg);color:var(--err)">' + ico("target") + "</i><div><b>" + esc(worst.title) + "</b><span>The biggest thing to fix</span></div></div>" : "") +
-          (first ? '<div><i style="background:rgba(var(--brand-rgb),.08);color:var(--brand)">' + ico("arrow") + "</i><div><b>" + esc(first.title) + "</b><span>Do this first" + (first.gain ? " · up to +" + F.num(first.gain, 1) + " marks" : "") + "</span></div></div>" : "") +
+          (best ? '<div><i style="background:var(--ok-bg);color:var(--ok)">' + ico("medal") + "</i><div><span>What went well</span><b>" + esc(best.title) + "</b></div></div>" : "") +
+          (worst ? '<div><i style="background:var(--err-bg);color:var(--err)">' + ico("target") + "</i><div><span>Biggest thing to fix</span><b>" + esc(worst.title) + "</b></div></div>" : "") +
+          (first ? '<div><i style="background:#eaf1fc;color:#2563c9">' + ico("arrow") + "</i><div><span>Do this first" + (first.gain ? " · up to +" + F.num(first.gain, 1) + " marks" : "") + "</span><b>" + esc(first.title) + "</b></div></div>" : "") +
         "</div></section>";
 
-    html += sec("Insights", "What your answers are telling us", "Read from every answer, the time you spent on it, and how other students did on the same questions.", insights(r.insights));
+    /* 1. what to do next */
+    html += sec("Step 1", "What should I do next?", "Start at the top: these are ordered by how many marks they can win back.",
+      actions(r.actions, false) + '<div class="mt">' + weekPlan(d.weekPlan, "hbe_plan_" + st.id + "_" + r.testId) + '</div><div class="mt">' + targets(d.targets) + "</div>");
 
-    html += sec("Score potential", "Where the next marks will come from", "No new chapters needed: these marks were on questions most students get right.",
-      '<div class="an-grid an-12">' + (d.potential.steps.length
-        ? '<div class="an-card"><h3>From ' + F.num(t.score) + " to " + F.num(d.potential.potential) + "</h3>" +
-          '<div class="sub">Each green step is marks you lost on questions that most students answer correctly.</div><div class="an-chart" id="c-wf"></div></div>'
-        : '<div class="an-card"><h3>No easy marks lost</h3><div class="sub">Every question most students get right, you got right too.</div>' +
-          '<p class="sm mt-s">Your next marks are in the harder questions: the topics marked <b>Weak</b> below and the questions tagged <b>Concept gap</b> in the review.</p></div>') +
-        targets(d.targets) + "</div>");
+    /* 2. what we noticed */
+    html += sec("Step 2", "What did we notice in your answers?", "Each point comes from your answers, the time you spent, and how other students did on the same questions.", insights(r.insights));
 
-    html += sec("Answer behaviour", "How each answer went", "Every question sorted by what happened, so you can see habits, not just marks.",
-      mix(d.mix, r.questions.length, "Your " + r.questions.length + " answers", "Hover a block for what it means."));
+    /* 3. sections */
+    var secs = d.sectionCompare.slice().sort(function(a, b){ return b.you - a.you; });
+    var sBest = secs[0], sWorst = secs[secs.length - 1];
+    html += sec("Step 3", "Which sections went well?", "The blue bar is your score in the section. The grey mark is the average student; the dark mark is the top 10%.",
+      sectionCompare(d.sectionCompare) + say([
+        sBest ? "Your best section is " + B(sBest.name) + ": you scored " + B(pct(sBest.you)) + (sBest.avg != null ? " (average student: " + pct(sBest.avg) + ")." : ".") : "",
+        sWorst && sWorst !== sBest ? "Work on " + B(sWorst.name) + " first: you scored " + B(pct(sWorst.you)) + (sWorst.avg != null ? " while the average student scored " + pct(sWorst.avg) + "." : ".") : ""
+      ]));
 
-    html += sec("Sections", "Section by section", "Your share of section marks against the average and the top 10% of students on this paper.",
-      sectionCompare(d.sectionCompare));
+    /* 4. topics */
+    var tried = r.areas.filter(function(a){ return a.attempted > 0 && a.accuracy != null; });
+    var tWeak = tried.filter(function(a){ return a.verdict === "weak"; })[0] || tried.slice().sort(function(a, b){ return a.accuracy - b.accuracy; })[0];
+    var tStrong = tried.filter(function(a){ return a.verdict === "strong"; })[0];
+    html += sec("Step 4", "Which topics need work?", "Tap a topic to see its sub-topics. The grey mark shows how other students did on the same questions.",
+      topicRows(r.areas, r.subAreas) + say([
+        tWeak ? "Your weakest topic was " + B(tWeak.name) + ": " + tWeak.correct + " of " + tWeak.attempted + " right" + (tWeak.cohortAccuracy != null ? ", while other students got " + pct(tWeak.cohortAccuracy) + " right." : ".") : "",
+        tStrong ? "Your strongest topic was " + B(tStrong.name) + ". Keep it warm with a little practice." : ""
+      ]));
 
-    if(d.quadrant.length >= 2){
-      html += sec("Speed × accuracy", "Which topics are fast, which are shaky", "Each dot is a topic: higher is more accurate, further right is slower than other students on the same questions. Bigger dots = more questions.",
-        '<div class="an-card"><div class="an-chart" id="c-quad"></div></div>');
-    }
+    /* 5. where the marks went */
+    var by = {}; d.mix.forEach(function(m){ by[m.key] = m.count; });
+    var good = (by.solid || 0) + (by["tough-cracked"] || 0) + (by["slow-right"] || 0);
+    var avoid = (by.careless || 0) + (by.rushed || 0) + (by["skipped-easy"] || 0);
+    var gaps = (by["concept-gap"] || 0) + (by.stuck || 0);
+    html += sec("Step 5", "Where did my marks go?", "Every answer sorted by what happened, so you can see habits, not just marks.",
+      '<div class="an-grid an-12">' + mix(d.mix, r.questions.length, "Your " + r.questions.length + " answers", "Hover a block to see what it means.") +
+      (d.potential.steps.length
+        ? '<div class="an-card"><h3>' + F.num(t.score) + " → " + F.num(d.potential.potential) + " marks</h3>" +
+          '<div class="sub">Green = marks you lost on questions most students get right.</div><div class="an-chart" id="c-wf"></div></div>'
+        : '<div class="an-card"><h3>No easy marks lost</h3><div class="sub">Every question most students got right, you got right too.</div>' +
+          '<p class="sm mt-s">Your next marks are in the harder questions: see the topics marked <b>Weak</b> above.</p></div>') + "</div>" +
+      say([
+        B(good + " of " + r.questions.length) + " answers went well." + (avoid ? " " + B(String(avoid)) + " were avoidable mistakes (careless, rushed, or easy ones left blank). These are the cheapest marks to win back." : ""),
+        gaps ? B(String(gaps)) + " " + (gaps === 1 ? "was a real gap" : "were real gaps") + " in understanding. Revise those topics before practising more." : ""
+      ]));
 
-    html += sec("Pacing", "How your time went", "Your running time through the paper against the usual pace for the same questions.",
-      '<div class="an-grid an-12"><div class="an-card"><h3>Time used, question by question</h3><div class="an-chart" id="c-pace"></div>' +
+    /* 6. time */
+    var last = d.pacing[d.pacing.length - 1];
+    var paceLine = last && last.usual != null ? (last.own <= last.usual
+      ? "You finished " + B(dur(last.usual - last.own)) + " faster than other students usually take for the same questions."
+      : "You took " + B(dur(last.own - last.usual)) + " longer than other students usually take for the same questions.") : "";
+    var zoneNames = function(z){ return d.quadrant.filter(function(q){ return q.zone === z; }).map(function(q){ return q.name; }); };
+    html += sec("Step 6", "Did I use my time well?", "The blue line is the time you had used after each question; the grey dashed line is the usual pace. Green shading = you were ahead, red = behind.",
+      '<div class="an-grid an-12"><div class="an-card"><h3>Your time through the test</h3><div class="an-chart" id="c-pace"></div>' +
         '<div class="an-legend"><span><i class="line" style="background:var(--viz-you)"></i>You</span><span><i class="line" style="background:var(--viz-peer)"></i>Usual pace</span></div></div>' +
-        staminaCard(d.stamina) + "</div>");
+        staminaCard(d.stamina) + "</div>" +
+      (d.quadrant.length >= 2 ? '<div class="an-card mt"><h3>Speed and accuracy, topic by topic</h3>' +
+        '<div class="sub">Each dot is a topic. Higher = more answers right. Further right = slower than other students. Top-left is where you want to be.</div>' +
+        '<div class="an-chart" id="c-quad"></div></div>' : "") +
+      say([
+        paceLine,
+        zoneNames("rebuild").length ? "Slow and shaky in " + B(zoneNames("rebuild").join(", ")) + ": revise the basics there first." : "",
+        zoneNames("fast-loose").length ? "Quick but making mistakes in " + B(zoneNames("fast-loose").join(", ")) + ": slow down and double-check." : "",
+        zoneNames("slow-sure").length ? "Accurate but slow in " + B(zoneNames("slow-sure").join(", ")) + ": practise timed sets." : ""
+      ]));
 
+    /* 7. compare */
     if(r.distribution){
-      html += sec("Standing", "Where you stand", "How every student on this paper scored.",
-        '<div class="an-card"><div class="an-chart" id="c-dist"></div><div class="an-legend"><span><i style="background:var(--viz-you)"></i>Your score band</span><span><i style="background:var(--viz-peer)"></i>Other students</span>' +
-        "<span>" + r.distribution.students + " students · middle score " + F.num(r.distribution.median, 1) + "</span></div></div>");
+      html += sec("Step 7", "How do I compare with others?", "Each bar is how many students got that score. Your bar is blue.",
+        '<div class="an-card"><div class="an-chart" id="c-dist"></div><div class="an-legend"><span><i style="background:var(--viz-you)"></i>Your score</span><span><i style="background:var(--viz-peer)"></i>Other students</span></div></div>' +
+        say([
+          "You scored more than " + B(Math.round(r.percentile) + "%") + " of the " + r.distribution.students + " students on this test" + (rank ? " (rank " + rank.rank + ")." : "."),
+          "The middle score was " + B(F.num(r.distribution.median, 1)) + " and the top score " + B(F.num(r.distribution.top, 1)) + "."
+        ]));
     }
 
-    html += sec("Topics", "Topic by topic", "Open a topic to see its sub-topics. Compared with students who attempted the same questions.", topicRows(r.areas, r.subAreas));
-    if(r.lods.length) html += sec("Difficulty", "By difficulty level", "", lodRows(r.lods) + legendMeter(false));
+    /* 8. difficulty */
+    if(r.lods.length){
+      var lw = r.lods.filter(function(l){ return l.edge != null && l.attempted >= 2; }).sort(function(a, b){ return a.edge - b.edge; })[0];
+      html += sec("Step 8", "Easy, medium or hard: where did I slip?", "Your accuracy at each difficulty level, against other students on the same questions.",
+        lodRows(r.lods) + legendMeter(false) + say([
+          lw && lw.edge < -0.05 ? B(lw.name) + " questions are where you fall behind others the most (" + lw.correct + " of " + lw.attempted + " right)." :
+          "You kept up with other students at every difficulty level."
+        ]));
+    }
 
-    html += sec("Every question", "Question by question", "Bar height is your time; the dark line is the usual time. Filter to spot a pattern, then review the questions below.",
-      '<div class="an-card"><div class="an-chart" id="c-strip"></div><div class="an-legend"><span><i style="background:var(--viz-ok)"></i>Correct</span><span><i style="background:var(--viz-err)"></i>Wrong</span>' +
-      '<span><i style="background:var(--viz-skip)"></i>Skipped</span><span><i class="line" style="background:var(--ink)"></i>Usual time</span></div></div>' +
-      '<div class="mt-s">' + review(r, rows) + "</div>");
-
-    html += sec("Action plan", "What to do next", "Ordered by how many marks each step can win back.", actions(r.actions, false));
-    html += '<section class="an-sec">' + weekPlan(d.weekPlan, "hbe_plan_" + st.id + "_" + r.testId) + "</section>";
+    /* 9. review */
+    html += sec("Step 9", "Question-by-question review", "Each bar is one question: its height is the time you spent, the dark line is the time other students usually took. Use the buttons to pick out a pattern.",
+      '<div class="an-card"><div class="an-chart" id="c-strip"></div><div class="an-legend"><span><i style="background:var(--viz-ok)"></i>Right</span><span><i style="background:var(--viz-err)"></i>Wrong</span>' +
+      '<span><i style="background:var(--viz-skip)"></i>Left blank</span><span><i class="line" style="background:var(--ink)"></i>Time others usually took</span></div></div>' +
+      '<div class="mt-s">' + review(r, rows, ctx.key(r.testId)) + "</div>");
 
     return {
       html: html,
@@ -287,18 +356,16 @@ var HBR = (function(){
   }
 
   function staminaCard(s){
-    if(!s) return '<div class="an-card"><h3>First half vs second half</h3><p class="sub">Needs at least 8 questions.</p></div>';
+    if(!s) return '<div class="an-card"><h3>Start vs finish</h3><p class="sub">Needs at least 8 questions to compare.</p></div>';
     var drop = s.drop;
-    var msg = drop == null ? "Not enough attempts in one half to compare." :
-      drop <= -0.15 ? "Accuracy fell in the second half — build stamina with full-length timed practice." :
-      drop >= 0.15 ? "You warmed up as you went. A short warm-up set before the test helps." :
-      "Steady from start to finish.";
-    function h(l, x){ return '<div><div class="l">' + l + '</div><div class="v">' + pct(x.accuracy) + '</div><div class="s">' + x.correct + "/" + x.attempted + " right" +
-      (x.pace != null ? " · " + x.pace.toFixed(1) + "× usual time" : "") + "</div></div>"; }
-    return '<div class="an-card"><h3>First half vs second half</h3><div class="sub">Accuracy in the order you met the questions.</div>' +
+    var msg = drop == null ? "Not enough answers in one half to compare." :
+      drop <= -0.15 ? "You got tired towards the end. Practise full-length tests in one sitting to build stamina." :
+      drop >= 0.15 ? "You started slowly and got better. A 5-minute warm-up before the test helps you start sharp." :
+      "You stayed steady from start to finish. Good.";
+    function h(l, x){ return '<div><div class="l">' + l + '</div><div class="v">' + pct(x.accuracy) + '</div><div class="s">' + x.correct + " of " + x.attempted + " right</div></div>"; }
+    return '<div class="an-card"><h3>Start vs finish</h3><div class="sub">How many answers were right in the first half of the test and in the second half.</div>' +
       '<div class="an-halves">' + h("First half", s.first) + h("Second half", s.second) + "</div>" +
-      '<p class="sm mt-s"><b class="an-delta ' + (drop == null ? "flat" : drop <= -0.15 ? "down" : drop >= 0.15 ? "up" : "flat") + '">' +
-      (drop == null ? "" : F.pts(drop) + " ") + "</b>" + esc(msg) + "</p></div>";
+      '<p class="sm mt-s">' + esc(msg) + "</p></div>";
   }
 
   /* ---------------- PROGRESS VIEW ---------------- */
@@ -311,55 +378,58 @@ var HBR = (function(){
     var html = (simulated ? '<div class="an-sim no-print"><div class="grow"><b>Includes 5 simulated practice mocks.</b> <span class="sm mut">Generated from your real attempt to show how the progress report works. Remove them any time.</span></div>' +
       '<button class="btn btn-ghost btn-sm" id="unsim">Remove simulated mocks</button></div>' : "") +
       '<section class="an-card rise' + (simulated ? " mt-s" : "") + '"><div class="an-hero">' +
-        '<div class="an-ring">' + HBC.ring(usePct ? latest.percentile / 100 : latest.scorePct) + '<div class="in"><b>' + (usePct ? F.ordinal(latest.percentile) : pct(latest.scorePct)) +
-          "</b><span>" + (usePct ? "Percentile" : "Score") + '</span><small class="an-delta ' + (change >= 3 ? "up" : change <= -3 ? "down" : "flat") + '">' + F.signed(Math.round(change)) + " since test #1</small></div></div>" +
+        '<div class="an-ring">' + HBC.ring(usePct ? latest.percentile / 100 : latest.scorePct) + '<div class="in"><b>' + (usePct ? Math.round(latest.percentile) + "%" : pct(latest.scorePct)) +
+          "</b><span>" + (usePct ? "Better than" : "Score") + '</span><small class="an-delta ' + (change >= 3 ? "up" : change <= -3 ? "down" : "flat") + '">' + F.signed(Math.round(change)) + " since your first test</small></div></div>" +
         '<div><h2 style="font-size:22px">Your progress across ' + tests.length + " tests</h2>" +
           '<p class="sm mut">Since ' + esc(F.date(first.takenAt, true)) + " · latest: " + esc(latest.testName) + "</p>" +
+          '<p class="an-verdict-line">' + (usePct ? "In your latest test you did better than <b>" + Math.round(latest.percentile) + " out of every 100</b> students, " +
+            (change >= 3 ? "up <b>" + Math.round(change) + "</b> since your first test." : change <= -3 ? "down <b>" + Math.round(-change) + "</b> since your first test." : "about the same as your first test.")
+            : "Your latest score is <b>" + pct(latest.scorePct) + "</b>.") + "</p>" +
           '<div class="an-tiles mt-s">' +
             tile("Tests taken", tests.length, "latest " + F.date(latest.takenAt)) +
             tile("Questions attempted", F.num(j.questionsAttempted)) +
             tile("Time in tests", F.num(j.hoursSpent, 1) + "<small> h</small>") +
-            tile("Accuracy, last " + j.recent.tests, pct(j.recent.totals.accuracy), j.recent.totals.edge != null ? F.signed(Math.round(j.recent.totals.edge * 100)) + " pts vs others" : "") +
-            tile("Best percentile", j.trends.percentile.best != null ? F.ordinal(j.trends.percentile.best) : "—") +
-            tile("Improvement rate", j.trends.scorePct.slope != null ? F.signed(Math.round(j.trends.scorePct.slope * 1000) / 10, 1) + "<small> pts/test</small>" : "—", "score, fitted across all tests") +
+            tile("Right answers, last " + j.recent.tests + " tests", pct(j.recent.totals.accuracy), j.recent.totals.edge != null ? F.signed(Math.round(j.recent.totals.edge * 100)) + " points vs other students" : "") +
+            tile("Best result", j.trends.percentile.best != null ? "Better than " + Math.round(j.trends.percentile.best) + "<small>%</small>" : "—", "of students, in one test") +
+            tile("Change per test", j.trends.scorePct.slope != null ? F.signed(Math.round(j.trends.scorePct.slope * 1000) / 10, 1) + "<small>% score</small>" : "—", "average change in score from one test to the next") +
           "</div></div></div></section>";
 
-    html += sec("Insights", "What your tests are telling us", "Patterns across all your tests, not just the last one.", insights(j.insights));
-    html += sec("Action plan", "Your plan for the coming week", "Built from your last " + j.recent.tests + " tests, ordered by marks each step can win back.", actions(j.actions, true));
+    html += sec("Step 2", "What do all my tests say?", "Patterns across all your tests, not just the last one.", insights(j.insights));
+    html += sec("Step 1", "What should I do this week?", "Built from your last " + j.recent.tests + " tests. Start at the top: these win back the most marks.", actions(j.actions, true));
     html += '<section class="an-sec">' + weekPlan(j.weekPlan, "hbe_plan_" + ctx.st.id + "_journey_" + tests.length) + "</section>";
 
-    html += sec("Trend", "Progress across tests", "Hover a point for that test. #1 is your first test.",
+    html += sec("Step 3", "Am I improving?", "Each dot is one test, oldest on the left (#1). The blue pill is your latest result.",
       '<div class="an-grid an-2">' +
-        trendCard("Percentile", "Share of students you beat", "c-tp", tests.some(function(t){ return t.percentile != null; })) +
-        trendCard("Score", "Share of full marks", "c-ts", true) +
-        trendCard("Accuracy", "Right ÷ attempted", "c-ta", true) +
-        trendCard("Attempted", "Share of the paper attempted", "c-tt", true) + "</div>");
+        trendCard("Better than (percentile)", "Out of every 100 students, how many you beat", "c-tp", tests.some(function(t){ return t.percentile != null; })) +
+        trendCard("Score", "Your marks as a share of full marks", "c-ts", true) +
+        trendCard("Right answers", "Of the questions you answered, how many were right", "c-ta", true) +
+        trendCard("Questions answered", "How much of the paper you answered", "c-tt", true) + "</div>");
 
-    html += sec("Sections", "Section by section, over time", "Your share of section marks in every test that had that section.",
+    html += sec("Step 4", "Which sections are improving?", "Your score in each section, test by test.",
       '<div class="an-grid an-2">' + j.sectionTrend.map(function(s, i){
         return '<div class="an-card"><h3>' + esc(s.name) + '</h3><div class="an-chart" id="c-sec' + i + '"></div></div>';
       }).join("") + "</div>");
 
-    html += sec("Topics", "Area by area, test by test", "Each cell is your accuracy in that area in that test. Trend compares recent tests with earlier ones.",
+    html += sec("Step 5", "Which topics are getting better?", "Each box is one topic in one test: darker blue = more answers right. The last column says whether the topic is getting better or worse.",
       '<div class="an-card"><div class="an-scroll">' + heatmap(j) + "</div>" + heatLegend() + "</div>");
 
-    html += sec("Habits", "Test-taking habits", "Lower is better on every chart here.",
+    html += sec("Step 6", "Are my habits improving?", "Mistakes that come from habits, not knowledge. Lower is better; the orange bar is your latest test.",
       '<div class="an-grid an-2">' +
-        habitCard("Easy questions missed", "Wrong on questions most students solve", "c-h1") +
-        habitCard("Rushed answers", "Wrong in under half the usual time", "c-h2") +
-        habitCard("Time sinks", "Over twice the usual time, no marks", "c-h3") +
-        mix(j.recentMix, j.recentMix.reduce(function(a, x){ return a + x.count; }, 0), "Answer behaviour, last " + j.recent.tests + " tests", "Every recent answer by what happened.") + "</div>");
+        habitCard("Easy questions got wrong", "Questions most students get right", "c-h1") +
+        habitCard("Rushed answers", "Wrong, in under half the time others take", "c-h2") +
+        habitCard("Stuck questions", "More than twice the usual time, still no marks", "c-h3") +
+        mix(j.recentMix, j.recentMix.reduce(function(a, x){ return a + x.count; }, 0), "How your answers went, last " + j.recent.tests + " tests", "Every recent answer by what happened.") + "</div>");
 
     var focus = j.recent.subAreas.filter(function(s){ return s.attempted >= 3 && s.accuracy != null && (s.verdict === "weak" || (s.edge || 0) < -0.05 || s.accuracy < 0.5); }).slice(0, 6);
     if(focus.length){
-      html += sec("Focus list", "Sub-topics to work on", "From your last " + j.recent.tests + " tests.",
+      html += sec("Step 7", "Which sub-topics should I practise?", "From your last " + j.recent.tests + " tests, weakest first.",
         '<div class="an-rows">' + focus.map(function(s){
           return '<div class="an-row"><span class="nm"><span>' + esc(s.name) + "<small>" + esc(s.parentName || "") + '</small></span></span><span class="num">' + s.correct + "/" + s.attempted + " right</span>" +
             meter(s.accuracy, s.cohortAccuracy) + edge(s.edge) + "</div>";
         }).join("") + "</div>" + legendMeter(false));
     }
 
-    html += sec("All tests", "Every test you have taken", "",
+    html += sec("Step 8", "All my tests", "Open any test for its full report.",
       '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Test</th><th>Date</th><th>Score</th><th>Percentile</th><th>Accuracy</th><th>Attempted</th><th></th></tr></thead><tbody>' +
       tests.slice().reverse().map(function(t){
         var i = tests.indexOf(t);
@@ -402,7 +472,7 @@ var HBR = (function(){
     var n = j.tests.length, cols = "minmax(140px,1.4fr) repeat(" + n + ",minmax(34px,1fr)) 110px";
     var secs = [];
     j.areaProgress.forEach(function(a){ if(secs.indexOf(a.sectionName) < 0) secs.push(a.sectionName); });
-    var html = '<div class="an-heat" style="grid-template-columns:' + cols + '"><div class="h" style="text-align:left">Area</div>' +
+    var html = '<div class="an-heat" style="grid-template-columns:' + cols + '"><div class="h" style="text-align:left">Topic</div>' +
       j.tests.map(function(t, i){ return '<div class="h" title="' + esc(t.testName) + '">#' + (i + 1) + "</div>"; }).join("") + '<div class="h">Trend</div>';
     secs.forEach(function(s){
       html += '<div class="sec">' + esc(s) + "</div>";
@@ -421,9 +491,9 @@ var HBR = (function(){
     return html + "</div>";
   }
   function heatLegend(){
-    return '<div class="an-legend"><span>Accuracy</span>' + HEAT.map(function(h, i){
+    return '<div class="an-legend"><span>Answers right</span>' + HEAT.map(function(h, i){
       return '<span><i style="background:' + h[1] + '"></i>' + (i === 0 ? "under 20%" : i === HEAT.length - 1 ? "80%+" : Math.round(HEAT[i - 1][0] * 100) + "–" + Math.round(h[0] * 100) + "%") + "</span>";
-    }).join("") + '<span><i style="background:var(--line-2)"></i>not attempted</span><span>faded = one question only</span></div>';
+    }).join("") + '<span><i style="background:var(--line-2)"></i>not attempted</span><span>faded = only one question</span></div>';
   }
 
   /* ---------------- analysing overlay (after a live submit) ---------------- */

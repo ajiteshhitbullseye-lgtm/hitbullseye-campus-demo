@@ -531,8 +531,8 @@ var HBA = (() => {
       out.push({
         id: "standing",
         tone,
-        title: `Ahead of ${Math.round(r.percentile)}% of the ${num(r.distribution.students)} students who took this test`,
-        detail: `You scored ${num(t.score, 1)} out of ${num(t.maxScore)}. The middle score was ${num(r.distribution.median, 1)} and the top score ${num(r.distribution.top, 1)}.`
+        title: `You did better than ${Math.round(r.percentile)} out of every 100 students on this test`,
+        detail: `You scored ${num(t.score, 1)} out of ${num(t.maxScore)}. ${num(r.distribution.students)} students took it; the middle score was ${num(r.distribution.median, 1)} and the top score ${num(r.distribution.top, 1)}.`
       });
     } else {
       out.push({
@@ -831,27 +831,26 @@ var HBA = (() => {
     const to = avg(recent.map(metric));
     const delta = to - from;
     const fitted = ((_a = slope(j.tests.map(metric))) != null ? _a : 0) * (n - 1);
-    const label = hasPct ? "percentile" : "score";
     const fmt = (x) => hasPct ? ordinal(x) : `${Math.round(x)}%`;
     if (delta >= 8 && fitted >= 8) {
       out.push({
         id: "direction",
         tone: "good",
-        title: `Clearly improving: ${label} up from ${fmt(from)} to ${fmt(to)}`,
+        title: hasPct ? `Clearly improving: you now beat ${Math.round(to)} of every 100 students, up from ${Math.round(from)}` : `Clearly improving: score up from ${fmt(from)} to ${fmt(to)}`,
         detail: `Comparing your first ${plural(half2, "test")} with your latest ${plural(half2, "test")}, across ${plural(n, "test")} in all.`
       });
     } else if (delta <= -8 && fitted <= -8) {
       out.push({
         id: "direction",
         tone: "bad",
-        title: `Slipping: ${label} down from ${fmt(from)} to ${fmt(to)}`,
+        title: hasPct ? `Slipping: you now beat ${Math.round(to)} of every 100 students, down from ${Math.round(from)}` : `Slipping: score down from ${fmt(from)} to ${fmt(to)}`,
         detail: `Your latest ${plural(half2, "test")} are below your first ${half2}. The areas and habits below show where it is coming from.`
       });
     } else {
       out.push({
         id: "direction",
         tone: "info",
-        title: `Holding steady around the ${fmt(to)} ${label}`,
+        title: hasPct ? `Holding steady: you beat about ${Math.round(to)} of every 100 students` : `Holding steady at about ${fmt(to)} of full marks`,
         detail: `Little change across ${plural(n, "test")}. Steady is fine, but moving up needs the targeted work in the plan below.`
       });
     }
@@ -862,7 +861,7 @@ var HBA = (() => {
         id: "best",
         tone: "good",
         title: `${last.testName} is your best result so far`,
-        detail: hasPct ? `${ordinal(last.percentile)} percentile, scoring ${num(last.score, 1)} out of ${num(last.maxScore)}.` : `${pct(last.scorePct)} of full marks.`
+        detail: hasPct ? `You beat ${Math.round(last.percentile)} of every 100 students, scoring ${num(last.score, 1)} out of ${num(last.maxScore)}.` : `${pct(last.scorePct)} of full marks.`
       });
     }
     const isStuck = (a) => {
@@ -933,7 +932,7 @@ var HBA = (() => {
         id: "spread",
         tone: "warn",
         title: "Results swing a lot from test to test",
-        detail: `Your ${label} varies by about ${Math.round(j.spread)} points between tests. A fixed test-day routine (section order, time plan) makes results steadier.`
+        detail: `From one test to the next your result moves by about ${Math.round(j.spread)} points. A fixed test-day routine (same section order, a time plan) makes results steadier.`
       });
     }
     const order = { bad: 0, warn: 1, good: 2, info: 3 };

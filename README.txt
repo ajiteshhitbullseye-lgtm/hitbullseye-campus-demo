@@ -320,7 +320,7 @@ HOW TO DEMO IT (5 minutes)
    score, insights, potential-score waterfall, next-test targets, answer
    behaviour mix, section vs average vs top 10%, speed x accuracy quadrant,
    pacing curve, first vs second half, distribution, topic map, difficulty,
-   question strip and a full answer review (your answer vs correct answer).
+   question strip and a review of every question (option chosen vs right option).
 4  Take a test yourself (Start assessment / Start mock). Your time on every
    question is recorded. Submit -> "Analysing your attempt" -> your report.
 5  New student with one test: "Simulate my journey" adds 5 practice mocks from
@@ -330,6 +330,20 @@ HOW TO DEMO IT (5 minutes)
    flags), and the registered students who need a nudge, with the reason.
 7  HQ: Engine tab -> the nine indexes with live document counts and sample
    documents, the data flow, "Rebuild aggregates", sample rows for developers.
+
+ONLY THE NINE ELASTICSEARCH INDEXES
+-----------------------------------
+Every number in a report comes from fields in the nine indexes
+(student_question_analytics and the eight *_v2 aggregates). Nothing else:
+  - no question text or answer key (not in any index) - the review shows the
+    question number, topic, level and option letters; the right option is the
+    one picked by students whose answer was correct (isCorrect + selectedAnswer)
+  - rank and percentile come from student_test_analytics_v2.totalScore
+  - section averages / top 10% come from student_test_analytics_v2.sectionStats
+  - "usual time" and "most students get it right" come from
+    test_question_analytics_v2 (avgTime, correct, views)
+The question text in test.html exists only because that page plays the test
+engine; the report never reads it.
 
 WHERE THE DATA COMES FROM
 -------------------------
