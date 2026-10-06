@@ -502,6 +502,107 @@ var HBC = (function(){
     };
   }
 
+  /* ---------------- 11. gauge: a value on Need improvement / Good / Very good bands ---------------- */
+  var BANDS = [[0, 40, "#f2705f", "Need improvement"], [40, 75, "#f6b73c", "Good"], [75, 100, "#22a06b", "Very good"]];
+  function bandOf(v){ for(var i = 0; i < BANDS.length; i++) if(v < BANDS[i][1] || i === BANDS.length - 1) return BANDS[i]; }
+  function gauge(value, o){
+    o = o || {};
+    var W = o.width || 220, H = W * 0.62, cx = W / 2, cy = H - 18, R = W / 2 - 18, th = 16;
+    var ang = function(v){ return Math.PI * (1 - v / 100); };
+    var pt = function(v, r){ return [cx + r * Math.cos(ang(v)), cy - r * Math.sin(ang(v))]; };
+    var arc = function(a, b, color){
+      var p1 = pt(a, R), p2 = pt(b, R), p3 = pt(b, R - th), p4 = pt(a, R - th);
+      return '<path d="M' + p1 + " A" + R + "," + R + " 0 0 1 " + p2 + " L" + p3 + " A" + (R - th) + "," + (R - th) + " 0 0 0 " + p4 + 'Z" fill="' + color + '"/>';
+    };
+    var s = BANDS.map(function(b){ return arc(b[0] + 0.6, b[1] - 0.6, b[2]); }).join("");
+    if(value != null){
+      var v = Math.max(0, Math.min(100, value)), tip = pt(v, R - th - 6), b = bandOf(v);
+      s += '<g class="an-needle" style="transform-origin:' + cx + "px " + cy + 'px;--a:' + (-(v * 1.8)) + 'deg">' +
+        '<line x1="' + cx + '" y1="' + cy + '" x2="' + tip[0] + '" y2="' + tip[1] + '" stroke="#0a1523" stroke-width="3" stroke-linecap="round"/></g>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="7" fill="#0a1523"/><circle cx="' + cx + '" cy="' + cy + '" r="3" fill="#fff"/>';
+      /* value and band sit under the pivot, so the needle never crosses them */
+      s += txt(cx, cy + 30, o.fmt ? o.fmt(v) : Math.round(v), { anchor: "middle", weight: 800, size: o.big || 22, fill: "#0a1523" });
+      s += txt(cx, cy + 47, b[3], { anchor: "middle", weight: 700, size: 11, fill: b[2] === "#f6b73c" ? "#a86f00" : b[2] });
+    } else {
+      s += txt(cx, cy - 10, "No data yet", { anchor: "middle", weight: 600, size: 12 });
+    }
+    s += txt(18, cy + 15, "0", { size: 10 }) + txt(W - 18, cy + 15, "100", { anchor: "end", size: 10 });
+    return '<svg width="' + W + '" height="' + (H + 40) + '" viewBox="0 0 ' + W + " " + (H + 40) + '" role="img" aria-label="' + esc((o.label || "") + ": " + (value == null ? "no data" : Math.round(value))) + '">' + s + "</svg>";
+  }
+
+  /* ---------------- 12. mini donut: right / wrong / blank ---------------- */
+  function miniDonut(right, wrong, blank, size){
+    size = size || 96;
+    var total = right + wrong + blank || 1, r = size / 2 - 9, c = 2 * Math.PI * r, off = 0, s = "";
+    [[right, C.ok, "Right"], [wrong, C.err, "Wrong"], [blank, "#cbd5e1", "Left blank"]].forEach(function(seg){
+      if(!seg[0]) return;
+      var len = seg[0] / total * c;
+      s += '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + seg[1] + '" stroke-width="14" stroke-dasharray="' + Math.max(0, len - 2) + " " + (c - len + 2) +
+        '" stroke-dashoffset="' + (-off) + '" tabindex="0" data-tip="' + esc(tipRows(seg[2], [["Questions", seg[0], seg[1]]])) + '"/>';
+      off += len;
+    });
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '" style="transform:rotate(-90deg)" role="img" aria-label="' + right + " right, " + wrong + " wrong, " + blank + ' left blank">' +
+      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="#eef2f8" stroke-width="14"/>' + s + "</svg>";
+  }
+
+  /* ---------------- 13. score vs percentile curve ---------------- */
+  function curve(points, you, label){
+    return function(W){
+      var id = "cv" + (++uid);
+      var H = 240, p = { l: 44, r: 16, t: 20, b: 34 }, iw = W - p.l - p.r, ih = H - p.t - p.b;
+      if(!points.length) return '<div class="an-wf-note" style="padding:40px 0;text-align:center">Not enough students yet to draw the curve.</div>';
+      var lo = Math.min(points[0].score, 0), hi = niceMax(Math.max(points[points.length - 1].score, you ? you.score : 0, 1));
+      var x = function(v){ return p.l + (v - lo) / (hi - lo) * iw; };
+      var y = function(v){ return p.t + ih - v / 100 * ih; };
+      var defs = vgrad(id + "a", C.you, C.you, .22, 0);
+      var s = "";
+      [0, 25, 50, 75, 100].forEach(function(v){ s += grid(p.l, W - p.r, y(v), v, v === 0 ? { axis: 1 } : null); });
+      [lo, (lo + hi) / 2, hi].forEach(function(v){ s += txt(x(v), H - 16, fmt(v), { anchor: "middle", size: 10.5 }); });
+      s += txt(p.l + iw / 2, H - 2, "Score", { anchor: "middle", size: 11 });
+      var d = points.map(function(q, i){ return (i ? "L" : "M") + x(q.score) + "," + y(q.percentile); }).join("");
+      s += '<path d="' + d + "L" + x(points[points.length - 1].score) + "," + y(0) + "L" + x(points[0].score) + "," + y(0) + 'Z" fill="url(#' + id + 'a)"/>';
+      s += '<path class="draw" d="' + d + '" fill="none" stroke="' + C.you + '" stroke-width="2.5" stroke-linejoin="round" pathLength="1"/>';
+      points.forEach(function(q){
+        s += '<circle cx="' + x(q.score) + '" cy="' + y(q.percentile) + '" r="9" fill="transparent" tabindex="0" data-tip="' +
+          esc(tipRows("Score " + fmt(q.score), [["Better than", Math.round(q.percentile) + "% of students", C.you]])) + '"/>';
+      });
+      if(you && you.percentile != null){
+        var yx = x(you.score), yy = y(you.percentile);
+        s += '<line x1="' + yx + '" x2="' + yx + '" y1="' + yy + '" y2="' + y(0) + '" stroke="' + C.ink + '" stroke-dasharray="3 3" opacity=".5"/>' +
+          '<line x1="' + p.l + '" x2="' + yx + '" y1="' + yy + '" y2="' + yy + '" stroke="' + C.ink + '" stroke-dasharray="3 3" opacity=".5"/>' +
+          '<circle cx="' + yx + '" cy="' + yy + '" r="12" fill="' + C.err + '" opacity=".18"/><circle cx="' + yx + '" cy="' + yy + '" r="6" fill="' + C.err + '" stroke="#fff" stroke-width="2"/>';
+        s += pill(Math.min(W - 70, Math.max(70, yx)), Math.max(12, yy - 22), "You · " + fmt(you.score) + " → " + Math.round(you.percentile) + "%", { fill: C.err });
+      }
+      s += '<text transform="translate(12,' + (p.t + ih / 2) + ') rotate(-90)" text-anchor="middle" font-size="11" fill="' + C.muted + '" font-family="Inter, sans-serif">Percentile</text>';
+      return svg(W, H, defs, s, label || "Score vs percentile");
+    };
+  }
+
+  /* ---------------- 14. shares: time / attempted / score by section (100% columns) ---------------- */
+  var CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7"];   /* validated categorical order */
+  function shares(list){
+    return function(W){
+      var H = 250, p = { l: 40, r: 10, t: 14, b: 30 }, iw = W - p.l - p.r, ih = H - p.t - p.b;
+      var cols = [["time", "Time spent"], ["attempted", "Questions answered"], ["score", "Marks scored"]];
+      var slot = iw / 3, bw = Math.min(110, slot * 0.55);
+      var y = function(v){ return p.t + ih - v * ih; };
+      var s = [0, .25, .5, .75, 1].map(function(v){ return grid(p.l, W - p.r, y(v), Math.round(v * 100) + "%", v === 0 ? { axis: 1 } : null); }).join("");
+      cols.forEach(function(cl, ci){
+        var x = p.l + ci * slot + (slot - bw) / 2, acc = 0;
+        list.forEach(function(sec, si){
+          var v = sec[cl[0]] || 0; if(v <= 0) return;
+          var top = y(acc + v), h = y(acc) - top;
+          s += '<rect class="an-mark" x="' + x + '" y="' + top + '" width="' + bw + '" height="' + Math.max(0, h - 2) + '" rx="4" fill="' + CAT[si % CAT.length] + '" tabindex="0" data-grp="s' + si + '" data-tip="' +
+            esc(tipRows(sec.name, [["Time spent", pct(sec.time)], ["Questions answered", pct(sec.attempted)], ["Marks scored", pct(sec.score)]], cl[1])) + '"/>';
+          if(h >= 18) s += txt(x + bw / 2, top + h / 2 + 4, Math.round(v * 100) + "%", { anchor: "middle", weight: 700, size: 11, fill: "#fff" });
+          acc += v;
+        });
+        s += txt(x + bw / 2, H - 10, cl[1], { anchor: "middle", size: 11, weight: 600, fill: C.ink });
+      });
+      return svg(W, H, "", s, "Share of time, answers and marks by section");
+    };
+  }
+
   /* ---------------- 8. donut ring (score) ---------------- */
   function ring(value){
     var id = "r" + (++uid), r = 72, c = 2 * Math.PI * r, v = Math.max(0, Math.min(1, value));
@@ -513,5 +614,6 @@ var HBC = (function(){
   }
 
   return { mount: mount, histogram: histogram, waterfall: waterfall, quadrant: quadrant, pacing: pacing,
-           strip: strip, trend: trend, bars: bars, ring: ring, timeBands: timeBands, marksSpread: marksSpread, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
+           strip: strip, trend: trend, bars: bars, ring: ring, timeBands: timeBands, marksSpread: marksSpread, gauge: gauge, bandOf: bandOf, BANDS: BANDS,
+           miniDonut: miniDonut, curve: curve, shares: shares, CAT: CAT, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
 })();

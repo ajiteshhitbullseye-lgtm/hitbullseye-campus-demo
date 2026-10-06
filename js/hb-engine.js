@@ -23,6 +23,7 @@ var HBA = (() => {
   var engine_exports = {};
   __export(engine_exports, {
     BEHAVIOUR: () => BEHAVIOUR,
+    CUMULATIVE_MIN: () => CUMULATIVE_MIN,
     MICRO_MAX: () => MICRO_MAX,
     RULES: () => RULES,
     ZONES: () => ZONES,
@@ -819,6 +820,79 @@ var HBA = (() => {
   }
   var MIN_ATTEMPTS = RULES.minAttempts;
 
+  // src/lib/analytics/overview.ts
+  var CUMULATIVE_MIN = 5;
+  function statusOf2(b) {
+    if (b.attempted < CUMULATIVE_MIN || b.accuracy === null) return "insufficient";
+    if (b.edge !== null) return b.edge >= 0.05 && b.accuracy >= 0.6 ? "strength" : b.edge <= -0.1 || b.accuracy < 0.45 ? "weak" : "average";
+    return b.accuracy >= 0.75 ? "strength" : b.accuracy <= 0.45 ? "weak" : "average";
+  }
+  var row = (b) => ({
+    id: b.id,
+    name: b.name,
+    parentName: b.parentName,
+    viewed: b.total,
+    attempted: b.attempted,
+    correct: b.correct,
+    attemptRate: b.attemptRate,
+    accuracy: b.accuracy,
+    othersAccuracy: b.cohortAccuracy,
+    status: statusOf2(b)
+  });
+  function stats(list, rows) {
+    const pcts = list.map((t) => t.percentile).filter((p) => p !== null);
+    const ids = new Set(list.map((t) => t.testId));
+    const att = rows.filter((r) => ids.has(r.testId) && r.isAttempted);
+    return {
+      taken: list.length,
+      avgPercentile: pcts.length ? pcts.reduce((s, x) => s + x, 0) / pcts.length : null,
+      medianPercentile: pcts.length ? median(pcts) : null,
+      accuracy: att.length ? att.filter((r) => r.isCorrect).length / att.length : null
+    };
+  }
+  function buildOverview(data, microMax) {
+    var _a;
+    const byTest = /* @__PURE__ */ new Map();
+    for (const a of data.attempts) ((_a = byTest.get(a.testId)) != null ? _a : byTest.set(a.testId, []).get(a.testId)).push(a);
+    const questions = [];
+    const tests = [...byTest].map(([testId, rows]) => {
+      var _a2, _b, _c;
+      questions.push(...classifyQuestions(rows, data.questionBenchmarks.get(testId)));
+      const score = rows.reduce((s, r) => s + r.score, 0);
+      const att = rows.filter((r) => r.isAttempted);
+      const first = (_a2 = rows.map((r) => {
+        var _a3, _b2;
+        return (_b2 = (_a3 = r.firstViewedAt) != null ? _a3 : r.attemptedAt) != null ? _b2 : "";
+      }).filter(Boolean).sort()[0]) != null ? _a2 : null;
+      return {
+        testId,
+        testName: rows[0].testName,
+        group: rows.length <= microMax ? "Quick practice" : (_b = rows[0].moduleName) != null ? _b : "Assessments",
+        takenAt: first,
+        score,
+        maxScore: rows.reduce((s, r) => s + r.questionMarks, 0),
+        percentile: percentileOf(score, (_c = data.scoreDistributions.get(testId)) != null ? _c : []),
+        accuracy: att.length ? att.filter((r) => r.isCorrect).length / att.length : null,
+        questions: rows.length
+      };
+    });
+    tests.sort((a, b) => {
+      var _a2, _b;
+      return ((_a2 = b.takenAt) != null ? _a2 : "").localeCompare((_b = a.takenAt) != null ? _b : "");
+    });
+    const names = [...new Set(tests.map((t) => t.group))];
+    const groups = names.map((name) => ({ name, ...stats(tests.filter((t) => t.group === name), data.attempts) }));
+    const full = tests.filter((t) => t.questions > microMax);
+    const sortRows = (rs) => rs.sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      tests,
+      groups,
+      overall: stats(full, data.attempts),
+      areas: sortRows(bucketize(questions, byArea).map(row)),
+      subAreas: sortRows(bucketize(questions, bySubArea).map(row))
+    };
+  }
+
   // src/lib/analytics/question.ts
   var MICRO_MAX = 3;
   var DAY = 864e5;
@@ -1102,6 +1176,84 @@ var HBA = (() => {
     };
   }
 
+  // src/lib/analytics/standing.ts
+  var quantile = (xs, q) => {
+    if (!xs.length) return null;
+    const s = [...xs].sort((a, b) => a - b);
+    const pos = (s.length - 1) * q;
+    const lo = Math.floor(pos);
+    return s[lo] + (s[Math.min(s.length - 1, lo + 1)] - s[lo]) * (pos - lo);
+  };
+  function curveOf(scores) {
+    if (scores.length < 10) return [];
+    const uniq = [...new Set(scores.map((s) => Math.round(s * 100) / 100))].sort((a, b) => a - b);
+    const step = Math.max(1, Math.ceil(uniq.length / 60));
+    const pts2 = uniq.filter((_, i) => i % step === 0 || i === uniq.length - 1);
+    return pts2.map((score) => ({ score, percentile: percentileOf(score, scores) }));
+  }
+  function standingOf(id, name, b, scores) {
+    const ok = scores.length >= 10;
+    return {
+      id,
+      name,
+      score: b.score,
+      max: b.maxScore,
+      correct: b.correct,
+      wrong: b.wrong,
+      skipped: b.skipped,
+      percentile: ok ? percentileOf(b.score, scores) : null,
+      students: scores.length,
+      avgScore: ok ? scores.reduce((s, x) => s + x, 0) / scores.length : null,
+      benchmark: ok ? quantile(scores, 0.9) : null,
+      topScore: ok ? Math.max(...scores) : null,
+      curve: curveOf(scores)
+    };
+  }
+  function standingFor(data, testId, totals, sections) {
+    var _a, _b, _c;
+    const overall = standingOf("overall", "Overall", totals, (_a = data.scoreDistributions.get(testId)) != null ? _a : []);
+    const bySection2 = (_b = data.sectionScores) == null ? void 0 : _b.get(testId);
+    const secs = sections.map((s) => {
+      var _a2;
+      return standingOf(s.id, s.name, s, (_a2 = bySection2 == null ? void 0 : bySection2.get(s.id)) != null ? _a2 : []);
+    });
+    let toppers = null;
+    const list = (_c = data.toppers) == null ? void 0 : _c.get(testId);
+    if (list && list.length) {
+      const sorted = [...list].sort((a2, b) => {
+        var _a2, _b2;
+        return b.score - a2.score || ((_a2 = a2.takenAt) != null ? _a2 : "").localeCompare((_b2 = b.takenAt) != null ? _b2 : "");
+      });
+      const rankOf = (score) => 1 + sorted.filter((x) => x.score > score).length;
+      const mark = (x) => ({ ...x, rank: rankOf(x.score), isYou: x.studentId === data.studentId });
+      const latest = sorted.reduce((m, x) => {
+        var _a2, _b2;
+        return ((_a2 = x.takenAt) != null ? _a2 : "") > m ? (_b2 = x.takenAt) != null ? _b2 : "" : m;
+      }, "");
+      const since = latest ? new Date(Date.parse(latest) - 7 * 864e5).toISOString() : "";
+      toppers = {
+        overall: sorted.slice(0, 10).map(mark),
+        recent: sorted.filter((x) => {
+          var _a2;
+          return ((_a2 = x.takenAt) != null ? _a2 : "") >= since;
+        }).slice(0, 10).map(mark),
+        yourRank: sorted.some((x) => x.studentId === data.studentId) ? rankOf(totals.score) : null,
+        students: sorted.length
+      };
+    }
+    const t = sections.reduce((s, x) => s + x.time, 0);
+    const a = sections.reduce((s, x) => s + x.attempted, 0);
+    const p = sections.reduce((s, x) => s + Math.max(0, x.score), 0);
+    const shares = sections.map((s) => ({
+      id: s.id,
+      name: s.name,
+      time: t ? s.time / t : 0,
+      attempted: a ? s.attempted / a : 0,
+      score: p ? Math.max(0, s.score) / p : 0
+    }));
+    return { overall, sections: secs, toppers, shares };
+  }
+
   // src/lib/analytics/journey.ts
   var avg = (xs) => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
   function journeyInsights(j) {
@@ -1269,6 +1421,7 @@ var HBA = (() => {
       deep: null
     };
     report.deep = deepOf(report, rows, (_b = data.sectionBenchmarks) == null ? void 0 : _b.get(testId));
+    report.deep.standing = standingFor(data, testId, report.totals, report.sections);
     report.insights = testInsights(report);
     report.actions = buildActions({ ...report, tests: 1, stamina: report.deep.stamina });
     return report;
@@ -1311,7 +1464,8 @@ var HBA = (() => {
         speedIssue: usualTimePerQ !== null && r.avgTimePerQ > usualTimePerQ * 1.2,
         staminaIssue: (stamina == null ? void 0 : stamina.drop) !== null && stamina !== null && stamina.drop <= -0.15
       }),
-      usualTimePerQ
+      usualTimePerQ,
+      standing: null
     };
   }
   function trendOf(ys) {
@@ -1496,7 +1650,8 @@ var HBA = (() => {
       isDemo: data.isDemo,
       dataAsOf: asOf,
       tests: reports.map((r) => ({ testId: r.testId, testName: r.testName, takenAt: r.takenAt, scorePct: r.scorePct })),
-      practice
+      practice,
+      overview: buildOverview(data, MICRO_MAX)
     };
     if (!reports.length) return { ...base, mode: "empty", single: null, journey: null };
     if (reports.length === 1) return { ...base, mode: "single", single: reports[0], journey: null };
@@ -1640,7 +1795,7 @@ var HBA = (() => {
     return out;
   }
   function aggregate(rows, lastRun = (/* @__PURE__ */ new Date()).toISOString()) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     const tq = /* @__PURE__ */ new Map();
     const q = /* @__PURE__ */ new Map();
     const t = /* @__PURE__ */ new Map();
@@ -1697,9 +1852,13 @@ var HBA = (() => {
         }),
         strongAreaIds: ranked.filter((g) => g.correct / g.attempts >= 0.75).map((g) => g.id),
         weakAreaIds: ranked.filter((g) => g.correct / g.attempts <= 0.45).map((g) => g.id),
+        takenAt: (_j = list.map((r) => {
+          var _a2, _b2;
+          return (_b2 = (_a2 = r.firstViewedAt) != null ? _a2 : r.attemptedAt) != null ? _b2 : "";
+        }).filter(Boolean).sort()[0]) != null ? _j : null,
         updatedAt: lastRun
       };
-      ((_j = studentTest.get(testId)) != null ? _j : studentTest.set(testId, []).get(testId)).push(doc);
+      ((_k = studentTest.get(testId)) != null ? _k : studentTest.set(testId, []).get(testId)).push(doc);
       t.get(testId).scores.set(studentId, a.totalScore);
     }
     return {
@@ -1757,7 +1916,7 @@ var HBA = (() => {
       student_module_analytics_v2: new Map([...sm].map(([k, a]) => [k, { ...finish(a), studentId: a.studentId, moduleId: a.moduleId }]))
     };
   }
-  var quantile = (xs, q) => {
+  var quantile2 = (xs, q) => {
     if (!xs.length) return 0;
     const s = [...xs].sort((a, b) => a - b);
     const pos = (s.length - 1) * q;
@@ -1779,7 +1938,7 @@ var HBA = (() => {
       sectionName: e.name,
       students: e.pcts.length,
       avgPct: e.pcts.reduce((x, y) => x + y, 0) / (e.pcts.length || 1),
-      topPct: quantile(e.pcts, 0.9),
+      topPct: quantile2(e.pcts, 0.9),
       avgAccuracy: e.accs.length ? e.accs.reduce((x, y) => x + y, 0) / e.accs.length : null
     }));
   }
@@ -1795,6 +1954,15 @@ var HBA = (() => {
       questionBenchmarks: pick(idx.test_question_analytics_v2),
       scoreDistributions: new Map([...docs].map(([k, list]) => [k, list.map((d) => d.totalScore)])),
       sectionBenchmarks: new Map([...docs].map(([k, list]) => [k, sectionBenchmarks(list)])),
+      sectionScores: new Map(
+        [...docs].map(([k, list]) => {
+          var _a;
+          const by = /* @__PURE__ */ new Map();
+          for (const d of list) for (const g of Object.values(d.sectionStats)) ((_a = by.get(g.id)) != null ? _a : by.set(g.id, []).get(g.id)).push(g.score);
+          return [k, by];
+        })
+      ),
+      toppers: new Map([...docs].map(([k, list]) => [k, list.map((d) => ({ studentId: d.studentId, score: d.totalScore, takenAt: d.takenAt }))])),
       // Small practice sets: every student's rows for that set (an ES query on the raw index by testId).
       peerRows: new Map(
         [...tests].filter((t) => mine.filter((r) => r.testId === t).length <= 3).map((t) => [t, rows.filter((r) => r.testId === t)])

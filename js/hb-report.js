@@ -237,18 +237,26 @@ var HBR = (function(){
           '<h2 style="font-size:22px">' + esc(r.testName) + '</h2><p class="sm mut">Taken on ' + esc(F.dateTime(r.takenAt)) + " · " + dur(t.time) + " in all</p>" +
           '<p class="an-verdict-line">' + verdict + "</p>" +
           '<div class="an-tiles mt-s">' +
-            tile("Better than", r.percentile != null ? Math.round(r.percentile) + "<small>% of students</small>" : "—", rank ? "Rank " + rank.rank + " of " + rank.of : "") +
-            tile("Right answers", t.correct + "<small> of " + t.attempted + " tried</small>", pct(t.accuracy) + " of your answers were right") +
-            tile("Left blank", t.skipped + "<small> of " + t.total + "</small>", t.wrong + " answered wrong") +
+            tile("National percentile", r.percentile != null ? Math.round(r.percentile) + "<small>%</small>" : "—", r.percentile != null ? "Better than " + Math.round(r.percentile) + " of 100 students" : "Not enough students yet") +
+            tile("National rank", rank ? rank.rank + "<small> of " + rank.of + "</small>" : "—", rank ? "Everyone who took this test" : "") +
+            tile("Right · wrong · blank", t.correct + '<small> · </small><span style="color:var(--err)">' + t.wrong + '</span><small> · </small><span style="color:var(--muted)">' + t.skipped + "</span>", pct(t.accuracy) + " accuracy (right out of answered)") +
+            tile("Negative marks", d.potential && r.patterns.negative ? "−" + F.num(r.patterns.negative, 1) : "0", r.patterns.negative ? "Marks lost to wrong answers" : "No marks lost to wrong answers") +
             tile("Average student", avg != null ? F.num(avg, 1) + "<small> marks</small>" : "—", avg != null ? "You: " + F.signed(t.score - avg, 1) + " marks" : "") +
+            tile("Top 10% benchmark", d.standing.overall.benchmark != null ? F.num(d.standing.overall.benchmark, 1) + "<small> marks</small>" : "—", d.standing.overall.topScore != null ? "Topper: " + F.num(d.standing.overall.topScore, 1) : "") +
             tile("Time per question", dur(r.avgTimePerQ), d.usualTimePerQ ? "Others took " + dur(d.usualTimePerQ) : "") +
+            tile("Total time", dur(t.time), t.total + " questions") +
             tile("Could have scored", F.num(d.potential.potential) + "<small> of " + F.num(t.maxScore) + "</small>", gain > 0 ? "+" + F.num(gain) + " by fixing easy mistakes" : "No easy marks lost") +
           "</div></div></div>" +
         '<div class="an-tldr">' +
           (best ? '<div><i style="background:var(--ok-bg);color:var(--ok)">' + ico("medal") + "</i><div><span>What went well</span><b>" + esc(best.title) + "</b></div></div>" : "") +
           (worst ? '<div><i style="background:var(--err-bg);color:var(--err)">' + ico("target") + "</i><div><span>Biggest thing to fix</span><b>" + esc(worst.title) + "</b></div></div>" : "") +
           (first ? '<div><i style="background:#eaf1fc;color:#2563c9">' + ico("arrow") + "</i><div><span>Do this first" + (first.gain ? " · up to +" + F.num(first.gain, 1) + " marks" : "") + "</span><b>" + esc(first.title) + "</b></div></div>" : "") +
-        "</div></section>";
+        "</div></section>" +
+      '<div class="an-actions no-print">' +
+        '<a class="an-abtn qa" href="#qwa">' + ico("list") + "<span><b>Question-wise analysis</b><small>Every question: your option, time, how others did</small></span></a>" +
+        '<a class="an-abtn key" href="#" onclick="hbeToast(\'Key & Explanation opens on the main HitBullseye platform (solutions are not part of the analytics data).\',\'info\',6000);return false">' + ico("book") + "<span><b>Key & Explanation</b><small>Solutions on the main platform</small></span></a>" +
+        '<a class="an-abtn rep" href="mailto:' + esc(ctx.support) + "?subject=" + encodeURIComponent("Test error: " + r.testName) + '">' + ico("alert") + "<span><b>Report test error</b><small>Tell us about a wrong question or key</small></span></a>" +
+      "</div>";
 
     /* 1. what to do next */
     html += sec("Step 1", "What should I do next?", "Start at the top: these are ordered by how many marks they can win back.",
@@ -260,8 +268,25 @@ var HBR = (function(){
     /* 3. sections */
     var secs = d.sectionCompare.slice().sort(function(a, b){ return b.you - a.you; });
     var sBest = secs[0], sWorst = secs[secs.length - 1];
-    html += sec("Step 3", "Which sections went well?", "The blue bar is your score in the section. The grey mark is the average student; the dark mark is the top 10%.",
-      sectionCompare(d.sectionCompare) + say([
+    var stS = d.standing.sections, stO = d.standing.overall;
+    html += sec("Step 3", "Which sections went well?", "Each card: your marks, your percentile in that section, and how your answers split. The bar compares you with the average student (grey mark) and the top 10% (dark mark).",
+      '<div class="an-grid an-' + (stS.length === 4 || stS.length <= 2 ? 2 : 3) + '">' + stS.map(function(x){
+        var sc = d.sectionCompare.filter(function(c){ return c.sectionId === x.id; })[0] || {};
+        return '<div class="an-card an-secc"><div class="an-secc-h"><h3>' + esc(x.name) + '</h3>' + (x.percentile != null ? '<span class="an-pb ' + band(x.percentile / 100) + '">' + Math.round(x.percentile) + "%ile</span>" : "") + "</div>" +
+          '<div class="an-secc-b">' + HBC.miniDonut(x.correct, x.wrong, x.skipped, 92) +
+          '<div><div class="an-secc-n">' + F.num(x.score, 1) + "<small> / " + F.num(x.max) + "</small></div>" +
+          '<div class="an-secc-k"><span class="ok">' + x.correct + ' right</span><span class="bad">' + x.wrong + ' wrong</span><span>' + x.skipped + " blank</span></div></div></div>" +
+          meter(sc.you, sc.avg, sc.top) +
+          '<div class="an-secc-f"><span>Average <b>' + (x.avgScore != null ? F.num(x.avgScore, 1) : "—") + "</b></span><span>Top 10% <b>" + (x.benchmark != null ? F.num(x.benchmark, 1) : "—") + "</b></span><span>Topper <b>" + (x.topScore != null ? F.num(x.topScore, 1) : "—") + "</b></span></div></div>";
+      }).join("") + "</div>" + legendMeter(true).replace("Other students on the same questions", "Average student") +
+      '<div class="an-card mt"><h3>National benchmarks</h3><div class="sub">Marks out of the maximum, for everyone who took this test.</div>' +
+        '<div class="tbl-wrap" style="box-shadow:none;border:0;margin-top:10px"><table class="an-tbl"><thead><tr><th>Section</th><th>You</th><th>Your percentile</th><th>Average</th><th>Top 10%</th><th>Topper</th></tr></thead><tbody>' +
+        [stO].concat(stS).map(function(x, i){
+          return "<tr" + (i === 0 ? ' class="an-tot"' : "") + '><td class="nm">' + esc(x.name) + "</td><td><b>" + F.num(x.score, 1) + "</b> / " + F.num(x.max) + "</td>" +
+            "<td>" + (x.percentile != null ? '<span class="an-pb ' + band(x.percentile / 100) + '">' + Math.round(x.percentile) + "%</span>" : "—") + "</td>" +
+            "<td>" + (x.avgScore != null ? F.num(x.avgScore, 1) : "—") + "</td><td>" + (x.benchmark != null ? F.num(x.benchmark, 1) : "—") + "</td><td>" + (x.topScore != null ? F.num(x.topScore, 1) : "—") + "</td></tr>";
+        }).join("") + "</tbody></table></div></div>" +
+      say([
         sBest ? "Your best section is " + B(sBest.name) + ": you scored " + B(pct(sBest.you)) + (sBest.avg != null ? " (average student: " + pct(sBest.avg) + ")." : ".") : "",
         sWorst && sWorst !== sBest ? "Work on " + B(sWorst.name) + " first: you scored " + B(pct(sWorst.you)) + (sWorst.avg != null ? " while the average student scored " + pct(sWorst.avg) + "." : ".") : ""
       ]));
@@ -303,6 +328,8 @@ var HBR = (function(){
       '<div class="an-grid an-12"><div class="an-card"><h3>Your time through the test</h3><div class="an-chart" id="c-pace"></div>' +
         '<div class="an-legend"><span><i class="line" style="background:var(--viz-you)"></i>You</span><span><i class="line" style="background:var(--viz-peer)"></i>Usual pace</span></div></div>' +
         staminaCard(d.stamina) + "</div>" +
+      (d.standing.shares.length > 1 ? '<div class="an-card mt"><h3>Time spent vs score, by section</h3><div class="sub">Each column adds up to 100%. Compare how much of your time a section took with how much of your score it gave back.</div>' +
+        '<div class="an-chart" id="c-share"></div><div class="an-legend">' + d.standing.shares.map(function(x, i){ return '<span><i style="background:' + HBC.CAT[i % HBC.CAT.length] + '"></i>' + esc(x.name) + "</span>"; }).join("") + "</div></div>" : "") +
       (d.quadrant.length >= 2 ? '<div class="an-card mt"><h3>Speed and accuracy, topic by topic</h3>' +
         '<div class="sub">Each dot is a topic. Higher = more answers right. Further right = slower than other students. Top-left is where you want to be.</div>' +
         '<div class="an-chart" id="c-quad"></div></div>' : "") +
@@ -310,13 +337,17 @@ var HBR = (function(){
         paceLine,
         zoneNames("rebuild").length ? "Slow and shaky in " + B(zoneNames("rebuild").join(", ")) + ": revise the basics there first." : "",
         zoneNames("fast-loose").length ? "Quick but making mistakes in " + B(zoneNames("fast-loose").join(", ")) + ": slow down and double-check." : "",
-        zoneNames("slow-sure").length ? "Accurate but slow in " + B(zoneNames("slow-sure").join(", ")) + ": practise timed sets." : ""
+        zoneNames("slow-sure").length ? "Accurate but slow in " + B(zoneNames("slow-sure").join(", ")) + ": practise timed sets." : "",
+        shareLine(d.standing.shares)
       ]));
 
     /* 7. compare */
     if(r.distribution){
       html += sec("Step 7", "How do I compare with others?", "Each bar is how many students got that score. Your bar is blue.",
         '<div class="an-card"><div class="an-chart" id="c-dist"></div><div class="an-legend"><span><i style="background:var(--viz-you)"></i>Your score</span><span><i style="background:var(--viz-peer)"></i>Other students</span></div></div>' +
+        '<div class="an-grid an-12 mt"><div class="an-card"><div class="row-b"><div><h3>Score vs percentile</h3><div class="sub">What each score was worth on this test. The red dot is you.</div></div>' +
+          '<select class="an-sel" id="curveSel"><option value="overall">Overall</option>' + stS.map(function(x){ return '<option value="' + esc(x.id) + '">' + esc(x.name) + "</option>"; }).join("") + "</select></div>" +
+          '<div class="an-chart" id="c-curve"></div></div>' + toppersCard(d.standing.toppers, ctx) + "</div>" +
         say([
           "You scored more than " + B(Math.round(r.percentile) + "%") + " of the " + r.distribution.students + " students on this test" + (rank ? " (rank " + rank.rank + ")." : "."),
           "The middle score was " + B(F.num(r.distribution.median, 1)) + " and the top score " + B(F.num(r.distribution.top, 1)) + "."
@@ -326,15 +357,23 @@ var HBR = (function(){
     /* 8. difficulty */
     if(r.lods.length){
       var lw = r.lods.filter(function(l){ return l.edge != null && l.attempted >= 2; }).sort(function(a, b){ return a.edge - b.edge; })[0];
-      html += sec("Step 8", "Easy, medium or hard: where did I slip?", "Your accuracy at each difficulty level, against other students on the same questions.",
-        lodRows(r.lods) + legendMeter(false) + say([
+      var blankEasy = (r.lods.filter(function(l){ return l.id === "easy"; })[0] || {}).skipped || 0;
+      var hardTried = r.lods.filter(function(l){ return /diff|hard/.test(l.id); }).reduce(function(a, l){ return a + l.attempted; }, 0);
+      html += sec("Step 8", "Question selection: easy, medium, hard", "How you chose questions at each level: answered right, answered wrong, or left blank. Then your accuracy at that level against others on the same questions.",
+        '<div class="an-grid an-' + Math.min(3, r.lods.length) + '">' + r.lods.map(function(l){
+          return '<div class="an-card an-lod"><div class="an-secc-h"><h3>' + esc(l.name) + "</h3><span class=\"sm mut\">" + l.total + " questions</span></div>" +
+            '<div class="an-secc-b">' + HBC.miniDonut(l.correct, l.wrong, l.skipped, 92) +
+            '<div class="an-secc-k col"><span class="ok"><b>' + l.correct + '</b> right</span><span class="bad"><b>' + l.wrong + '</b> wrong</span><span><b>' + l.skipped + "</b> left blank</span></div></div>" +
+            meter(l.accuracy, l.cohortAccuracy) + '<div class="an-secc-f"><span>Your accuracy <b>' + pct(l.accuracy) + "</b></span><span>Others <b>" + pct(l.cohortAccuracy) + "</b></span></div></div>";
+        }).join("") + "</div>" + legendMeter(false) + say([
+          blankEasy >= 2 && hardTried >= 2 ? "You left " + B(blankEasy + " easy") + " questions blank but attempted " + B(hardTried + " hard") + " ones. Do the easy ones first; they are the safest marks." : "",
           lw && lw.edge < -0.05 ? B(lw.name) + " questions are where you fall behind others the most (" + lw.correct + " of " + lw.attempted + " right)." :
           "You kept up with other students at every difficulty level."
         ]));
     }
 
     /* 9. review */
-    html += sec("Step 9", "Question-by-question review", "Each bar is one question: its height is the time you spent, the dark line is the time other students usually took. Use the buttons to pick out a pattern.",
+    html += '<span id="qwa"></span>' + sec("Step 9", "Question-by-question review", "Each bar is one question: its height is the time you spent, the dark line is the time other students usually took. Use the buttons to pick out a pattern.",
       '<div class="an-card"><div class="an-chart" id="c-strip"></div><div class="an-legend"><span><i style="background:var(--viz-ok)"></i>Right</span><span><i style="background:var(--viz-err)"></i>Wrong</span>' +
       '<span><i style="background:var(--viz-skip)"></i>Left blank</span><span><i class="line" style="background:var(--ink)"></i>Time others usually took</span></div></div>' +
       '<div class="mt-s">' + review(r, rows, ctx.key(r.testId)) + "</div>");
@@ -346,6 +385,18 @@ var HBR = (function(){
         if(d.quadrant.length >= 2) HBC.mount(root.querySelector("#c-quad"), HBC.quadrant(d.quadrant, HBA.ZONES));
         HBC.mount(root.querySelector("#c-pace"), HBC.pacing(d.pacing));
         if(r.distribution) HBC.mount(root.querySelector("#c-dist"), HBC.histogram(r.distribution, t.score));
+        if(d.standing.shares.length > 1) HBC.mount(root.querySelector("#c-share"), HBC.shares(d.standing.shares));
+        var cEl = root.querySelector("#c-curve");
+        if(cEl){
+          var drawCurve = function(id){
+            var x = id === "overall" ? stO : stS.filter(function(s){ return s.id === id; })[0];
+            cEl.innerHTML = "";
+            HBC.mount(cEl, HBC.curve(x.curve, { score: x.score, percentile: x.percentile }, "Score vs percentile: " + x.name));
+          };
+          drawCurve("overall");
+          root.querySelector("#curveSel").addEventListener("change", function(e){ drawCurve(e.target.value); });
+        }
+        bindToppers(root);
         var stripEl = root.querySelector("#c-strip");
         var drawStrip = function(hl){ stripEl.innerHTML = ""; HBC.mount(stripEl, HBC.strip(r.questions, hl, TAGS)); };
         drawStrip(null);
@@ -353,6 +404,33 @@ var HBR = (function(){
         bindWeek(root);
       }
     };
+  }
+
+  function toppersCard(tp, ctx){
+    if(!tp) return '<div class="an-card"><h3>Toppers</h3><p class="sub">Not enough students yet.</p></div>';
+    function rows(list){
+      return list.map(function(x){
+        var nm = x.isYou ? "You" : ctx.nameOf(x.studentId) || "A student";
+        return '<div class="an-top' + (x.isYou ? " you" : "") + '"><span class="rk">' + x.rank + '</span><span class="nm">' + esc(nm) + "</span><span class=\"dt\">" + esc(F.date(x.takenAt)) + "</span><b>" + F.num(x.score, 1) + "</b></div>";
+      }).join("") || '<p class="sm mut" style="padding:10px 0">Nobody in the last 7 days.</p>';
+    }
+    return '<div class="an-card an-toppers"><div class="row-b"><h3>Toppers</h3><div class="an-seg" role="tablist"><button class="on" data-tp="o">Overall</button><button data-tp="r">Recent</button></div></div>' +
+      '<div data-tpl="o">' + rows(tp.overall) + '</div><div data-tpl="r" hidden>' + rows(tp.recent) + "</div>" +
+      '<p class="sm mut mt-s">' + (tp.yourRank ? "Your rank: <b>" + tp.yourRank + "</b> of " + tp.students + ". " : "") + "Recent = taken in the last 7 days. Names come from the student login, not the analytics data.</p></div>";
+  }
+  function bindToppers(root){
+    var box = root.querySelector(".an-toppers");
+    if(!box) return;
+    box.querySelector(".an-seg").addEventListener("click", function(e){
+      var b = e.target.closest("button"); if(!b) return;
+      box.querySelectorAll(".an-seg button").forEach(function(x){ x.classList.toggle("on", x === b); });
+      box.querySelectorAll("[data-tpl]").forEach(function(x){ x.hidden = x.getAttribute("data-tpl") !== b.getAttribute("data-tp"); });
+    });
+  }
+  function shareLine(shares){
+    var worst = shares.slice().sort(function(a, b){ return (b.time - b.score) - (a.time - a.score); })[0];
+    if(!worst || worst.time - worst.score < 0.1) return "";
+    return B(worst.name) + " took " + B(pct(worst.time)) + " of your time but gave " + B(pct(worst.score)) + " of your marks.";
   }
 
   function staminaCard(s){
@@ -499,7 +577,7 @@ var HBR = (function(){
   /* ---------------- QUESTION VIEW (one-question practice: an MCQ or a coding problem) ---------------- */
   var OUTCOME = {
     right:   { label: "Right",       cls: "ok",   icon: "check" },
-    wrong:   { label: "Not this time", cls: "err", icon: "x" },
+    wrong:   { label: "Not this time", cls: "bad", icon: "x" },
     partial: { label: "Partly right", cls: "warn", icon: "target" },
     skipped: { label: "Left blank",  cls: "mut",  icon: "info" }
   };
@@ -631,6 +709,142 @@ var HBR = (function(){
     };
   }
 
+  /* ---------------- OVERVIEW: the analytics hub across every test ---------------- */
+  var STATUS = {
+    strength:     { label: "Strength", cls: "ok",   icon: "medal" },
+    average:      { label: "Average",  cls: "warn", icon: "target" },
+    weak:         { label: "Weak",     cls: "bad",  icon: "alert" },
+    insufficient: { label: "Too few questions", cls: "mut", icon: "info" }
+  };
+  function band(v){ return v == null ? "na" : v >= 0.8 ? "vg" : v >= 0.6 ? "g" : v >= 0.4 ? "avg" : "imp"; }
+  var GROUP_LABEL = { "Assessments": "Campus assessments", "Placement Practice Series": "Practice mocks", "Quick practice": "Quick practice" };
+
+  function overviewView(ctx, ov){
+    var o = ov.overall;
+    var groups = ov.groups.slice().sort(function(a, b){ return Object.keys(GROUP_LABEL).indexOf(a.name) - Object.keys(GROUP_LABEL).indexOf(b.name); });
+    var totalTaken = ov.tests.length, totalAvail = 0;
+    Object.keys(ctx.catalogue).forEach(function(k){ totalAvail += ctx.catalogue[k]; });
+
+    /* sub-topics when there is enough data at that level, else whole topics */
+    var rated = function(rs){ return rs.filter(function(r){ return r.status !== "insufficient"; }).length; };
+    var useSub = rated(ov.subAreas) >= 3 || rated(ov.subAreas) >= rated(ov.areas);
+    var lists = { strength: [], average: [], weak: [] };
+    (useSub ? ov.subAreas : ov.areas).forEach(function(r){ if(lists[r.status]) lists[r.status].push(r); });
+
+    var html =
+      '<section class="an-card rise"><div class="row-b"><div><h2 style="font-size:22px">Your test analytics</h2>' +
+        '<p class="sm mut">Everything you have attempted so far: ' + totalTaken + " test" + (totalTaken === 1 ? "" : "s") + ", " +
+        F.num(ov.subAreas.reduce(function(a, r){ return a + r.attempted; }, 0)) + " questions answered.</p></div></div>" +
+        '<div class="an-gauges">' +
+          gaugeCard("Average percentile", o.avgPercentile, "Across your " + o.taken + " full test" + (o.taken === 1 ? "" : "s"), function(v){ return Math.round(v) + "%"; }) +
+          gaugeCard("Median percentile", o.medianPercentile, "Your typical test (half above, half below)", function(v){ return Math.round(v) + "%"; }) +
+          gaugeCard("Accuracy", o.accuracy == null ? null : o.accuracy * 100, "Right answers out of those you answered", function(v){ return Math.round(v) + "%"; }) +
+        "</div>" +
+        '<div class="an-legend" style="justify-content:center">' + HBC.BANDS.map(function(b){ return '<span><i style="background:' + b[2] + '"></i>' + b[3] + " (" + b[0] + "–" + b[1] + ")</span>"; }).join("") + "</div>" +
+      "</section>";
+
+    /* tests by type: taken / not taken, average & median percentile, accuracy */
+    var keys = Object.keys(ctx.catalogue);
+    html += sec("Tests", "Tests taken by type", "How many of the tests open to you you have taken, and how you did in each kind.",
+      '<div class="an-grid an-3">' + keys.map(function(k){
+        var g = groups.filter(function(x){ return x.name === k; })[0] || { taken: 0, avgPercentile: null, medianPercentile: null, accuracy: null };
+        var notTaken = Math.max(0, ctx.catalogue[k] - g.taken);
+        return '<div class="an-card an-type"><div class="an-type-h"><b>' + esc(GROUP_LABEL[k] || k) + '</b><span>Taken <b>' + g.taken + "</b> · Not taken <b>" + notTaken + "</b></span></div>" +
+          '<div class="an-type-g">' + HBC.gauge(g.avgPercentile, { width: 200, big: 20, label: "Average percentile", fmt: function(v){ return Math.round(v) + "%"; } }) + "</div>" +
+          '<div class="an-type-s"><div><span>Average %ile</span><b>' + (g.avgPercentile != null ? Math.round(g.avgPercentile) + "%" : "—") + "</b></div>" +
+          "<div><span>Median %ile</span><b>" + (g.medianPercentile != null ? Math.round(g.medianPercentile) + "%" : "—") + "</b></div>" +
+          "<div><span>Accuracy</span><b>" + pct(g.accuracy) + "</b></div></div>" +
+          '<div class="an-progress mt-s" title="' + g.taken + " of " + ctx.catalogue[k] + ' taken"><i style="width:' + (ctx.catalogue[k] ? g.taken / ctx.catalogue[k] * 100 : 0) + '%;background:var(--viz-you)"></i></div>' +
+          "</div>";
+      }).join("") + "</div>");
+
+    /* strength / average / weak */
+    html += sec("Strengths", "My areas of strength and weakness", (useSub ? "Sub-topics" : "Topics") + " with at least " + HBA.CUMULATIVE_MIN + " questions answered, across all your tests and practice.",
+      '<div class="an-grid an-3">' + ["strength", "average", "weak"].map(function(k){
+        var st = STATUS[k], l = lists[k];
+        return '<div class="an-sw ' + st.cls + '"><div class="an-sw-h">' + ico(st.icon) + "<b>" + (k === "strength" ? "Strong" : k === "average" ? "Average" : "Needs work") + "</b><span>" + l.length + "</span></div>" +
+          (l.length ? '<div class="an-sw-l">' + l.map(function(r){ return '<span title="' + esc((r.parentName || "") + ": " + r.correct + " of " + r.attempted + " right") + '">' + esc(r.name) + "</span>"; }).join("") + "</div>"
+                    : '<p class="sm mut">None yet.</p>') + "</div>";
+      }).join("") + "</div>");
+
+    /* cumulative table */
+    html += sec("Topic table", "Strength and weakness, topic by topic", "Every topic you have met. Viewed = questions you saw; attempted = questions you answered.",
+      '<div class="an-card"><div class="an-tools">' +
+        '<div class="an-seg" role="group" aria-label="Level"><button' + (useSub ? ' class="on"' : "") + ' data-lv="sub">Sub-topics</button><button' + (useSub ? "" : ' class="on"') + ' data-lv="area">Topics</button></div>' +
+        '<input type="search" class="an-search" id="cumQ" placeholder="Search a topic">' +
+        '<select id="cumF" class="an-sel"><option value="">All statuses</option><option value="strength">Strength</option><option value="average">Average</option><option value="weak">Weak</option><option value="insufficient">Too few questions</option></select>' +
+      '</div><div id="cumT"></div><div class="an-pager" id="cumP"></div>' +
+      '<div class="an-legend"><span><i class="cell vg"></i>Very good (80%+)</span><span><i class="cell g"></i>Good (60–80%)</span><span><i class="cell avg"></i>Average (40–60%)</span><span><i class="cell imp"></i>Improve (under 40%)</span><span><i class="cell na"></i>Too few questions</span></div></div>');
+
+    /* all tests */
+    html += sec("All tests", "All my tests", "Search, sort or filter, then open any test for its full report.",
+      '<div class="an-card"><div class="an-tools">' +
+        '<input type="search" class="an-search" id="tstQ" placeholder="Search by test name">' +
+        '<select id="tstS" class="an-sel"><option value="new">Recent to oldest</option><option value="old">Oldest to recent</option><option value="az">A to Z</option><option value="za">Z to A</option><option value="pct">Best percentile</option></select>' +
+        '<select id="tstG" class="an-sel"><option value="">All types</option>' + keys.map(function(k){ return '<option value="' + esc(k) + '">' + esc(GROUP_LABEL[k] || k) + "</option>"; }).join("") + "</select>" +
+      '</div><div class="tbl-wrap" style="box-shadow:none;border:0"><table class="an-tbl"><thead><tr><th>Test</th><th>Type</th><th>Taken</th><th>Score</th><th>Percentile</th><th>Accuracy</th><th></th></tr></thead><tbody id="tstB"></tbody></table></div></div>');
+
+    return {
+      html: html,
+      after: function(root){
+        /* cumulative table: level, search, status filter, 10 per page */
+        var lv = useSub ? "sub" : "area", page = 0;
+        function drawCum(){
+          var q = root.querySelector("#cumQ").value.trim().toLowerCase(), f = root.querySelector("#cumF").value;
+          var rows = (lv === "sub" ? ov.subAreas : ov.areas).filter(function(r){
+            return (!f || r.status === f) && (!q || (r.name + " " + (r.parentName || "")).toLowerCase().indexOf(q) > -1);
+          });
+          var pages = Math.max(1, Math.ceil(rows.length / 10)); page = Math.min(page, pages - 1);
+          root.querySelector("#cumT").innerHTML = '<div class="an-cum"><div class="an-cum-r h"><span>Topic</span><span>Status</span><span>Viewed / attempted</span><span>% attempted</span><span>% accuracy</span><span>Others</span></div>' +
+            (rows.slice(page * 10, page * 10 + 10).map(function(r){
+              var st = STATUS[r.status], thin = r.status === "insufficient";
+              return '<div class="an-cum-r"><span class="nm">' + esc(r.name) + (r.parentName ? "<small>" + esc(r.parentName) + "</small>" : "") + "</span>" +
+                '<span><em class="an-st ' + st.cls + '">' + ico(st.icon) + st.label + "</em></span>" +
+                '<span><i class="cell info">' + r.viewed + " / " + r.attempted + "</i></span>" +
+                '<span><i class="cell ' + (thin ? "na" : band(r.attemptRate)) + '">' + Math.round(r.attemptRate * 100) + "</i></span>" +
+                '<span><i class="cell ' + (thin ? "na" : band(r.accuracy)) + '">' + (r.accuracy == null ? "—" : Math.round(r.accuracy * 100)) + "</i></span>" +
+                '<span class="mut sm">' + (r.othersAccuracy == null ? "—" : Math.round(r.othersAccuracy * 100) + "%") + "</span></div>";
+            }).join("") || '<p class="sm mut" style="padding:16px">No topics match.</p>') + "</div>";
+          root.querySelector("#cumP").innerHTML = '<span class="sm mut">Page ' + (page + 1) + " of " + pages + " · " + rows.length + " topics</span>" +
+            '<button class="btn btn-ghost btn-sm" data-pg="-1"' + (page ? "" : " disabled") + ">" + ico("back") + '</button><button class="btn btn-ghost btn-sm" data-pg="1"' + (page < pages - 1 ? "" : " disabled") + ">" + ico("arrow") + "</button>";
+        }
+        root.querySelector(".an-seg").addEventListener("click", function(e){
+          var b = e.target.closest("button"); if(!b) return;
+          lv = b.getAttribute("data-lv"); page = 0;
+          root.querySelectorAll(".an-seg button").forEach(function(x){ x.classList.toggle("on", x === b); });
+          drawCum();
+        });
+        root.querySelector("#cumQ").addEventListener("input", function(){ page = 0; drawCum(); });
+        root.querySelector("#cumF").addEventListener("change", function(){ page = 0; drawCum(); });
+        root.querySelector("#cumP").addEventListener("click", function(e){ var b = e.target.closest("[data-pg]"); if(b){ page += +b.getAttribute("data-pg"); drawCum(); } });
+        drawCum();
+
+        /* all tests: search, sort, type */
+        function drawTests(){
+          var q = root.querySelector("#tstQ").value.trim().toLowerCase(), s = root.querySelector("#tstS").value, g = root.querySelector("#tstG").value;
+          var list = ov.tests.filter(function(t){ return (!g || t.group === g) && (!q || t.testName.toLowerCase().indexOf(q) > -1); });
+          list.sort(function(a, b){
+            return s === "old" ? (a.takenAt || "").localeCompare(b.takenAt || "") : s === "az" ? a.testName.localeCompare(b.testName)
+              : s === "za" ? b.testName.localeCompare(a.testName) : s === "pct" ? (b.percentile || -1) - (a.percentile || -1) : (b.takenAt || "").localeCompare(a.takenAt || "");
+          });
+          root.querySelector("#tstB").innerHTML = list.map(function(t){
+            var p = t.percentile;
+            return '<tr><td class="nm">' + esc(t.testName) + '</td><td><span class="an-kind lt">' + esc(GROUP_LABEL[t.group] || t.group) + "</span></td><td>" + esc(F.date(t.takenAt)) + "</td>" +
+              "<td><b>" + F.num(t.score, 1) + "</b> / " + F.num(t.maxScore) + "</td>" +
+              '<td>' + (p == null ? '<span class="mut">—</span>' : '<span class="an-pb ' + band(p / 100) + '">' + Math.round(p) + "%</span>") + "</td>" +
+              "<td>" + pct(t.accuracy) + '</td><td><a class="btn btn-ghost btn-sm" href="' + ctx.href({ test: t.testId }) + '">Report' + ico("arrow") + "</a></td></tr>";
+          }).join("") || '<tr><td colspan="7" class="mut" style="text-align:center;padding:20px">No tests match.</td></tr>';
+        }
+        ["#tstQ", "#tstS", "#tstG"].forEach(function(id){ root.querySelector(id).addEventListener(id === "#tstQ" ? "input" : "change", drawTests); });
+        drawTests();
+      }
+    };
+  }
+
+  function gaugeCard(title, v, sub, fmt){
+    return '<div class="an-gauge"><h3>' + esc(title) + "</h3>" + HBC.gauge(v, { width: 230, label: title, fmt: fmt }) + '<p class="sm mut">' + esc(sub) + "</p></div>";
+  }
+
   /* ---------------- analysing overlay (after a live submit) ---------------- */
   function analysing(info, done){
     var steps = [
@@ -653,5 +867,5 @@ var HBR = (function(){
     })();
   }
 
-  return { testView: testView, progressView: progressView, questionView: questionView, analysing: analysing };
+  return { testView: testView, progressView: progressView, questionView: questionView, overviewView: overviewView, analysing: analysing };
 })();
