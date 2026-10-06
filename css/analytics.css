@@ -111,11 +111,11 @@
 .an-day b{display:block;font-size:13.5px;color:var(--ink);margin:4px 0;line-height:1.3}
 .an-day p{font-size:12.5px;color:var(--muted);line-height:1.45}
 .an-day .m{font-size:11.5px;color:var(--muted);margin-top:6px;font-weight:600}
-.an-day .tick{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:7px;border:1.5px solid var(--line);
+.an-day .an-daytick{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:7px;border:1.5px solid var(--line);
   display:flex;align-items:center;justify-content:center;color:#fff;background:#fff}
-.an-day .tick svg{width:12px;height:12px}
+.an-day .an-daytick svg{width:12px;height:12px}
 .an-day.done{background:var(--ok-bg);border-color:#bfe8d3}
-.an-day.done .tick{background:var(--ok);border-color:var(--ok)}
+.an-day.done .an-daytick{background:var(--ok);border-color:var(--ok)}
 .an-progress{height:8px;border-radius:99px;background:var(--line-2);overflow:hidden}
 .an-progress i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .3s}
 
@@ -244,3 +244,77 @@ svg [tabindex]:focus-visible{outline:2px solid var(--brand)}
   .an-busy,.an-filters,.an-tabs,.no-print{display:none!important}
   .an-card,.an-ins,.an-act{box-shadow:none;break-inside:avoid}
 }
+
+/* =====================================================================
+   VISUAL POLISH — gradients, depth and a short draw-in on first paint
+   ===================================================================== */
+:root{
+  --viz-you:#2563eb; --viz-ok:#10a36b; --viz-err:#e0453a; --viz-skip:#d5dce7;
+  --viz-grad: linear-gradient(90deg,#60a5fa 0%,#2563eb 60%,#1d4ed8 100%);
+}
+
+/* cards: soft lift and a coloured cap on chart cards */
+.an-card{position:relative;border-radius:20px;box-shadow:0 1px 2px rgba(10,21,35,.04),0 12px 32px -18px rgba(37,99,235,.28)}
+.an-card:has(.an-chart)::before{content:"";position:absolute;left:20px;right:20px;top:0;height:3px;border-radius:0 0 4px 4px;
+  background:linear-gradient(90deg,#22d3ee,#2563eb 55%,#6366f1);opacity:.85}
+.an-card h3{display:flex;align-items:center;gap:8px}
+
+/* score ring */
+.an-ring{filter:drop-shadow(0 10px 22px rgba(37,99,235,.22))}
+.an-ring b{background:linear-gradient(135deg,#0a1523 30%,#1d4ed8);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* tiles: a thin accent bar and a hover lift */
+.an-tile{position:relative;overflow:hidden;background:linear-gradient(180deg,#fff,#f6f9ff);transition:transform .18s,box-shadow .18s}
+.an-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#22d3ee,#2563eb)}
+.an-tile:hover{transform:translateY(-2px);box-shadow:0 10px 24px -14px rgba(37,99,235,.45)}
+
+/* meters: thicker, gradient fill, clear ticks */
+.an-meter{height:12px;background:#edf2fa;box-shadow:inset 0 1px 2px rgba(10,21,35,.06)}
+.an-meter > i{background:var(--viz-grad);box-shadow:0 2px 6px -2px rgba(37,99,235,.55)}
+.an-meter > em{top:-4px;height:20px;width:4px;background:#64748b}
+.an-meter > u{top:-4px;height:20px;width:4px;background:#0a1523}
+.an-legend i.an-tk{width:4px;height:13px;border-radius:2px}
+
+/* behaviour stack */
+.an-stack{height:44px;border-radius:12px;gap:3px;box-shadow:0 8px 20px -14px rgba(10,21,35,.35)}
+.an-stack > div{position:relative;font-size:13px;text-shadow:0 1px 1px rgba(0,0,0,.18);transition:filter .15s,transform .15s}
+.an-stack > div::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 60%)}
+.an-stack > div:hover{filter:brightness(1.08)}
+.an-stack > div:first-child{border-radius:12px 0 0 12px} .an-stack > div:last-child{border-radius:0 12px 12px 0}
+.an-mix i{width:12px;height:12px;border-radius:4px}
+
+/* heatmap cells */
+.an-heat .c{border-radius:8px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.06);transition:transform .12s}
+.an-heat .c:not(.na):hover{transform:scale(1.06)}
+
+/* insight cards: tinted wash by tone */
+.an-ins.good{background:linear-gradient(135deg,#fff 60%,#ecfbf3)}
+.an-ins.bad{background:linear-gradient(135deg,#fff 60%,#fdf0ee)}
+.an-ins.warn{background:linear-gradient(135deg,#fff 60%,#fff8e8)}
+.an-ins.info{background:linear-gradient(135deg,#fff 60%,#eef4ff)}
+
+/* empty habit chart */
+.an-none{display:flex;align-items:center;justify-content:center;gap:10px;padding:30px 0;font-size:13px;color:var(--ok);font-weight:600}
+.an-none span{width:26px;height:26px;border-radius:99px;background:var(--ok-bg);display:inline-flex;align-items:center;justify-content:center}
+
+/* chart text weight */
+.an-chart text{font-feature-settings:"tnum"}
+.an-chart .an-mark{transition:opacity .15s,filter .15s}
+.an-chart .an-mark:hover{filter:brightness(1.08) saturate(1.1)}
+
+/* ---- first-paint animation (only when motion is welcome) ---- */
+@media (prefers-reduced-motion: no-preference){
+  .an-anim .grow{transform-box:fill-box;transform-origin:50% 100%;animation:an-grow .7s cubic-bezier(.2,.8,.2,1) both}
+  .an-anim .draw{stroke-dasharray:1;stroke-dashoffset:1;animation:an-draw 1.1s .1s ease-out forwards}
+  .an-anim .pop{transform-box:fill-box;transform-origin:50% 50%;animation:an-pop .45s cubic-bezier(.3,1.6,.5,1) both}
+  .an-anim .an-pill{animation:an-fade .4s .7s both}
+  .an-ringarc{animation:an-ring 1.2s cubic-bezier(.2,.8,.2,1) both}
+  .an-meter > i{animation:an-fill .9s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+  .an-stack > div{animation:an-fill .8s cubic-bezier(.2,.8,.2,1) both;transform-origin:left}
+}
+@keyframes an-grow{from{transform:scaleY(0)}}
+@keyframes an-draw{to{stroke-dashoffset:0}}
+@keyframes an-pop{from{transform:scale(0);opacity:0}}
+@keyframes an-fade{from{opacity:0;transform:translateY(4px)}}
+@keyframes an-ring{from{stroke-dasharray:0 1000}}
+@keyframes an-fill{from{transform:scaleX(0)}}

@@ -15,9 +15,9 @@ var HBR = (function(){
   var FOCUS = { concepts:"Concepts", accuracy:"Accuracy", speed:"Time", strategy:"Test strategy", maintain:"Keep it up" };
   var TAGS = { "missed-easy":"Missed easy", rushed:"Rushed", "time-sink":"Time sink", "slow-correct":"Slow but right",
                "missed-chance":"Skipped easy", "smart-skip":"Smart skip", "tough-cracked":"Tough cracked" };
-  var MIX_COLOR = { "tough-cracked":"#0b6e44", solid:"#1fa36b", "smart-skip":"#8fd3b2", "slow-right":"#e0a43a",
-                    skipped:"#cdd6e2", careless:"#d33a3a", rushed:"#f0703c", stuck:"#9e2b2b",
-                    "concept-gap":"#e88a8a", "skipped-easy":"#f3b5a8" };
+  var MIX_COLOR = { "tough-cracked":"#047857", solid:"#10a36b", "smart-skip":"#6ee7b7", "slow-right":"#f59e0b",
+                    skipped:"#cbd5e1", careless:"#e0453a", rushed:"#f97316", stuck:"#991b1b",
+                    "concept-gap":"#f87171", "skipped-easy":"#fda4af" };
   var VERDICT = { strong:"Strong", weak:"Weak", par:"On par", thin:"Few attempts" };
   var TREND = { improving:"Improving", slipping:"Slipping", steady:"Steady", new:"Not enough yet" };
 
@@ -72,7 +72,7 @@ var HBR = (function(){
       '<div class="an-progress"><i id="wkBar" style="width:' + (n / 7 * 100) + '%"></i></div></div></div>' +
       '<div class="an-week mt-s" data-key="' + esc(key) + '">' + days.map(function(d){
         return '<div class="an-day' + (done[d.day] ? " done" : "") + '" data-day="' + d.day + '" role="button" tabindex="0" aria-pressed="' + !!done[d.day] + '">' +
-          '<span class="an-tk">' + ico("check") + '</span><div class="d">Day ' + d.day + "</div><b>" + esc(d.title) + "</b><p>" + esc(d.task) + '</p><div class="m">' + d.minutes + " min</div></div>";
+          '<span class="an-daytick">' + ico("check") + '</span><div class="d">Day ' + d.day + "</div><b>" + esc(d.title) + "</b><p>" + esc(d.task) + '</p><div class="m">' + d.minutes + " min</div></div>";
       }).join("") + "</div></div>";
   }
   function bindWeek(root){
