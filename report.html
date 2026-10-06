@@ -108,19 +108,24 @@
   if(!showOverview && !microId && !testIds.length) microId = practiceIds[practiceIds.length - 1];
   var testId = wanted && testIds.indexOf(wanted) > -1 ? wanted : testIds[testIds.length - 1];
 
-  /* ---- tabs: progress + every test (newest first) ---- */
-  var tabs = '<nav class="an-tabs no-print" aria-label="Reports">' +
+  /* ---- top bar: Overview · Progress · one dropdown for every test and quick practice ---- */
+  var curId = microId || (!showOverview && !showProgress ? testId : "");
+  var opt = function(t, label){
+    return '<option value="' + hbeEsc(t.testId) + '"' + (t.testId === curId ? " selected" : "") + ">" + hbeEsc(label) + "</option>";
+  };
+  var tabs = '<nav class="an-topbar no-print" aria-label="Reports">' +
     '<a class="an-tab' + (showOverview ? " on" : "") + '" href="' + href({}) + '">' + ico("grid") + "Overview</a>" +
     (rep.mode === "journey" ? '<a class="an-tab' + (showProgress ? " on" : "") + '" href="' + href({ view:"progress" }) + '">' + ico("chart") + "Progress<span>" + rep.tests.length + " tests</span></a>" : "") +
-    rep.tests.slice().reverse().map(function(t){
-      return '<a class="an-tab' + (!showOverview && !showProgress && !microId && t.testId === testId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
-        hbeEsc(t.testName.replace(/—.*$/, "").trim()) + "<span>" + Math.round(t.scorePct * 100) + "%</span></a>";
-    }).join("") + "</nav>" +
-    (rep.practice.length ? '<nav class="an-tabs an-tabs-q no-print" aria-label="Quick practice"><span class="an-tabs-l">Quick practice</span>' +
-      rep.practice.slice().reverse().map(function(t){
-        return '<a class="an-tab' + (t.testId === microId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
-          hbeEsc(t.testName.replace(/^Quick MCQ: |^Coding: /, "")) + "<span>" + (t.scorePct >= 1 ? "\u2713" : Math.round(t.scorePct * 100) + "%") + "</span></a>";
-      }).join("") + "</nav>" : "");
+    '<label class="an-pick' + (curId ? " on" : "") + '">' + ico("file") +
+      '<select id="testPick" aria-label="Open a test report"><option value="">' + (curId ? "Switch test…" : "Open a test report…") + "</option>" +
+      (rep.tests.length ? '<optgroup label="Tests">' + rep.tests.slice().reverse().map(function(t){
+        return opt(t, t.testName.replace(/\u2014.*$/, "").trim() + "  ·  " + Math.round(t.scorePct * 100) + "%");
+      }).join("") + "</optgroup>" : "") +
+      (rep.practice.length ? '<optgroup label="Quick practice">' + rep.practice.slice().reverse().map(function(t){
+        return opt(t, t.testName + "  ·  " + (t.scorePct >= 1 ? "right" : Math.round(t.scorePct * 100) + "%"));
+      }).join("") + "</optgroup>" : "") +
+      "</select></label>" +
+    "</nav>";
 
   /* a single real attempt: offer to simulate a practice journey to show the progress view */
   var simOffer = (!isAdmin && !microId && !showOverview && rep.mode === "single" && !HBX.hasSimulatedJourney(st.id))
@@ -146,6 +151,8 @@
   function paint(){
     page.innerHTML = band + '<div class="wrap pband-stats">' + tabs + simOffer + v.html + "</div>";
     v.after(page);
+    var pick = document.getElementById("testPick");
+    if(pick) pick.addEventListener("change", function(){ if(pick.value) location.href = href({ test: pick.value }); });
     var sj = document.getElementById("simj");
     if(sj) sj.addEventListener("click", function(){ HBX.simulateJourney(st.id); location.href = href({ view:"progress" }); });
   }

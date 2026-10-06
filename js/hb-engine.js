@@ -1289,7 +1289,7 @@ var HBA = (() => {
         id: "direction",
         tone: "info",
         title: hasPct ? `Holding steady: you beat about ${Math.round(to)} of every 100 students` : `Holding steady at about ${fmt(to)} of full marks`,
-        detail: `Little change across ${plural(n, "test")}. Steady is fine, but moving up needs the targeted work in the plan below.`
+        detail: `Little change across ${plural(n, "test")}. Steady is fine, but moving up needs the targeted work in your plan.`
       });
     }
     const last = j.tests[n - 1];

@@ -603,6 +603,39 @@ var HBC = (function(){
     };
   }
 
+  /* ---------------- 15. section bars: you vs average (grey tick) and top 10% (dark tick) ----------------
+     list: [{sectionId, name, you, avg, top}] (0–1); standings: [{id, percentile}] for the %ile pill. */
+  function sectionBars(list, standings){
+    return function(W){
+      var id = "sb" + (++uid);
+      var narrow = W < 480;   /* phones: name above the bar instead of beside it */
+      var row = narrow ? 58 : 46, p = { l: narrow ? 4 : Math.min(170, W * 0.34), r: 96, t: narrow ? 20 : 8 }, iw = W - p.l - p.r, H = p.t + list.length * row + 18;
+      var x = function(v){ return p.l + Math.max(0, Math.min(1, v)) * iw; };
+      var defs = '<linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="' + C.youLt + '"/><stop offset="1" stop-color="' + C.youDk + '"/></linearGradient>';
+      var s = "";
+      [0, .5, 1].forEach(function(v){
+        s += '<line x1="' + x(v) + '" x2="' + x(v) + '" y1="' + p.t + '" y2="' + (H - 18) + '" stroke="' + C.grid + '"/>' + txt(x(v), H - 4, Math.round(v * 100) + "%", { anchor: v === 0 ? "start" : v === 1 ? "end" : "middle", size: 10 });
+      });
+      list.forEach(function(it, i){
+        var y = p.t + i * row + 10, h = 16;
+        var stg = (standings || []).filter(function(q){ return q.id === it.sectionId; })[0];
+        var room = narrow ? 60 : Math.floor((p.l - 14) / 6.6);
+        var nm = it.name.length > room ? it.name.slice(0, room - 1) + "…" : it.name;
+        s += narrow ? txt(p.l, y - 6, nm, { size: 12, weight: 600, fill: C.ink }) : txt(p.l - 10, y + 12, nm, { anchor: "end", size: 12, weight: 600, fill: C.ink });
+        s += '<rect x="' + p.l + '" y="' + y + '" width="' + iw + '" height="' + h + '" rx="8" fill="#edf2fa"/>';
+        s += '<rect class="an-mark grow-x" style="animation-delay:' + (i * 80) + 'ms" x="' + p.l + '" y="' + y + '" width="' + Math.max(4, x(it.you) - p.l) + '" height="' + h + '" rx="8" fill="url(#' + id + ')"/>';
+        if(it.avg != null) s += '<rect x="' + (x(it.avg) - 2) + '" y="' + (y - 4) + '" width="4" height="' + (h + 8) + '" rx="2" fill="#64748b" stroke="#fff" stroke-width="1.5"/>';
+        if(it.top != null) s += '<rect x="' + (x(it.top) - 2) + '" y="' + (y - 4) + '" width="4" height="' + (h + 8) + '" rx="2" fill="' + C.ink + '" stroke="#fff" stroke-width="1.5"/>';
+        s += txt(W - p.r + 8, y + 12, Math.round(it.you * 100) + "%", { size: 12.5, weight: 800, fill: C.ink });
+        if(stg && stg.percentile != null) s += txt(W - 6, y + 12, Math.round(stg.percentile) + "%ile", { anchor: "end", size: 10.5, weight: 700, fill: stg.percentile >= 75 ? C.ok : stg.percentile >= 40 ? "#a86f00" : C.err });
+        s += '<rect x="0" y="' + (y - 8) + '" width="' + W + '" height="' + row + '" fill="transparent" tabindex="0" data-tip="' +
+          esc(tipRows(it.name, [["You", pct(it.you), C.you]].concat(it.avg != null ? [["Average student", pct(it.avg), "#64748b"]] : []).concat(it.top != null ? [["Top 10%", pct(it.top), C.ink]] : [])
+            .concat(stg && stg.percentile != null ? [["Your percentile", Math.round(stg.percentile) + "%"]] : []))) + '"/>';
+      });
+      return svg(W, H, defs, s, "Section scores against the average and the top 10%");
+    };
+  }
+
   /* ---------------- 8. donut ring (score) ---------------- */
   function ring(value){
     var id = "r" + (++uid), r = 72, c = 2 * Math.PI * r, v = Math.max(0, Math.min(1, value));
@@ -615,5 +648,5 @@ var HBC = (function(){
 
   return { mount: mount, histogram: histogram, waterfall: waterfall, quadrant: quadrant, pacing: pacing,
            strip: strip, trend: trend, bars: bars, ring: ring, timeBands: timeBands, marksSpread: marksSpread, gauge: gauge, bandOf: bandOf, BANDS: BANDS,
-           miniDonut: miniDonut, curve: curve, shares: shares, CAT: CAT, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
+           miniDonut: miniDonut, curve: curve, shares: shares, CAT: CAT, sectionBars: sectionBars, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
 })();
