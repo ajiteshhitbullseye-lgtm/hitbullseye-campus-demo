@@ -249,6 +249,15 @@ Export / Import   the whole configuration as JSON
 
 SIGN-IN (PROTOTYPE)
 -------------------
+Every form arrives PREFILLED for demos (yellow "Demo" note on each):
+  verify.html    access code + first unregistered ID + email; the OTP is
+                 filled in as soon as it is sent
+  register.html  every field from the campus list, declaration pre-ticked
+  login.html     a demo student (OTP filled on send) and the placement-cell login
+  hq-login.html  the HQ login
+Each campus has 3 fresh demo IDs; once they are used, reset the data from the
+Form Builder to demo the sign-up again.
+
 Admin     admin@demo.com  /  admin@123
 Student   any registered email (the one-time code is shown on screen)
 

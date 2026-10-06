@@ -149,6 +149,14 @@ var L = (function(){
     "<br>The one-time code is shown on screen in this prototype.";
 
   var code = null, next = hbeParam("next");
+
+  /* prototype: both tabs arrive filled in */
+  setTimeout(function(){
+    if(sample) g("sEmail").value = sample.email;
+    fill();
+    g("paneS").insertAdjacentHTML("afterbegin", '<div class="demo-fill">' + ico("info") + '<span><b>Demo:</b> a demo student is filled in. Send the code; it is filled in for you.</span></div>');
+    g("paneA").insertAdjacentHTML("afterbegin", '<div class="demo-fill">' + ico("info") + '<span><b>Demo:</b> placement-cell login is filled in.</span></div>');
+  }, 0);
   if(hbeParam("as") === "admin") setTimeout(function(){ tab("admin"); }, 0);
 
   function g(i){ return document.getElementById(i); }
@@ -173,6 +181,7 @@ var L = (function(){
     g("sSend").textContent = "Code sent";
     g("sCode").focus();
     hbeToast("Sign-in code for <b>"+hbeEsc(e)+"</b><br><b>"+code+"</b>", "mail", 12000);
+    g("sCode").value = code;                                /* prototype: code prefilled */
   }
 
   function studentIn(){

@@ -108,6 +108,11 @@ main > *:nth-child(n+6){animation-delay:.25s}
   .pband-av{background:var(--line-2);color:var(--brand);border-color:var(--line)} }
 @media(max-width:640px){ .pband{padding:24px 0 70px} }
 
+/* prototype: forms arrive prefilled so a demo takes one click per step */
+.demo-fill{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:9px 12px;border-radius:10px;
+  background:#fff7e0;border:1px solid #f3dc9c;color:#7a5600;font-size:12.5px;line-height:1.4}
+.demo-fill svg{width:15px;height:15px;flex:none}
+
 /* ---------------- cards, panels, sections ---------------- */
 .card,.panel{box-shadow:var(--sh-soft);transition:box-shadow .24s var(--ease),border-color .24s}
 .card:hover,.panel:hover{box-shadow:var(--sh-lift)}
