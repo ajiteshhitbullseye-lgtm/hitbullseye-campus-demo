@@ -354,6 +354,18 @@ Every number in a report comes from fields in the nine indexes
 The question text in test.html exists only because that page plays the test
 engine; the report never reads it.
 
+QUICK PRACTICE: ONE MCQ OR ONE CODING QUESTION
+----------------------------------------------
+Dashboard -> "Quick practice": 4 single-MCQ sets and 3 single-coding sets.
+  - Coding answers are written in JavaScript and graded for real: the code
+    runs in a Web Worker against hidden tests (3-second limit); marks = share
+    of tests passed (partial credit), isCorrect only when all pass.
+  - Each set gets a question report: the result in context, how many of 100
+    students solve it, which options students picked (MCQ) or how everyone
+    scored (coding), whether taking more time helped, the student's record
+    in that sub-topic, the same question before, and 14 days of practice.
+  - These sets stay out of the progress trend.
+
 WHERE THE DATA COMES FROM
 -------------------------
   live attempts in this browser   localStorage hbe_attempts_v1

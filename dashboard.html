@@ -60,6 +60,17 @@
     <div class="tcards" id="practice"></div>
   </section>
 
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div>
+        <h2>Quick practice</h2>
+        <p class="sm mut">One question at a time: an MCQ in 3 minutes or a coding problem in 20. Each gets its own report.</p>
+      </div>
+      <span class="badge brand" id="qpCount"></span>
+    </div>
+    <div class="tcards" id="quick"></div>
+  </section>
+
   <section class="card mt-l">
     <div class="sec-head"><h2>My registration details</h2>
       <p class="sm mut">Submitted through the campus registration form.</p></div>
@@ -212,6 +223,23 @@
       '<div class="foot">' + (done ? '<a class="btn btn-sm" href="report.html?test=' + p.testId + '">View report' + ico("arrow") + "</a>"
         : open ? '<a class="btn btn-sm" href="test.html?practice=' + p.testId + '">Start mock' + ico("arrow") + "</a>"
         : '<span class="xs mut">Opens after the previous mock</span>') + "</div></div>";
+  }).join("");
+
+  /* ---------------- quick practice: one MCQ or one coding question ---------------- */
+  var qDone = {};
+  rep.practice.forEach(function(t){ qDone[t.testId] = t; });
+  g("qpCount").textContent = HBX.QUICK.filter(function(p){ return qDone[p.testId]; }).length + " of " + HBX.QUICK.length + " done";
+  g("quick").innerHTML = HBX.QUICK.map(function(p){
+    var q = p.questions[0], done = qDone[p.testId];
+    var res = done ? (done.scorePct >= 1 ? ["ok", "Right"] : done.scorePct > 0 ? ["warn", Math.round(done.scorePct * 100) + "% marks"] : ["err", "Not yet"]) : null;
+    return '<div class="tcard"><div class="top"><h3>' + hbeEsc(p.testName.replace(/^Quick MCQ: |^Coding: /, "")) + "</h3>" +
+      '<span class="badge ' + (q.coding ? "brand" : "") + '">' + (q.coding ? "Coding" : "MCQ") + "</span></div>" +
+      '<div class="meta"><span class="chip">1 question</span><span class="chip">' + (q.coding ? "20 min" : "3 min") + '</span><span class="chip">' + hbeEsc(q.lod) + "</span></div>" +
+      '<div class="aud">' + ico("target") + "<span>" + hbeEsc(q.areaTitle + " \u203a " + q.subAreaName) + "</span></div>" +
+      (res ? '<div class="res"><div><b>' + res[1] + '</b><span>Last attempt</span></div><span class="badge ' + res[0] + '" style="margin-left:auto">' + (res[0] === "ok" ? "Done" : "Try again") + "</span></div>" : "") +
+      '<div class="foot">' + (done
+        ? '<a class="btn btn-sm" href="report.html?test=' + p.testId + '">View report' + ico("arrow") + '</a><a class="btn btn-ghost btn-sm" href="test.html?practice=' + p.testId + '">Try again</a>'
+        : '<a class="btn btn-sm" href="test.html?practice=' + p.testId + '">Start' + ico("arrow") + "</a>") + "</div></div>";
   }).join("");
 
   function stat(l,v,sub){

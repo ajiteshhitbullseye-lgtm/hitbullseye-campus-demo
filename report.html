@@ -87,7 +87,8 @@
       "</div>" +
     "</div></header>";
 
-  if(rep.mode === "empty"){
+  var practiceIds = rep.practice.map(function(t){ return t.testId; });
+  if(rep.mode === "empty" && !rep.practice.length){
     page.innerHTML = band + '<div class="wrap pband-stats"><div class="card center an-empty">' +
       '<div class="f-ico" style="margin:0 auto;background:var(--warn-bg);color:var(--warn)">' + ico("alert") + "</div>" +
       '<h2 style="margin-top:14px">No attempt yet</h2>' +
@@ -100,20 +101,26 @@
   /* ---- which view? ---- */
   var wanted = hbeParam("test"), view = hbeParam("view");
   var testIds = rep.tests.map(function(t){ return t.testId; });
-  var showProgress = rep.mode === "journey" && (view === "progress" || (!wanted && view !== "test"));
+  var microId = wanted && practiceIds.indexOf(wanted) > -1 ? wanted
+              : (!testIds.length ? practiceIds[practiceIds.length - 1] : null);   /* only quick practice so far */
+  var showProgress = !microId && rep.mode === "journey" && (view === "progress" || (!wanted && view !== "test"));
   var testId = wanted && testIds.indexOf(wanted) > -1 ? wanted : testIds[testIds.length - 1];
-  if(wanted && !showProgress) showProgress = false;
 
   /* ---- tabs: progress + every test (newest first) ---- */
   var tabs = '<nav class="an-tabs no-print" aria-label="Reports">' +
     (rep.mode === "journey" ? '<a class="an-tab' + (showProgress ? " on" : "") + '" href="' + href({ view:"progress" }) + '">' + ico("chart") + "Progress<span>" + rep.tests.length + " tests</span></a>" : "") +
     rep.tests.slice().reverse().map(function(t){
-      return '<a class="an-tab' + (!showProgress && t.testId === testId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
+      return '<a class="an-tab' + (!showProgress && !microId && t.testId === testId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
         hbeEsc(t.testName.replace(/—.*$/, "").trim()) + "<span>" + Math.round(t.scorePct * 100) + "%</span></a>";
-    }).join("") + "</nav>";
+    }).join("") + "</nav>" +
+    (rep.practice.length ? '<nav class="an-tabs an-tabs-q no-print" aria-label="Quick practice"><span class="an-tabs-l">Quick practice</span>' +
+      rep.practice.slice().reverse().map(function(t){
+        return '<a class="an-tab' + (t.testId === microId ? " on" : "") + '" href="' + href({ test:t.testId }) + '">' +
+          hbeEsc(t.testName.replace(/^Quick MCQ: |^Coding: /, "")) + "<span>" + (t.scorePct >= 1 ? "\u2713" : Math.round(t.scorePct * 100) + "%") + "</span></a>";
+      }).join("") + "</nav>" : "");
 
   /* a single real attempt: offer to simulate a practice journey to show the progress view */
-  var simOffer = (!isAdmin && rep.mode === "single" && !HBX.hasSimulatedJourney(st.id))
+  var simOffer = (!isAdmin && !microId && rep.mode === "single" && !HBX.hasSimulatedJourney(st.id))
     ? '<div class="an-sim no-print mt"><div class="grow"><b>One test so far.</b> <span class="sm mut">Your progress report appears after your second test. ' +
       'Want to preview it? We can simulate 5 practice mocks starting from your level.</span></div>' +
       '<button class="btn btn-sm" id="simj">' + ico("chart") + " Simulate my journey</button></div>"
@@ -125,7 +132,8 @@
     rank: function(tid, score){ return HBX.rankOf(tid, score); },   /* student_test_analytics_v2.totalScore */
     key: function(tid){ return HBX.answerKey(tid); }                 /* student_question_analytics: isCorrect + selectedAnswer */
   };
-  var v = showProgress ? HBR.progressView(ctx, rep.journey) : HBR.testView(ctx, HBA.buildTestReport(data, testId));
+  var v = microId ? HBR.questionView(ctx, HBA.buildMicroReport(data, microId))
+        : showProgress ? HBR.progressView(ctx, rep.journey) : HBR.testView(ctx, HBA.buildTestReport(data, testId));
 
   function paint(){
     page.innerHTML = band + '<div class="wrap pband-stats">' + tabs + simOffer + v.html + "</div>";
@@ -135,8 +143,8 @@
   }
 
   if(hbeParam("new")){
-    var w = HBX.world(), r = HBA.buildTestReport(data, testId);
-    var peers = (w.idx.student_test_analytics_v2.get(testId) || []).length;
+    var w = HBX.world(), r = microId ? HBA.buildMicroReport(data, microId) : HBA.buildTestReport(data, testId);
+    var peers = (w.idx.student_test_analytics_v2.get(microId || testId) || []).length;
     HBR.analysing({ questions: r ? r.questions.length : 0, rows: w.rows.length, students: w.idx.student_analytics_v2.size, peers: peers }, function(){
       paint();
       hbeToast("Your report is ready. Well done on completing the test!", "check", 6000);

@@ -23,7 +23,7 @@
 .an-tab span{font-size:12px;opacity:.75;font-weight:600}
 .an-tab svg{width:15px;height:15px}
 @media(max-width:700px){
-  .an-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;margin-right:-24px;padding-right:24px;scrollbar-width:none}
+  .an-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;max-width:100%}
   .an-tab{flex:none}
 }
 
@@ -332,3 +332,50 @@ svg [tabindex]:focus-visible{outline:2px solid var(--brand)}
 .an-say p b{color:#0a1523}
 .an-tldr span{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .an-q .tagl{margin-top:8px}
+
+
+/* =====================================================================
+   QUESTION REPORT (one-question practice)
+   ===================================================================== */
+.an-tabs-q{margin-top:-6px}
+.an-tabs-l{align-self:center;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.an-kind{display:inline-flex;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:#eaf1fc;color:#2563c9}
+.an-kind.lt{background:var(--line-2);color:var(--muted)}
+.an-out.ok b{color:var(--ok);-webkit-text-fill-color:var(--ok)} .an-out.err b{color:var(--err);-webkit-text-fill-color:var(--err)}
+.an-out.warn b{color:var(--warn);-webkit-text-fill-color:var(--warn)}
+.an-out b svg{width:46px;height:46px;stroke-width:2.6}
+.an-qhead{margin-top:30px;font-size:22px}
+.an-sep{height:1px;background:var(--line);margin:40px 0 10px}
+
+.an-diff{display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center}
+@media(max-width:640px){ .an-diff{grid-template-columns:1fr} }
+.an-dots{display:grid;grid-template-columns:repeat(10,16px);gap:5px}
+.an-dots i{width:16px;height:16px;border-radius:50%;background:#e3e9f2}
+.an-dots i.on{background:radial-gradient(circle at 35% 30%,#4ade80,#10a36b)}
+.an-diff-n{font-family:'Plus Jakarta Sans';font-weight:800;font-size:44px;line-height:1;color:var(--ink);letter-spacing:-.03em}
+.an-diff-n small{font-size:16px;color:var(--muted);font-weight:700}
+.an-diff p{margin-top:8px;font-size:14px}
+
+.an-opts{display:grid;gap:10px}
+.an-opt{display:grid;grid-template-columns:150px 1fr 54px;gap:12px;align-items:center}
+.an-opt .l{font-weight:700;color:var(--ink);font-size:14px}
+.an-opt .b{height:26px;border-radius:8px;background:#edf2fa;overflow:hidden}
+.an-opt .b i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#cbd5e1,#94a3b8)}
+.an-opt.right .b i{background:linear-gradient(90deg,#4ade80,#10a36b)}
+.an-opt.yours:not(.right) .b i{background:linear-gradient(90deg,#fb8a7e,#e0453a)}
+.an-opt.yours .b{box-shadow:0 0 0 2px #2563eb}
+.an-opt > b{text-align:right;color:var(--ink);font-size:14px}
+.an-opt .tg{font-style:normal;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:99px;margin-left:4px}
+.an-opt .tg.ok{background:var(--ok-bg);color:var(--ok)} .an-opt .tg.you{background:#eaf1fc;color:#2563c9}
+@media(max-width:560px){ .an-opt{grid-template-columns:1fr 54px} .an-opt .b{grid-column:1/-1;grid-row:2} }
+
+.an-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.an-chipr{width:32px;height:32px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+.an-chipr.correct{background:var(--ok-bg);color:var(--ok)} .an-chipr.wrong{background:var(--err-bg);color:var(--err)} .an-chipr.skipped{background:var(--line-2);color:var(--muted)}
+
+.an-cal{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:6px}
+.an-day2{aspect-ratio:1;border-radius:8px;background:#edf2fa;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px}
+.an-day2 span{font-size:10px;color:var(--muted);font-weight:700}
+.an-day2.l1{background:#cfe0fb} .an-day2.l2{background:#93b8f3} .an-day2.l3{background:#4f86e6} .an-day2.l4{background:#1d4ed8}
+.an-day2.l3 span,.an-day2.l4 span{color:#fff}
+.an-diff ~ * .to, .an-card .an-target .to{color:var(--ink)}
