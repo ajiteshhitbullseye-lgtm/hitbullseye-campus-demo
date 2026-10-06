@@ -298,3 +298,79 @@ css/app.css     one stylesheet; campus colours are CSS variables set at runtime
 js/config.js    default configuration for all campuses (field schema documented on top)
 js/store.js     storage, session, roster/gate, dependent-field helpers, scoring, UI
 assets/         official logos + campus photos
+
+PERFORMANCE ANALYTICS (added)
+=============================
+
+WHAT IT DOES
+------------
+Every answer is recorded the way the real test engine stores it (one row per
+student per question, the Elasticsearch `student_question_analytics` shape:
+time taken, option chosen, first viewed, topic, sub-topic, difficulty...).
+From those rows the report engine works out what happened, why, and what to
+do next, for one test and across many tests.
+
+HOW TO DEMO IT (5 minutes)
+--------------------------
+1  Sign in as a seeded student (e.g. aarav.mehta@chitkara.edu.in) -> dashboard.
+   "My progress" shows the trend; "Placement Practice Series" lists 6 mocks.
+2  Open "Full progress report": trend, section trends, topic heatmap, habits,
+   action plan and a tickable 7-day plan.
+3  Open any test tab: score ring, percentile, campus rank, "within reach"
+   score, insights, potential-score waterfall, next-test targets, answer
+   behaviour mix, section vs average vs top 10%, speed x accuracy quadrant,
+   pacing curve, first vs second half, distribution, topic map, difficulty,
+   question strip and a review of every question (option chosen vs right option).
+4  Take a test yourself (Start assessment / Start mock). Your time on every
+   question is recorded. Submit -> "Analysing your attempt" -> your report.
+5  New student with one test: "Simulate my journey" adds 5 practice mocks from
+   their level to preview the progress report (clearly labelled, removable).
+6  Placement cell: Insights tab -> teaching priorities by topic, item analysis
+   for every question (solve rate, discrimination, most-picked wrong option,
+   flags), and the registered students who need a nudge, with the reason.
+7  HQ: Engine tab -> the nine indexes with live document counts and sample
+   documents, the data flow, "Rebuild aggregates", sample rows for developers.
+
+ONLY THE NINE ELASTICSEARCH INDEXES
+-----------------------------------
+Every number in a report comes from fields in the nine indexes
+(student_question_analytics and the eight *_v2 aggregates). Nothing else:
+  - no question text or answer key (not in any index) - the review shows the
+    question number, topic, level and option letters; the right option is the
+    one picked by students whose answer was correct (isCorrect + selectedAnswer)
+  - rank and percentile come from student_test_analytics_v2.totalScore
+  - section averages / top 10% come from student_test_analytics_v2.sectionStats
+  - "usual time" and "most students get it right" come from
+    test_question_analytics_v2 (avgTime, correct, views)
+The question text in test.html exists only because that page plays the test
+engine; the report never reads it.
+
+WHERE THE DATA COMES FROM
+-------------------------
+  live attempts in this browser   localStorage hbe_attempts_v1
+  the 25 seeded students          simulated rows (fixed, same on every load)
+  a cohort of peers per paper     simulated rows (fixed): 120 per campus paper,
+                                  ~150 per practice mock
+All of it goes through the same aggregation the platform runs to build the
+*_v2 indexes, and then the same report engine. Simulated data is marked as
+such wherever it could be mistaken for a real person.
+
+FILES
+-----
+  js/hb-engine.js     the report engine - GENERATED from the hitbullseye-reports
+                      project (npm run build:campus). Do not edit by hand.
+  js/hb-analytics.js  item bank (tagged questions), papers, simulation, the
+                      bridge between this site's storage and the engine
+  js/hb-charts.js     SVG charts (no library): distribution, waterfall,
+                      quadrant, pacing, question strip, trends, bars
+  js/hb-report.js     the report page (test view + progress view)
+  css/analytics.css   report and chart styles
+  admin-insights.html placement-cell deep insights
+  admin-engine.html   HQ pipeline view
+
+FOR THE DEVELOPER
+-----------------
+In production the test engine and Elasticsearch replace HBX.world(); the
+engine (HBA.buildStudentReport) is used unchanged. The service that fetches
+from the API and embeds the report in the student dashboard is the
+hitbullseye-reports project (docs/INTEGRATION.md there has the API contract).

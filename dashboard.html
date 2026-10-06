@@ -7,6 +7,7 @@
 <title>My Dashboard · Hitbullseye</title>
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/polish.css">
+<link rel="stylesheet" href="css/analytics.css">
 </head>
 <body>
 
@@ -46,6 +47,19 @@
     <div class="tcards" id="tests"></div>
   </section>
 
+  <section class="mt-l" id="progressSec"></section>
+
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div>
+        <h2>Placement Practice Series</h2>
+        <p class="sm mut">Six full-length practice mocks. Each one adds to your progress report.</p>
+      </div>
+      <span class="badge brand" id="pmCount"></span>
+    </div>
+    <div class="tcards" id="practice"></div>
+  </section>
+
   <section class="card mt-l">
     <div class="sec-head"><h2>My registration details</h2>
       <p class="sm mut">Submitted through the campus registration form.</p></div>
@@ -62,6 +76,9 @@
 
 <script src="js/config.js"></script>
 <script src="js/store.js"></script>
+<script src="js/hb-engine.js"></script>
+<script src="js/hb-analytics.js"></script>
+<script src="js/hb-charts.js"></script>
 <script>
 (function(){
   var s = hbeSession();
@@ -152,6 +169,50 @@
     rows += '<div class="f"><label>'+hbeEsc(d.label)+'</label><input type="text" value="'+hbeEsc(d.value)+'" readonly></div>';
   });
   g("profile").innerHTML = rows;
+
+  /* ---------------- progress snapshot + practice series (analytics layer) ---------------- */
+  var data = HBX.dataFor(st.id);
+  var rep  = HBA.buildStudentReport(data);
+  var F = HBA.format;
+  if(rep.mode === "journey"){
+    var j = rep.journey, tests = j.tests, last = tests[tests.length-1];
+    var top = j.insights[0], act = j.actions[0];
+    g("progressSec").innerHTML =
+      '<div class="row-b" style="margin-bottom:18px"><div><h2>My progress</h2><p class="sm mut">Across ' + tests.length + ' tests, from your answers to every question.</p></div>' +
+      '<a class="btn btn-sm" href="report.html?view=progress">Full progress report' + ico("arrow") + "</a></div>" +
+      '<div class="an-grid an-12"><div class="an-card"><div class="row-b"><div><h3>Percentile, test by test</h3><div class="sub">Latest: ' + hbeEsc(last.testName) + "</div></div>" +
+      '<div class="an-tile" style="min-width:120px"><div class="l">Latest</div><div class="v">' + (last.percentile != null ? F.ordinal(last.percentile) : "—") + "</div></div></div>" +
+      '<div class="an-chart" id="dashTrend"></div></div>' +
+      '<div class="an-grid">' +
+        (top ? '<div class="an-ins ' + top.tone + '"><span class="an-tone ' + top.tone + '">' + ico("chart") + 'Biggest signal</span><h4>' + hbeEsc(top.title) + "</h4><p>" + hbeEsc(top.detail) + "</p></div>" : "") +
+        (act ? '<div class="an-act"><div class="n">1</div><div class="grow"><span class="an-focus">Do this first</span><h4>' + hbeEsc(act.title) + '</h4><div class="why">' + hbeEsc(act.why) + "</div></div></div>" : "") +
+      "</div></div>";
+    HBC.mount(g("dashTrend"), HBC.trend(tests, function(t){ return t.percentile; }, { max:100, fmt:F.ordinal, label:"Percentile", height:170,
+      sub:function(t){ return F.date(t.takenAt, true); } }));
+  } else if(rep.mode === "single"){
+    g("progressSec").innerHTML = '<div class="an-sim"><div class="grow"><b>Your progress report starts after your second test.</b> ' +
+      '<span class="sm mut">Take a practice mock below, or open your report to preview it with a simulated journey.</span></div>' +
+      '<a class="btn btn-sm" href="report.html">Open my report' + ico("arrow") + "</a></div>";
+  }
+
+  var doneIds = {};
+  data.attempts.forEach(function(x){ doneIds[x.testId] = 1; });
+  var nextOpen = HBX.PRACTICE.filter(function(p){ return !doneIds[p.testId]; })[0];
+  g("pmCount").textContent = HBX.PRACTICE.filter(function(p){ return doneIds[p.testId]; }).length + " of " + HBX.PRACTICE.length + " done";
+  g("practice").innerHTML = HBX.PRACTICE.map(function(p){
+    var done = doneIds[p.testId], r = done ? rep.tests.filter(function(t){ return t.testId === p.testId; })[0] : null;
+    var open = nextOpen && nextOpen.testId === p.testId;
+    var secs = [];
+    p.questions.forEach(function(q){ if(secs.indexOf(q.sectionName) < 0) secs.push(q.sectionName); });
+    return '<div class="tcard"><div class="top"><h3>' + hbeEsc(p.testName) + '</h3><span class="badge ' + (done ? "ok" : open ? "brand" : "") + '">' +
+      (done ? "Done" : open ? "Next up" : "Locked") + "</span></div>" +
+      '<div class="meta"><span class="chip">' + p.questions.length + ' questions</span><span class="chip">' + Math.ceil(p.questions.length * 1.5) + " min</span></div>" +
+      '<div class="aud">' + ico("clock") + "<span>" + secs.join(", ") + "</span></div>" +
+      (r ? '<div class="res"><div><b>' + Math.round(r.scorePct * 100) + '%</b><span>Score</span></div></div>' : "") +
+      '<div class="foot">' + (done ? '<a class="btn btn-sm" href="report.html?test=' + p.testId + '">View report' + ico("arrow") + "</a>"
+        : open ? '<a class="btn btn-sm" href="test.html?practice=' + p.testId + '">Start mock' + ico("arrow") + "</a>"
+        : '<span class="xs mut">Opens after the previous mock</span>') + "</div></div>";
+  }).join("");
 
   function stat(l,v,sub){
     return '<div class="stat"><div class="lbl">'+l+'</div><div class="val">'+v+'</div><div class="sub">'+hbeEsc(sub)+"</div></div>";
