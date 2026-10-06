@@ -27,7 +27,11 @@ var HBR = (function(){
       (sub ? "<p>" + sub + "</p>" : "") + "</div>" + (aside || "") + "</div>";
   }
   function sec(kicker, title, sub, body, aside){ return '<section class="an-sec">' + head(kicker, title, sub, aside) + body + "</section>"; }
-  function tile(l, v, s){ return '<div class="an-tile"><div class="l">' + l + '</div><div class="v">' + v + "</div>" + (s ? '<div class="s">' + s + "</div>" : "") + "</div>"; }
+  /* a number tile; optional icon and hue (violet, blue, green, red, amber, teal, rose, indigo) */
+  function tile(l, v, s, icon, hue){
+    return '<div class="an-tile' + (hue ? " h-" + hue : "") + '">' + (icon ? '<i class="ti">' + ico(icon) + "</i>" : "") +
+      '<div class="l">' + l + '</div><div class="v">' + v + "</div>" + (s ? '<div class="s">' + s + "</div>" : "") + "</div>";
+  }
   function edge(e){
     if(e == null) return '<span class="edge flat">—</span>';
     var cls = e >= 0.05 ? "up" : e <= -0.05 ? "down" : "flat";
@@ -47,14 +51,14 @@ var HBR = (function(){
     return '<div class="an-grid an-2">' + list.map(function(i, k){
       var t = TONE[i.tone];
       return '<div class="an-ins ' + i.tone + '"' + (k === 0 && list.length % 2 ? ' style="grid-column:1/-1"' : "") + '>' +
-        '<span class="an-tone ' + i.tone + '">' + ico(t[0]) + t[1] + "</span><h4>" + esc(i.title) + "</h4><p>" + esc(i.detail) + "</p></div>";
+        '<i class="ii">' + ico(t[0]) + '</i><div><span class="an-tone ' + i.tone + '">' + t[1] + "</span><h4>" + esc(i.title) + "</h4><p>" + esc(i.detail) + "</p></div></div>";
     }).join("") + "</div>";
   }
 
   function actions(list, perTest){
     if(!list.length) return '<div class="an-card mut">No clear gaps in this data. Keep taking full tests to build a trend.</div>';
     return '<div class="an-grid an-2">' + list.map(function(a, k){
-      return '<div class="an-act"><div class="n">' + (k + 1) + '</div><div class="grow">' +
+      return '<div class="an-act f-' + a.focus + '"><div class="n">' + (k + 1) + '</div><div class="grow">' +
         '<div class="row" style="gap:8px;flex-wrap:wrap"><span class="an-focus">' + esc(FOCUS[a.focus]) + "</span>" +
         (a.gain ? '<span class="an-gain">up to +' + F.num(a.gain, 1) + " mark" + (a.gain === 1 ? "" : "s") + (perTest ? " a test" : "") + "</span>" : "") + "</div>" +
         "<h4>" + esc(a.title) + '</h4><div class="why">' + esc(a.why) + "</div><ul>" +
@@ -272,19 +276,19 @@ var HBR = (function(){
       (gain > 0 ? " With fewer easy mistakes it could have been " + B(F.num(d.potential.potential)) + "." : "");
 
     var hero =
-      '<section class="an-card rise"><div class="an-hero">' +
+      '<section class="an-card an-herocard rise"><div class="an-hero">' +
         '<div class="an-ring">' + HBC.ring(r.scorePct) + '<div class="in"><b>' + Math.round(r.scorePct * 100) + '%</b><span>Your score</span><small>' +
           F.num(t.score) + " of " + F.num(t.maxScore) + " marks</small></div></div>" +
         "<div>" +
           '<h2 style="font-size:22px">' + esc(r.testName) + '</h2><p class="sm mut">Taken on ' + esc(F.dateTime(r.takenAt)) + " · " + dur(t.time) + " in all · " + t.total + " questions</p>" +
           '<p class="an-verdict-line">' + verdict + "</p>" +
           '<div class="an-tiles mt-s">' +
-            tile("National percentile", r.percentile != null ? Math.round(r.percentile) + "<small>%</small>" : "—", r.percentile != null ? "Better than " + Math.round(r.percentile) + " of 100 students" : "Not enough students yet") +
-            tile("National rank", rank ? rank.rank + "<small> of " + rank.of + "</small>" : "—", rank ? "Everyone who took this test" : "") +
-            tile("Right · wrong · blank", t.correct + '<small> · </small><span style="color:var(--err)">' + t.wrong + '</span><small> · </small><span style="color:var(--muted)">' + t.skipped + "</span>", pct(t.accuracy) + " of your answers were right") +
-            tile("Negative marks", r.patterns.negative ? "−" + F.num(r.patterns.negative, 1) : "0", r.patterns.negative ? "Marks lost to wrong answers" : "No marks lost to wrong answers") +
-            tile("Time per question", dur(r.avgTimePerQ), d.usualTimePerQ ? "Others took " + dur(d.usualTimePerQ) : "") +
-            tile("Could have scored", F.num(d.potential.potential) + "<small> of " + F.num(t.maxScore) + "</small>", gain > 0 ? "+" + F.num(gain) + " by fixing easy mistakes" : "No easy marks lost") +
+            tile("National percentile", r.percentile != null ? Math.round(r.percentile) + "<small>%</small>" : "—", r.percentile != null ? "Better than " + Math.round(r.percentile) + " of 100 students" : "Not enough students yet", "target", "violet") +
+            tile("National rank", rank ? rank.rank + "<small> of " + rank.of + "</small>" : "—", rank ? "Everyone who took this test" : "", "chart", "blue") +
+            tile("Right · wrong · blank", t.correct + '<small> · </small><span class="c-bad">' + t.wrong + '</span><small> · </small><span class="c-mut">' + t.skipped + "</span>", pct(t.accuracy) + " of your answers were right", "check", "green") +
+            tile("Negative marks", r.patterns.negative ? "−" + F.num(r.patterns.negative, 1) : "0", r.patterns.negative ? "Marks lost to wrong answers" : "No marks lost to wrong answers", "alert", "red") +
+            tile("Time per question", dur(r.avgTimePerQ), d.usualTimePerQ ? "Others took " + dur(d.usualTimePerQ) : "", "clock", "amber") +
+            tile("Could have scored", F.num(d.potential.potential) + "<small> of " + F.num(t.maxScore) + "</small>", gain > 0 ? "+" + F.num(gain) + " by fixing easy mistakes" : "No easy marks lost", "rocket", "teal") +
           "</div></div></div>" +
         '<div class="an-tldr">' +
           (best ? '<div><i style="background:var(--ok-bg);color:var(--ok)">' + ico("medal") + "</i><div><span>What went well</span><b>" + esc(best.title) + "</b></div></div>" : "") +
@@ -390,10 +394,10 @@ var HBR = (function(){
 
     /* ===== COMPARE ===== */
     P.compare = '<div class="an-tiles an-tiles-4 mt">' +
-        tile("National percentile", r.percentile != null ? Math.round(r.percentile) + "<small>%</small>" : "—", rank ? "Rank " + rank.rank + " of " + rank.of : "") +
-        tile("Average student", avg != null ? F.num(avg, 1) + "<small> marks</small>" : "—", avg != null ? "You: " + F.signed(t.score - avg, 1) + " marks" : "") +
-        tile("Top 10% benchmark", stO.benchmark != null ? F.num(stO.benchmark, 1) + "<small> marks</small>" : "—", stO.benchmark != null ? (t.score >= stO.benchmark ? "You are in the top 10%" : F.num(stO.benchmark - t.score, 1) + " marks away") : "") +
-        tile("Topper", stO.topScore != null ? F.num(stO.topScore, 1) + "<small> marks</small>" : "—", stO.topScore != null ? F.num(stO.topScore - t.score, 1) + " marks above you" : "") +
+        tile("National percentile", r.percentile != null ? Math.round(r.percentile) + "<small>%</small>" : "—", rank ? "Rank " + rank.rank + " of " + rank.of : "", "target", "violet") +
+        tile("Average student", avg != null ? F.num(avg, 1) + "<small> marks</small>" : "—", avg != null ? "You: " + F.signed(t.score - avg, 1) + " marks" : "", "users", "blue") +
+        tile("Top 10% benchmark", stO.benchmark != null ? F.num(stO.benchmark, 1) + "<small> marks</small>" : "—", stO.benchmark != null ? (t.score >= stO.benchmark ? "You are in the top 10%" : F.num(stO.benchmark - t.score, 1) + " marks away") : "", "rocket", "teal") +
+        tile("Topper", stO.topScore != null ? F.num(stO.topScore, 1) + "<small> marks</small>" : "—", stO.topScore != null ? F.num(stO.topScore - t.score, 1) + " marks above you" : "", "medal", "amber") +
       "</div>";
     if(r.distribution){
       P.compare += sec("Compare", "How do I compare with others?", "Each bar is how many students got that score. Your bar is blue.",
@@ -489,7 +493,7 @@ var HBR = (function(){
 
     var html = (simulated ? '<div class="an-sim no-print"><div class="grow"><b>Includes 5 simulated practice mocks.</b> <span class="sm mut">Generated from your real attempt to show how the progress report works. Remove them any time.</span></div>' +
       '<button class="btn btn-ghost btn-sm" id="unsim">Remove simulated mocks</button></div>' : "") +
-      '<section class="an-card rise' + (simulated ? " mt-s" : "") + '"><div class="an-hero">' +
+      '<section class="an-card an-herocard rise' + (simulated ? " mt-s" : "") + '"><div class="an-hero">' +
         '<div class="an-ring">' + HBC.ring(usePct ? latest.percentile / 100 : latest.scorePct) + '<div class="in"><b>' + (usePct ? Math.round(latest.percentile) + "%" : pct(latest.scorePct)) +
           "</b><span>" + (usePct ? "Better than" : "Score") + '</span><small class="an-delta ' + (change >= 3 ? "up" : change <= -3 ? "down" : "flat") + '">' + F.signed(Math.round(change)) + " since test 1</small></div></div>" +
         '<div><h2 style="font-size:22px">Your progress across ' + tests.length + " tests</h2>" +
@@ -498,12 +502,12 @@ var HBR = (function(){
             (change >= 3 ? "up <b>" + Math.round(change) + "</b> since your first test." : change <= -3 ? "down <b>" + Math.round(-change) + "</b> since your first test." : "about the same as your first test.")
             : "Your latest score is <b>" + pct(latest.scorePct) + "</b>.") + "</p>" +
           '<div class="an-tiles mt-s">' +
-            tile("Tests taken", tests.length, "latest " + F.date(latest.takenAt)) +
-            tile("Questions attempted", F.num(j.questionsAttempted)) +
-            tile("Time in tests", F.num(j.hoursSpent, 1) + "<small> h</small>") +
-            tile("Right answers, last " + j.recent.tests + " tests", pct(j.recent.totals.accuracy), j.recent.totals.edge != null ? F.signed(Math.round(j.recent.totals.edge * 100)) + " points vs other students" : "") +
-            tile("Best result", j.trends.percentile.best != null ? "Better than " + Math.round(j.trends.percentile.best) + "<small>%</small>" : "—", "of students, in one test") +
-            tile("Change per test", j.trends.scorePct.slope != null ? F.signed(Math.round(j.trends.scorePct.slope * 1000) / 10, 1) + "<small>% score</small>" : "—", "average change in score from one test to the next") +
+            tile("Tests taken", tests.length, "latest " + F.date(latest.takenAt), "file", "blue") +
+            tile("Questions attempted", F.num(j.questionsAttempted), "list", "violet") +
+            tile("Time in tests", F.num(j.hoursSpent, 1) + "<small> h</small>", "clock", "amber") +
+            tile("Right answers, last " + j.recent.tests + " tests", pct(j.recent.totals.accuracy), j.recent.totals.edge != null ? F.signed(Math.round(j.recent.totals.edge * 100)) + " points vs other students" : "", "check", "green") +
+            tile("Best result", j.trends.percentile.best != null ? "Better than " + Math.round(j.trends.percentile.best) + "<small>%</small>" : "—", "of students, in one test", "medal", "rose") +
+            tile("Change per test", j.trends.scorePct.slope != null ? F.signed(Math.round(j.trends.scorePct.slope * 1000) / 10, 1) + "<small>% score</small>" : "—", "average change in score from one test to the next", "up", "teal") +
           "</div></div></div></section>";
 
     var P = {}, M = { summary: [], sections: [], topics: [], habits: [], plan: [], tests: [] };
@@ -646,7 +650,7 @@ var HBR = (function(){
     var head = r.insights[0];
     var kindChip = '<span class="an-kind">' + (r.kind === "coding" ? "Coding" : r.kind === "mcq" ? "MCQ" : "Question") + "</span>";
     var html = (many ? '<h2 class="an-qhead">Question ' + q.qno + "</h2>" : "") +
-      '<section class="an-card rise"><div class="an-hero">' +
+      '<section class="an-card an-herocard rise"><div class="an-hero">' +
         '<div class="an-ring an-out ' + o.cls + '">' + HBC.ring(r.outcome === "skipped" ? 0 : r.scoreShare) +
           '<div class="in"><b>' + (r.kind === "mcq" ? ico(o.icon) : Math.round(r.scoreShare * 100) + "%") + "</b><span>" + esc(o.label) + "</span>" +
           '<small>' + F.num(q.score, 1) + " of " + F.num(q.marks) + (q.marks === 1 ? " mark" : " marks") + "</small></div></div>" +
@@ -785,7 +789,7 @@ var HBR = (function(){
     (useSub ? ov.subAreas : ov.areas).forEach(function(r){ if(lists[r.status]) lists[r.status].push(r); });
 
     var html =
-      '<section class="an-card rise"><div class="row-b"><div><h2 style="font-size:22px">Your test analytics</h2>' +
+      '<section class="an-card an-herocard rise"><div class="row-b"><div><h2 style="font-size:22px">Your test analytics</h2>' +
         '<p class="sm mut">Everything you have attempted so far: ' + totalTaken + " test" + (totalTaken === 1 ? "" : "s") + ", " +
         F.num(ov.subAreas.reduce(function(a, r){ return a + r.attempted; }, 0)) + " questions answered.</p></div></div>" +
         '<div class="an-gauges">' +
@@ -802,7 +806,7 @@ var HBR = (function(){
       '<div class="an-grid an-3">' + keys.map(function(k){
         var g = groups.filter(function(x){ return x.name === k; })[0] || { taken: 0, avgPercentile: null, medianPercentile: null, accuracy: null };
         var notTaken = Math.max(0, ctx.catalogue[k] - g.taken);
-        return '<div class="an-card an-type"><div class="an-type-h"><b>' + esc(GROUP_LABEL[k] || k) + '</b><span>Taken <b>' + g.taken + "</b> · Not taken <b>" + notTaken + "</b></span></div>" +
+        return '<div class="an-card an-type t' + (keys.indexOf(k) % 3) + '"><div class="an-type-h"><b>' + esc(GROUP_LABEL[k] || k) + '</b><span>Taken <b>' + g.taken + "</b> · Not taken <b>" + notTaken + "</b></span></div>" +
           '<div class="an-type-g">' + HBC.gauge(g.avgPercentile, { width: 200, big: 20, label: "Average percentile", fmt: function(v){ return Math.round(v) + "%"; } }) + "</div>" +
           '<div class="an-type-s"><div><span>Average %ile</span><b>' + (g.avgPercentile != null ? Math.round(g.avgPercentile) + "%" : "—") + "</b></div>" +
           "<div><span>Median %ile</span><b>" + (g.medianPercentile != null ? Math.round(g.medianPercentile) + "%" : "—") + "</b></div>" +

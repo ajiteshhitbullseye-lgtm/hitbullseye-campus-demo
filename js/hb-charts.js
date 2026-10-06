@@ -605,6 +605,8 @@ var HBC = (function(){
 
   /* ---------------- 15. section bars: you vs average (grey tick) and top 10% (dark tick) ----------------
      list: [{sectionId, name, you, avg, top}] (0–1); standings: [{id, percentile}] for the %ile pill. */
+  /* one hue per section (identity, fixed order) */
+  var SB = [["#60a5fa", "#2563eb"], ["#fdba74", "#ea580c"], ["#5eead4", "#0d9488"], ["#c4b5fd", "#7c3aed"], ["#f9a8d4", "#db2777"], ["#fcd34d", "#d97706"]];
   function sectionBars(list, standings){
     return function(W){
       var id = "sb" + (++uid);
@@ -623,7 +625,9 @@ var HBC = (function(){
         var nm = it.name.length > room ? it.name.slice(0, room - 1) + "…" : it.name;
         s += narrow ? txt(p.l, y - 6, nm, { size: 12, weight: 600, fill: C.ink }) : txt(p.l - 10, y + 12, nm, { anchor: "end", size: 12, weight: 600, fill: C.ink });
         s += '<rect x="' + p.l + '" y="' + y + '" width="' + iw + '" height="' + h + '" rx="8" fill="#edf2fa"/>';
-        s += '<rect class="an-mark grow-x" style="animation-delay:' + (i * 80) + 'ms" x="' + p.l + '" y="' + y + '" width="' + Math.max(4, x(it.you) - p.l) + '" height="' + h + '" rx="8" fill="url(#' + id + ')"/>';
+        var hue = SB[i % SB.length];
+        s += '<rect class="an-mark grow-x" style="animation-delay:' + (i * 80) + 'ms" x="' + p.l + '" y="' + y + '" width="' + Math.max(4, x(it.you) - p.l) + '" height="' + h + '" rx="8" fill="url(#' + id + i + ')"/>';
+        defs += '<linearGradient id="' + id + i + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="' + hue[0] + '"/><stop offset="1" stop-color="' + hue[1] + '"/></linearGradient>';
         if(it.avg != null) s += '<rect x="' + (x(it.avg) - 2) + '" y="' + (y - 4) + '" width="4" height="' + (h + 8) + '" rx="2" fill="#64748b" stroke="#fff" stroke-width="1.5"/>';
         if(it.top != null) s += '<rect x="' + (x(it.top) - 2) + '" y="' + (y - 4) + '" width="4" height="' + (h + 8) + '" rx="2" fill="' + C.ink + '" stroke="#fff" stroke-width="1.5"/>';
         s += txt(W - p.r + 8, y + 12, Math.round(it.you * 100) + "%", { size: 12.5, weight: 800, fill: C.ink });
