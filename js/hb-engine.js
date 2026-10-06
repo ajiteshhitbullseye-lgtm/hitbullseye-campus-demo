@@ -23,8 +23,11 @@ var HBA = (() => {
   var engine_exports = {};
   __export(engine_exports, {
     BEHAVIOUR: () => BEHAVIOUR,
+    MICRO_MAX: () => MICRO_MAX,
     RULES: () => RULES,
     ZONES: () => ZONES,
+    buildMicroReport: () => buildMicroReport,
+    buildQuestionReport: () => buildQuestionReport,
     buildStudentReport: () => buildStudentReport,
     buildTestReport: () => buildTestReport,
     format: () => format_exports,
@@ -816,6 +819,289 @@ var HBA = (() => {
   }
   var MIN_ATTEMPTS = RULES.minAttempts;
 
+  // src/lib/analytics/question.ts
+  var MICRO_MAX = 3;
+  var DAY = 864e5;
+  var isoDay = (t) => new Date(t).toISOString().slice(0, 10);
+  function kindOf(type, marks) {
+    const t = (type != null ? type : "").toLowerCase();
+    if (/cod|program|prog/.test(t)) return "coding";
+    if (/mcq|choice|single|multiple/.test(t)) return "mcq";
+    return marks > 1 ? "other" : "mcq";
+  }
+  function bandsOf(times) {
+    if (times.length < 10) return [];
+    const sorted = times.map((x) => x.t).sort((a, b) => a - b);
+    const hi = sorted[Math.floor(sorted.length * 0.95)] || sorted[sorted.length - 1];
+    const step = hi <= 120 ? 15 : hi <= 300 ? 30 : hi <= 900 ? 120 : 300;
+    const n = Math.max(3, Math.min(10, Math.ceil(hi / step)));
+    const bands = Array.from({ length: n }, (_, i) => ({ from: i * step, to: (i + 1) * step, attempts: 0, right: 0 }));
+    for (const x of times) {
+      const b = bands[Math.min(n - 1, Math.floor(x.t / step))];
+      b.attempts++;
+      if (x.ok) b.right++;
+    }
+    return bands;
+  }
+  function buildQuestionReport(data, testId, questionId) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m;
+    const mine = data.attempts.find((a) => a.testId === testId && a.questionId === questionId);
+    if (!mine) return null;
+    const [q] = classifyQuestions([mine], data.questionBenchmarks.get(testId));
+    const peers = ((_b = (_a = data.peerRows) == null ? void 0 : _a.get(testId)) != null ? _b : []).filter((r) => r.questionId === questionId);
+    const kind = kindOf(mine.typeOfQues, mine.questionMarks);
+    const share = mine.questionMarks > 0 ? Math.max(0, Math.min(1, mine.score / mine.questionMarks)) : 0;
+    const outcome = !mine.isAttempted ? "skipped" : mine.isCorrect ? "right" : share > 0 ? "partial" : "wrong";
+    const seen = peers.length || ((_d = (_c = data.questionBenchmarks.get(testId)) == null ? void 0 : _c.find((b) => b.questionId === questionId)) == null ? void 0 : _d.views) || 0;
+    const solved = peers.length ? peers.filter((r) => r.isCorrect).length : q.cohortSolveRate !== null ? q.cohortSolveRate * seen : 0;
+    const solveRate = seen ? solved / seen : null;
+    const difficulty = solveRate !== null && seen >= 10 ? {
+      solveRate,
+      students: seen,
+      label: solveRate >= 0.7 ? "Most students get this right" : solveRate >= 0.45 ? "About half get it right" : solveRate >= 0.2 ? "Tough: most students miss it" : "Very tough: few students solve it",
+      attemptRate: peers.length ? peers.filter((r) => r.isAttempted).length / peers.length : null
+    } : null;
+    const att = peers.filter((r) => r.isAttempted && r.timeTaken > 0);
+    const rightTimes = att.filter((r) => r.isCorrect).map((r) => r.timeTaken);
+    const time = {
+      you: mine.timeTaken,
+      usual: q.cohortTime,
+      medianRight: rightTimes.length >= 5 ? median(rightTimes) : null,
+      fasterThan: att.length >= 10 && mine.isAttempted ? att.filter((r) => r.timeTaken > mine.timeTaken).length / att.length : null,
+      bands: bandsOf(att.map((r) => ({ t: r.timeTaken, ok: r.isCorrect })))
+    };
+    let options = null;
+    if (kind === "mcq" && att.length >= 10) {
+      const right = (_f = (_e = att.find((r) => r.isCorrect && r.selectedAnswer)) == null ? void 0 : _e.selectedAnswer) != null ? _f : null;
+      const counts = /* @__PURE__ */ new Map();
+      for (const r of att) if (r.selectedAnswer) counts.set(r.selectedAnswer, ((_g = counts.get(r.selectedAnswer)) != null ? _g : 0) + 1);
+      if (mine.selectedAnswer && !counts.has(mine.selectedAnswer)) counts.set(mine.selectedAnswer, 0);
+      options = [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([letter, count]) => ({ letter, count, share: count / att.length, isRight: letter === right, isYours: letter === mine.selectedAnswer }));
+    }
+    let marks = null;
+    if (kind !== "mcq" && att.length >= 10) {
+      const byScore = /* @__PURE__ */ new Map();
+      for (const r of att) {
+        const s = Math.round(Math.max(0, r.score) * 10) / 10;
+        byScore.set(s, ((_h = byScore.get(s)) != null ? _h : 0) + 1);
+      }
+      marks = {
+        bins: [...byScore].sort((a, b) => a[0] - b[0]).map(([score, count]) => ({ score, count })),
+        beat: mine.isAttempted ? att.filter((r) => r.score < mine.score).length / att.length : null,
+        full: att.filter((r) => r.isCorrect).length / att.length
+      };
+    }
+    const chrono = [...data.attempts].sort((a, b) => {
+      var _a2, _b2, _c2, _d2;
+      return ((_b2 = (_a2 = a.attemptedAt) != null ? _a2 : a.firstViewedAt) != null ? _b2 : "").localeCompare((_d2 = (_c2 = b.attemptedAt) != null ? _c2 : b.firstViewedAt) != null ? _d2 : "");
+    });
+    const inSub = chrono.filter((r) => r.subAreaId === mine.subAreaId && r.isAttempted);
+    const inArea = chrono.filter((r) => r.areaId === mine.areaId && r.isAttempted);
+    const othersOn = (rows) => {
+      const rates = rows.map((r) => {
+        var _a2;
+        return (_a2 = data.questionBenchmarks.get(r.testId)) == null ? void 0 : _a2.find((b) => b.questionId === r.questionId);
+      }).filter((b) => !!b && b.attempts >= 5 && b.accuracy !== null).map((b) => b.accuracy);
+      return rates.length ? rates.reduce((s, x) => s + x, 0) / rates.length : null;
+    };
+    const history = {
+      subAreaName: mine.subAreaName,
+      areaTitle: mine.areaTitle,
+      attempts: inSub.length,
+      correct: inSub.filter((r) => r.isCorrect).length,
+      accuracy: inSub.length ? inSub.filter((r) => r.isCorrect).length / inSub.length : null,
+      othersAccuracy: othersOn(inSub),
+      recent: inSub.slice(-10).map((r) => {
+        var _a2;
+        return { status: statusOf(r), at: (_a2 = r.attemptedAt) != null ? _a2 : r.firstViewedAt, testName: r.testName };
+      }),
+      areaAttempts: inArea.length,
+      areaAccuracy: inArea.length ? inArea.filter((r) => r.isCorrect).length / inArea.length : null
+    };
+    const before = chrono.filter((r) => {
+      var _a2, _b2;
+      return r.questionId === questionId && r.testId !== testId && ((_a2 = r.updatedAt) != null ? _a2 : "") < ((_b2 = mine.updatedAt) != null ? _b2 : "");
+    }).pop();
+    const previous = before ? { at: (_i = before.attemptedAt) != null ? _i : before.firstViewedAt, status: statusOf(before), time: before.timeTaken, testName: before.testName } : null;
+    const end = Math.max(
+      0,
+      ...data.attempts.map((r) => {
+        var _a2, _b2;
+        return Date.parse((_b2 = (_a2 = r.attemptedAt) != null ? _a2 : r.firstViewedAt) != null ? _b2 : "") || 0;
+      })
+    );
+    const perDay = /* @__PURE__ */ new Map();
+    for (const r of data.attempts) {
+      const t = Date.parse((_k = (_j = r.attemptedAt) != null ? _j : r.firstViewedAt) != null ? _k : "");
+      if (t && t <= end + DAY && t > end - 14 * DAY) perDay.set(isoDay(t), ((_l = perDay.get(isoDay(t))) != null ? _l : 0) + 1);
+    }
+    const activity = Array.from({ length: 14 }, (_, i) => {
+      var _a2;
+      const day = isoDay(end - (13 - i) * DAY);
+      return { day, questions: (_a2 = perDay.get(day)) != null ? _a2 : 0 };
+    });
+    const base = {
+      testId,
+      testName: mine.testName,
+      moduleName: mine.moduleName,
+      takenAt: (_m = mine.attemptedAt) != null ? _m : mine.firstViewedAt,
+      q,
+      kind,
+      outcome,
+      scoreShare: share,
+      difficulty,
+      time,
+      options,
+      marks,
+      history,
+      previous,
+      activity,
+      insights: [],
+      actions: []
+    };
+    base.insights = questionInsights(base);
+    base.actions = questionActions(base);
+    return base;
+  }
+  function bestBand(bands) {
+    var _a;
+    const ok = bands.filter((b) => b.attempts >= 5);
+    return (_a = ok.sort((a, b) => b.right / b.attempts - a.right / a.attempts)[0]) != null ? _a : null;
+  }
+  var bandLabel = (b) => `${duration(b.from)}\u2013${duration(b.to)}`;
+  function questionInsights(r) {
+    var _a;
+    const out = [];
+    const d = r.difficulty;
+    const solve = d ? Math.round(d.solveRate * 100) : null;
+    if (r.outcome === "right") {
+      out.push({
+        id: "result",
+        tone: "good",
+        title: d && d.solveRate < 0.45 ? `Right, on a question only ${solve} out of 100 students solve` : "Right answer",
+        detail: d ? `${d.label}. ${num(d.students)} students have tried it.` : "Well done."
+      });
+    } else if (r.outcome === "partial") {
+      out.push({
+        id: "result",
+        tone: "warn",
+        title: `You earned ${Math.round(r.scoreShare * 100)}% of the marks`,
+        detail: ((_a = r.marks) == null ? void 0 : _a.beat) != null ? `More than ${Math.round(r.marks.beat * 100)} out of 100 students who attempted it scored. ${Math.round(r.marks.full * 100)}% of them earned full marks.` : "Part of the solution worked; the rest is usually edge cases."
+      });
+    } else if (r.outcome === "wrong") {
+      out.push({
+        id: "result",
+        tone: d && d.solveRate >= 0.6 ? "bad" : "warn",
+        title: d && d.solveRate >= 0.6 ? `Not this time, though ${solve} out of 100 students get it right` : "Not this time",
+        detail: d && d.solveRate >= 0.6 ? "Most students solve it, so this is a mark you can win back." : d ? `${d.label}, so do not be hard on yourself; learn the method.` : "Review the method before trying a similar question."
+      });
+    } else {
+      out.push({
+        id: "result",
+        tone: "info",
+        title: "You left this one blank",
+        detail: d ? `${d.label}. Even a wrong attempt teaches more than a skip in practice.` : "In practice, an attempt teaches more than a skip."
+      });
+    }
+    const t = r.time;
+    if (r.outcome !== "skipped" && t.usual) {
+      const ratio = t.you / t.usual;
+      if (r.outcome === "right" && t.medianRight && t.you <= t.medianRight) {
+        out.push({ id: "time", tone: "good", title: `Faster than most students who got it right`, detail: `You took ${duration(t.you)}; they usually take ${duration(t.medianRight)}.` });
+      } else if (r.outcome === "right" && ratio >= 1.6) {
+        out.push({ id: "time", tone: "warn", title: `Right, but slow: ${duration(t.you)} against ${duration(t.usual)} usually`, detail: "In a timed test this question would cost time you need elsewhere. Practise similar ones against the clock." });
+      } else if (r.outcome !== "right" && ratio < 0.5) {
+        out.push({ id: "time", tone: "bad", title: `Answered in ${duration(t.you)}, under half the usual ${duration(t.usual)}`, detail: "This looks rushed. Read the question twice before answering." });
+      } else if (r.outcome !== "right" && ratio >= 2) {
+        out.push({ id: "time", tone: "warn", title: `${duration(t.you)} spent, twice the usual, without the marks`, detail: "When you are stuck past the usual time, move on and come back to the theory later." });
+      }
+    }
+    const bb = bestBand(t.bands);
+    const fastest = t.bands.find((b) => b.attempts >= 5);
+    if (bb && fastest && bb !== fastest && bb.right / bb.attempts - fastest.right / fastest.attempts >= 0.25) {
+      out.push({
+        id: "bands",
+        tone: "info",
+        title: `Students who spent ${bandLabel(bb)} solved it ${pct(bb.right / bb.attempts)} of the time`,
+        detail: `Those who answered in under ${duration(fastest.to)} solved it only ${pct(fastest.right / fastest.attempts)} of the time. Taking the right amount of time pays here.`
+      });
+    }
+    if (r.options && r.outcome === "wrong") {
+      const mine = r.options.find((o) => o.isYours);
+      const topWrong = r.options.filter((o) => !o.isRight).sort((a, b) => b.share - a.share)[0];
+      if (mine && topWrong && mine.letter === topWrong.letter && mine.share >= 0.15) {
+        out.push({
+          id: "trap",
+          tone: "warn",
+          title: `Option ${mine.letter} is the most common wrong answer: ${pct(mine.share)} of students chose it`,
+          detail: "It is a trap answer. Find the step where this option comes from; that is the mistake to fix."
+        });
+      } else if (mine && mine.share < 0.1) {
+        out.push({ id: "trap", tone: "info", title: `Few students chose option ${mine.letter} (${pct(mine.share)})`, detail: "An unusual answer often means a calculation slip. Redo the working slowly." });
+      }
+    }
+    const h = r.history;
+    if (h.attempts >= 3 && h.accuracy !== null) {
+      const vs = h.othersAccuracy;
+      const weak = vs !== null ? h.accuracy <= vs - 0.1 : h.accuracy < 0.5;
+      const strong = vs !== null ? h.accuracy >= vs + 0.1 : h.accuracy >= 0.75;
+      out.push({
+        id: "history",
+        tone: weak ? "bad" : strong ? "good" : "info",
+        title: `${h.subAreaName}: ${h.correct} of ${h.attempts} right so far (${pct(h.accuracy)})`,
+        detail: vs !== null ? `Other students get ${pct(vs)} of the same questions right. ${weak ? "This sub-topic needs work." : strong ? "This is one of your strengths." : "You are on par."}` : weak ? "This sub-topic needs work." : "Keep practising to build a clearer picture."
+      });
+    }
+    if (r.previous) {
+      const was = r.previous.status, now = r.outcome === "right" ? "correct" : r.outcome === "skipped" ? "skipped" : "wrong";
+      if (was !== "correct" && now === "correct") out.push({ id: "again", tone: "good", title: "Got it right this time", detail: `You missed this question in ${r.previous.testName}. The revision worked.` });
+      else if (was === "correct" && now !== "correct") out.push({ id: "again", tone: "warn", title: "You got this one right before", detail: `In ${r.previous.testName} you solved it. Something slipped this time; revisit the method.` });
+    }
+    const days = r.activity.filter((a) => a.questions > 0).length;
+    const last7 = r.activity.slice(-7).filter((a) => a.questions > 0).length;
+    if (days >= 1) {
+      out.push({
+        id: "habit",
+        tone: last7 >= 4 ? "good" : "info",
+        title: last7 >= 4 ? `You practised on ${last7} of the last 7 days` : `${plural(last7, "practice day")} in the last 7 days`,
+        detail: last7 >= 4 ? "Little and often works. Keep the streak going." : "A few questions every day beats one long session a week."
+      });
+    }
+    return out;
+  }
+  function questionActions(r) {
+    const sub = r.history.subAreaName;
+    const out = [];
+    const usual = r.time.usual;
+    if (r.outcome === "skipped") {
+      out.push({ id: "try", focus: "strategy", title: "Attempt it now, untimed", why: "A skipped question teaches nothing; a wrong attempt shows you where you are stuck.", steps: [`Give it 10 minutes without a timer.`, `If you get stuck, read the ${sub} notes, then try again.`], gain: null });
+    } else if (r.outcome === "wrong" && r.difficulty && r.difficulty.solveRate >= 0.6) {
+      out.push({ id: "slip", focus: "accuracy", title: "Redo it slowly and find the slip", why: "Most students solve this question, so the method is within reach.", steps: ["Redo it on paper, writing every step.", "Compare each step with the method; mark where you went wrong.", `Then solve 3 easy ${sub} questions to lock it in.`], gain: null });
+    } else if (r.outcome === "wrong" || r.outcome === "partial") {
+      out.push(r.kind === "coding" ? { id: "edge", focus: "concepts", title: r.outcome === "partial" ? "Find the cases your code misses" : "Rebuild the approach", why: r.outcome === "partial" ? `You earned ${Math.round(r.scoreShare * 100)}% of the marks; the rest usually comes from edge cases.` : "None of the hidden tests passed.", steps: ["Test your code on: empty input, a single item, negative numbers, duplicates and very large values.", "Write the expected output for each case before running it.", `Then try one more ${sub} problem.`], gain: null } : { id: "concept", focus: "concepts", title: `Revise ${sub}`, why: "This question needs the method, not just more practice.", steps: [`Read the ${sub} notes and one solved example.`, `Solve 5 ${sub} questions untimed.`, "Come back to this question tomorrow and try it again."], gain: null });
+    } else if (r.outcome === "right" && usual && r.time.you > usual * 1.6) {
+      out.push({ id: "speed", focus: "speed", title: `Get faster at ${sub}`, why: `You took ${duration(r.time.you)}; others usually take ${duration(usual)}.`, steps: [`Do 5 ${sub} questions with a ${duration(Math.round(usual))} timer each.`, "Note the shortcut or pattern that saves the most time."], gain: null });
+    } else if (r.outcome === "right") {
+      out.push({ id: "up", focus: "strategy", title: "Level up", why: r.difficulty && r.difficulty.solveRate < 0.45 ? "You solved a question most students miss." : "You solved it comfortably.", steps: [`Try a Difficult ${r.history.areaTitle} question next.`, "Mix in a timed set so the speed holds under pressure."], gain: null });
+    }
+    out.push({ id: "streak", focus: "maintain", title: "One more tomorrow", why: "Daily practice builds the habit that shows up in test scores.", steps: [`Do one ${r.history.areaTitle} question tomorrow, then check this report again.`], gain: null });
+    return out;
+  }
+  function buildMicroReport(data, testId) {
+    var _a, _b;
+    const rows = data.attempts.filter((a) => a.testId === testId).sort((a, b) => a.qno - b.qno);
+    if (!rows.length) return null;
+    const questions = rows.map((r) => buildQuestionReport(data, testId, r.questionId)).filter((x) => !!x);
+    return {
+      testId,
+      testName: rows[0].testName,
+      takenAt: (_b = (_a = questions[0]) == null ? void 0 : _a.takenAt) != null ? _b : null,
+      questions,
+      score: rows.reduce((s, r) => s + r.score, 0),
+      maxScore: rows.reduce((s, r) => s + r.questionMarks, 0)
+    };
+  }
+
   // src/lib/analytics/journey.ts
   var avg = (xs) => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
   function journeyInsights(j) {
@@ -1180,15 +1466,37 @@ var HBA = (() => {
     }));
   }
   function buildStudentReport(data) {
-    var _a;
-    const order = testOrder(data);
+    var _a, _b;
+    const sizes = /* @__PURE__ */ new Map();
+    for (const a of data.attempts) sizes.set(a.testId, ((_a = sizes.get(a.testId)) != null ? _a : 0) + 1);
+    const all = testOrder(data);
+    const order = all.filter((t) => {
+      var _a2;
+      return ((_a2 = sizes.get(t.testId)) != null ? _a2 : 0) > MICRO_MAX;
+    });
+    const practice = all.filter((t) => {
+      var _a2;
+      return ((_a2 = sizes.get(t.testId)) != null ? _a2 : 0) <= MICRO_MAX;
+    }).map((t) => {
+      const rows = data.attempts.filter((a) => a.testId === t.testId);
+      const max = rows.reduce((s, r) => s + r.questionMarks, 0);
+      return {
+        testId: t.testId,
+        testName: t.testName,
+        takenAt: t.takenAt,
+        scorePct: max ? Math.max(0, rows.reduce((s, r) => s + r.score, 0)) / max : 0,
+        questions: rows.length,
+        moduleName: rows[0].moduleName
+      };
+    });
     const reports = order.map((t) => buildTestReport(data, t.testId)).filter((r) => !!r);
-    const asOf = (_a = data.checkpoints.map((c) => c.lastRun).sort().pop()) != null ? _a : null;
+    const asOf = (_b = data.checkpoints.map((c) => c.lastRun).sort().pop()) != null ? _b : null;
     const base = {
       studentId: data.studentId,
       isDemo: data.isDemo,
       dataAsOf: asOf,
-      tests: reports.map((r) => ({ testId: r.testId, testName: r.testName, takenAt: r.takenAt, scorePct: r.scorePct }))
+      tests: reports.map((r) => ({ testId: r.testId, testName: r.testName, takenAt: r.takenAt, scorePct: r.scorePct })),
+      practice
     };
     if (!reports.length) return { ...base, mode: "empty", single: null, journey: null };
     if (reports.length === 1) return { ...base, mode: "single", single: reports[0], journey: null };
@@ -1256,7 +1564,9 @@ var HBA = (() => {
       const viewed = new Date(clock).toISOString();
       clock += time * 1e3;
       const done = new Date(clock).toISOString();
-      const score = !attempted ? 0 : correct ? q.marks : -q.negative;
+      let frac = correct ? 1 : 0;
+      if (attempted && !correct && q.partial) frac = Math.round(Math.min(0.9, Math.max(0, know * 0.9 + normal(r, 0, 0.2))) * 10) / 10;
+      const score = !attempted ? 0 : q.partial ? Math.round(frac * q.marks * 10) / 10 : correct ? q.marks : -q.negative;
       return {
         studentId: o.studentId,
         testId: bp.testId,
@@ -1280,7 +1590,7 @@ var HBA = (() => {
         score,
         questionMarks: q.marks,
         timeTaken: time,
-        selectedAnswer: attempted ? chosen(q, correct, r) : null,
+        selectedAnswer: attempted ? q.partial ? null : chosen(q, correct, r) : null,
         firstViewedAt: viewed,
         attemptedAt: attempted ? done : null,
         createdAt: viewed,
@@ -1485,6 +1795,10 @@ var HBA = (() => {
       questionBenchmarks: pick(idx.test_question_analytics_v2),
       scoreDistributions: new Map([...docs].map(([k, list]) => [k, list.map((d) => d.totalScore)])),
       sectionBenchmarks: new Map([...docs].map(([k, list]) => [k, sectionBenchmarks(list)])),
+      // Small practice sets: every student's rows for that set (an ES query on the raw index by testId).
+      peerRows: new Map(
+        [...tests].filter((t) => mine.filter((r) => r.testId === t).length <= 3).map((t) => [t, rows.filter((r) => r.testId === t)])
+      ),
       checkpoints: idx.analytics_checkpoint_v2,
       isDemo
     };

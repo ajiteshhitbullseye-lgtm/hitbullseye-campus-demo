@@ -24,7 +24,7 @@ var HBX = (function(){
   var sim = HBA.sim;
   var K_ATT = "hbe_attempts_v1";           /* live rows written by test.html */
   var K_SIMJ = "hbe_simjourney_v1";        /* "simulate my journey" rows, kept apart so rows carry index fields only */
-  var SIM_VERSION = 5;                      /* bump when the simulation changes */
+  var SIM_VERSION = 6;                      /* bump when the simulation changes */
   var DAY = 86400000;
 
   /* ------------------------------------------------------------------
@@ -180,6 +180,75 @@ var HBX = (function(){
   });
 
   /* ------------------------------------------------------------------
+     2b. QUICK PRACTICE — one question per set (an MCQ or a coding problem)
+     Coding answers are graded for real: the student's JavaScript runs against
+     hidden tests in a Web Worker; marks = share of tests passed.
+     ------------------------------------------------------------------ */
+  var CODING = {
+    "CODE-001": { fn: "sumDigits", area: "Programming Basics", sub: "Number Manipulation", lod: "Easy", baseTime: 420,
+      title: "Sum of digits",
+      text: "Write a function sumDigits(n) that returns the sum of the digits of a non-negative whole number n. Example: sumDigits(123) returns 6.",
+      starter: "function sumDigits(n) {\n  // your code here\n}\n",
+      samples: [[[123], 6], [[7], 7]],
+      tests: [[[0], 0], [[7], 7], [[123], 6], [[9999], 36], [[1000000], 1], [[987654321], 45]] },
+    "CODE-002": { fn: "isPalindrome", area: "Strings", sub: "String Processing", lod: "Medium", baseTime: 600,
+      title: "Palindrome check",
+      text: "Write a function isPalindrome(s) that returns true if s reads the same forwards and backwards, ignoring upper/lower case and any character that is not a letter or a digit. Example: isPalindrome(\"A man, a plan, a canal: Panama\") returns true.",
+      starter: "function isPalindrome(s) {\n  // your code here\n}\n",
+      samples: [[["madam"], true], [["Hello"], false]],
+      tests: [[["madam"], true], [["Hello"], false], [["A man, a plan, a canal: Panama"], true], [[""], true], [["No 'x' in Nixon"], true], [["ab"], false], [["12321"], true]] },
+    "CODE-003": { fn: "secondLargest", area: "Arrays", sub: "Searching", lod: "Medium", baseTime: 660,
+      title: "Second largest number",
+      text: "Write a function secondLargest(arr) that returns the second largest DISTINCT number in the array, or null if there is none. Example: secondLargest([10, 9, 10, 8]) returns 9.",
+      starter: "function secondLargest(arr) {\n  // your code here\n}\n",
+      samples: [[[[3, 1, 4]], 3], [[[5, 5, 5]], null]],
+      tests: [[[[3, 1, 4]], 3], [[[5, 5, 5]], null], [[[1]], null], [[[]], null], [[[-2, -5, -1]], -2], [[[10, 9, 10, 8]], 9], [[[1, 2]], 1]] }
+  };
+  Object.keys(CODING).forEach(function(id){
+    var c = CODING[id], r = sim.rng("item-" + id);
+    ITEMS[id] = {
+      questionId: id, sectionId: "CODE", sectionName: "Coding",
+      areaId: "CODE-" + slug(c.area), areaTitle: c.area,
+      subAreaId: "CODE-" + slug(c.area) + "-" + slug(c.sub), subAreaName: c.sub,
+      lod: c.lod, typeOfQues: "Coding", marks: 10, negative: 0, partial: true,
+      b: sim.LOD_B[c.lod] + sim.normal(r, 0, 0.2), baseTime: c.baseTime, options: 0,
+      text: c.text, title: c.title, starter: c.starter, fn: c.fn, samples: c.samples, tests: c.tests, coding: true
+    };
+  });
+
+  function single(testId, testName, itemId){
+    var it = ITEMS[itemId];
+    return { testId: testId, testName: testName, moduleId: "QUICK", moduleName: "Quick Practice",
+             questions: [Object.assign({}, it, { qno: 1, uniqueQno: testId + "#1" })] };
+  }
+  var QUICK = [
+    single("qp-mcq-01", "Quick MCQ: Probability", "QA-008"),
+    single("qp-mcq-02", "Quick MCQ: Syllogisms", "LR-010"),
+    single("qp-mcq-03", "Quick MCQ: Para Jumbles", "VA-008"),
+    single("qp-mcq-04", "Quick MCQ: Sets & Caselets", "DI-007"),
+    single("qp-code-01", "Coding: Sum of digits", "CODE-001"),
+    single("qp-code-02", "Coding: Palindrome check", "CODE-002"),
+    single("qp-code-03", "Coding: Second largest number", "CODE-003")
+  ];
+
+  /* Run a coding answer against the hidden tests in a worker (so a loop can be stopped). */
+  function grade(itemId, code, which){
+    var it = ITEMS[itemId], tests = which === "samples" ? it.samples : it.tests;
+    var src = "onmessage=function(e){var d=e.data,out=[];var f;try{f=(new Function(d.code+'\\n;return typeof '+d.fn+'===\"function\"?'+d.fn+':null;'))();}catch(err){postMessage({error:String(err&&err.message||err)});return;}" +
+      "if(!f){postMessage({error:'Function '+d.fn+' was not found.'});return;}" +
+      "d.tests.forEach(function(t){var got,err=null;try{got=f.apply(null,JSON.parse(JSON.stringify(t[0])));}catch(x){err=String(x&&x.message||x);}" +
+      "out.push({input:t[0],expected:t[1],got:got===undefined?null:got,ok:!err&&JSON.stringify(got===undefined?null:got)===JSON.stringify(t[1]),error:err});});postMessage({results:out});};";
+    return new Promise(function(resolve){
+      var w;
+      try { w = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" }))); }
+      catch(e){ resolve({ error: "Code runner unavailable in this browser.", results: [] }); return; }
+      var timer = setTimeout(function(){ w.terminate(); resolve({ error: "Time limit: your code ran for more than 3 seconds.", results: [] }); }, 3000);
+      w.onmessage = function(e){ clearTimeout(timer); w.terminate(); resolve({ error: e.data.error || null, results: e.data.results || [] }); };
+      w.postMessage({ code: code, fn: it.fn, tests: tests });
+    });
+  }
+
+  /* ------------------------------------------------------------------
      3. RAW ROWS
      ------------------------------------------------------------------ */
   function liveRows(){
@@ -247,6 +316,16 @@ var HBX = (function(){
       }
     });
 
+    /* quick practice: one question each, a national cohort */
+    QUICK.forEach(function(bp, k){
+      papers[bp.testId] = bp;
+      var r = sim.rng("cohort-" + bp.testId);
+      for(var i = 0; i < 160; i++){
+        sim.sit(bp, sim.randomProfile(r, -0.15), r, { studentId: "NAT-" + i, nth: 0,
+          start: start - (1 + (i % 20)) * DAY - k * 3600000 }).forEach(function(x){ rows.push(x); });
+      }
+    });
+
     /* seeded demo students: practice journey, then their campus papers */
     seeded.forEach(function(sd, idx){
       var st = sd.st, col = cfg.colleges[st.collegeId];
@@ -260,6 +339,12 @@ var HBX = (function(){
       sd.tests.forEach(function(t, k){
         sim.sit(papers[t.id], p, r, { studentId: st.id, nth: mocks + k,
           start: start - (idx + 1) * DAY - k * DAY / 2 }).forEach(function(x){ rows.push(x); });
+      });
+      /* a few quick practice questions over the last two weeks */
+      QUICK.forEach(function(bp, k){
+        if((idx + k) % 3 === 0) return;
+        sim.sit(bp, p, r, { studentId: st.id, nth: mocks, start: start - ((k * 2 + idx) % 13) * DAY - 7200000 })
+          .forEach(function(x){ rows.push(x); });
       });
     });
 
@@ -340,7 +425,7 @@ var HBX = (function(){
       if(!st._seedRaw) return;
       var rows = w.rows.filter(function(x){ return x.studentId === st.id; });
       var tests = {};
-      rows.forEach(function(x){ if(x.moduleId !== "PRACTICE") tests[x.testId] = 1; });
+      rows.forEach(function(x){ if(!x.moduleId) tests[x.testId] = 1; });   /* campus assessments only (no practice or quick sets) */
       st.results = {};
       Object.keys(tests).forEach(function(tid){ st.results[tid] = resultFromRows(rows, tid); });
       st.result = hbeLatestResult(st);
@@ -387,7 +472,7 @@ var HBX = (function(){
 
   /* "Simulate my journey": practice mocks for a real student, from their measured accuracy */
   function simulateJourney(studentId){
-    var mine = liveRows().filter(function(x){ return x.studentId === studentId && x.moduleId !== "PRACTICE"; });  /* their real attempt */
+    var mine = liveRows().filter(function(x){ return x.studentId === studentId && !x.moduleId; });  /* their real campus attempt */
     var att = mine.filter(function(x){ return x.isAttempted; });
     var acc = att.length ? att.filter(function(x){ return x.isCorrect; }).length / att.length : 0.55;
     var p = sim.randomProfile(sim.rng("me-" + studentId), 0);
@@ -412,7 +497,7 @@ var HBX = (function(){
 
   return {
     rebuild: rebuild, clearLive: clearLive, answerKey: answerKey, rankOf: rankOf,
-    BANK: BANK, ITEMS: ITEMS, PRACTICE: PRACTICE, sectionOf: sectionOf,
+    BANK: BANK, ITEMS: ITEMS, PRACTICE: PRACTICE, QUICK: QUICK, CODING: CODING, grade: grade, sectionOf: sectionOf,
     paperFor: paperFor, world: world, dataFor: dataFor,
     reportFor: reportFor, testReportFor: testReportFor,
     resultFromRows: resultFromRows, syncSeeded: syncSeeded,

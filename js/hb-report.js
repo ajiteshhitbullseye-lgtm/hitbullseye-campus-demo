@@ -496,6 +496,141 @@ var HBR = (function(){
     }).join("") + '<span><i style="background:var(--line-2)"></i>not attempted</span><span>faded = only one question</span></div>';
   }
 
+  /* ---------------- QUESTION VIEW (one-question practice: an MCQ or a coding problem) ---------------- */
+  var OUTCOME = {
+    right:   { label: "Right",       cls: "ok",   icon: "check" },
+    wrong:   { label: "Not this time", cls: "err", icon: "x" },
+    partial: { label: "Partly right", cls: "warn", icon: "target" },
+    skipped: { label: "Left blank",  cls: "mut",  icon: "info" }
+  };
+
+  function dots(rate){
+    var n = Math.round(rate * 100), out = "";
+    for(var i = 0; i < 100; i++) out += '<i class="' + (i < n ? "on" : "") + '"></i>';
+    return '<div class="an-dots" role="img" aria-label="' + n + ' out of 100 students solve it">' + out + "</div>";
+  }
+
+  function oneQuestion(r, idx, many){
+    var q = r.q, o = OUTCOME[r.outcome], d = r.difficulty, t = r.time, h = r.history;
+    var head = r.insights[0];
+    var kindChip = '<span class="an-kind">' + (r.kind === "coding" ? "Coding" : r.kind === "mcq" ? "MCQ" : "Question") + "</span>";
+    var html = (many ? '<h2 class="an-qhead">Question ' + q.qno + "</h2>" : "") +
+      '<section class="an-card rise"><div class="an-hero">' +
+        '<div class="an-ring an-out ' + o.cls + '">' + HBC.ring(r.outcome === "skipped" ? 0 : r.scoreShare) +
+          '<div class="in"><b>' + (r.kind === "mcq" ? ico(o.icon) : Math.round(r.scoreShare * 100) + "%") + "</b><span>" + esc(o.label) + "</span>" +
+          '<small>' + F.num(q.score, 1) + " of " + F.num(q.marks) + (q.marks === 1 ? " mark" : " marks") + "</small></div></div>" +
+        "<div>" +
+          '<div class="row" style="gap:8px;flex-wrap:wrap">' + kindChip + '<span class="an-kind lt">' + esc(q.lod || "") + '</span><span class="sm mut">' +
+            esc(q.sectionName) + " › " + esc(q.areaTitle) + " › " + esc(q.subAreaName) + "</span></div>" +
+          '<h2 style="font-size:22px;margin-top:8px">' + esc(r.testName) + '</h2><p class="sm mut">Taken on ' + esc(F.dateTime(r.takenAt)) + "</p>" +
+          (head ? '<p class="an-verdict-line"><b>' + esc(head.title) + ".</b> " + esc(head.detail) + "</p>" : "") +
+          '<div class="an-tiles mt-s">' +
+            tile("Students who solve it", d ? Math.round(d.solveRate * 100) + "<small> of 100</small>" : "—", d ? d.label : "Not enough students yet") +
+            tile("Your time", dur(t.you), t.usual ? "Others usually take " + dur(t.usual) : "") +
+            tile(r.outcome === "right" ? "Faster than" : "Students who got it right took", r.outcome === "right"
+                ? (t.fasterThan != null ? Math.round(t.fasterThan * 100) + "<small>% of students</small>" : "—")
+                : (t.medianRight != null ? dur(t.medianRight) : "—"), r.outcome === "right" ? "who answered it" : "about this long") +
+            tile("Your record in " + esc(h.subAreaName), h.attempts ? h.correct + "<small> of " + h.attempts + " right</small>" : "—",
+                h.othersAccuracy != null ? "Others: " + pct(h.othersAccuracy) + " right" : "") +
+          "</div></div></div></section>";
+
+    html += sec("Step 1", "What should I do next?", "Based on this answer and your record in this topic.", actions(r.actions, false));
+    html += sec("Step 2", "What did we notice?", "From your answer, the time you took, and how every other student did on this same question.", insights(r.insights));
+
+    if(d){
+      html += sec("Step 3", "How hard was this question?", "Out of every 100 students who opened this question, the green dots solved it fully.",
+        '<div class="an-card an-diff">' + dots(d.solveRate) + '<div><div class="an-diff-n">' + Math.round(d.solveRate * 100) + '<small> of 100</small></div>' +
+        "<p><b>" + esc(d.label) + ".</b> Based on " + F.num(d.students) + " students who saw this question.</p>" +
+        '<p class="sm mut">Marked <b>' + esc(q.lod || "—") + "</b> by the question setters.</p></div></div>");
+    }
+
+    if(r.options){
+      var mine = r.options.filter(function(x){ return x.isYours; })[0], right = r.options.filter(function(x){ return x.isRight; })[0];
+      var topWrong = r.options.filter(function(x){ return !x.isRight; }).sort(function(a, b){ return b.share - a.share; })[0];
+      html += sec("Step 4", "Which answers did students pick?", "Among students who answered. The green bar is the right option; your choice is marked.",
+        '<div class="an-card"><div class="an-opts">' + r.options.map(function(x){
+          return '<div class="an-opt' + (x.isRight ? " right" : "") + (x.isYours ? " yours" : "") + '"><span class="l">Option ' + esc(x.letter) +
+            (x.isRight ? ' <em class="tg ok">Right</em>' : "") + (x.isYours ? ' <em class="tg you">You</em>' : "") + "</span>" +
+            '<div class="b"><i style="width:' + Math.max(1.5, x.share * 100) + '%"></i></div><b>' + pct(x.share) + "</b></div>";
+        }).join("") + "</div></div>" +
+        say([
+          d && d.attemptRate != null && d.attemptRate < 0.9 ? "Only " + B(pct(d.attemptRate)) + " of students who opened this question answered it; the rest left it blank. The bars show how those who answered split." : "",
+          right ? B(pct(right.share)) + " of those who answered picked the right option, " + B(right.letter) + "." : "",
+          topWrong && topWrong.share >= 0.15 ? "The most common wrong answer was option " + B(topWrong.letter) + " (" + pct(topWrong.share) + "). " +
+            (mine && mine.letter === topWrong.letter ? "You fell for the same trap: find the step it comes from." : "It is the trap to watch for in questions like this.") : ""
+        ]));
+    }
+    if(r.marks){
+      html += sec("Step 4", "How did everyone score?", "Marks every student earned on this question. Green = full marks; blue = you.",
+        '<div class="an-card"><div class="an-chart" id="c-ms' + idx + '"></div></div>' +
+        say([
+          r.outcome === "right" ? "You earned full marks, like " + B(Math.round(r.marks.full * 100) + "%") + " of the students who attempted it."
+            : r.marks.beat != null ? "You scored more than " + B(Math.round(r.marks.beat * 100) + "%") + " of the students who attempted it; " + B(Math.round(r.marks.full * 100) + "%") + " of them earned full marks." : "",
+          r.outcome === "partial" ? "The marks you missed usually sit in edge cases: empty input, a single item, negative numbers, duplicates." : "",
+          d ? "Counting everyone who opened it, including those who skipped, " + B(Math.round(d.solveRate * 100) + " out of 100") + " solved it fully." : ""
+        ]));
+    }
+
+    if(t.bands.length){
+      var ok = t.bands.filter(function(b){ return b.attempts >= 5; });
+      var best = ok.slice().sort(function(a, b){ return b.right / b.attempts - a.right / a.attempts; })[0];
+      html += sec("Step 5", "Did taking more time help?", "Each column is a group of students by how long they took. Green = got it right, red = got it wrong. The percentage is how many in that group got it right.",
+        '<div class="an-card"><div class="an-chart" id="c-tb' + idx + '"></div>' +
+        '<div class="an-legend"><span><i style="background:var(--viz-ok)"></i>Right</span><span><i style="background:var(--viz-err)"></i>Wrong</span><span><i class="line" style="background:var(--viz-you)"></i>Your time</span></div></div>' +
+        say([
+          best ? "Students who took " + B(dur(best.from) + "–" + dur(best.to)) + " did best: " + B(pct(best.right / best.attempts)) + " of them got it right (" + best.attempts + " students)." : "",
+          r.outcome !== "skipped" ? "You took " + B(dur(t.you)) + (t.medianRight ? "; students who got it right usually took about " + B(dur(t.medianRight)) + "." : ".") : ""
+        ]));
+    }
+
+    html += sec("Step 6", "How am I doing in " + h.subAreaName + "?", "Every " + esc(h.subAreaName) + " question you have answered, in tests and practice. Newest on the right.",
+      '<div class="an-grid an-12"><div class="an-card"><h3>' + (h.recent.length === 1 ? "Your answer so far" : "Your last " + h.recent.length + " answers") + "</h3>" +
+        '<div class="an-chips">' + h.recent.map(function(x){
+          return '<span class="an-chipr ' + x.status + '" tabindex="0" data-tip="' + esc(HBC.tipRows(x.testName, [["Result", x.status === "correct" ? "Right" : x.status === "wrong" ? "Wrong" : "Left blank"]], F.date(x.at, true))) + '">' +
+            (x.status === "correct" ? "✓" : x.status === "wrong" ? "✗" : "–") + "</span>";
+        }).join("") + "</div>" +
+        '<div class="mt-s">' + meter(h.accuracy, h.othersAccuracy) + "</div>" + legendMeter(false) + "</div>" +
+        '<div class="an-card"><h3>Topic summary</h3>' +
+          '<div class="an-target"><div class="lbl">' + esc(h.subAreaName) + "<small>this sub-topic</small></div><span class=\"now\"></span><span></span><span class=\"to\">" + (h.accuracy != null ? pct(h.accuracy) : "—") + "</span></div>" +
+          '<div class="an-target"><div class="lbl">' + esc(h.areaTitle) + "<small>" + h.areaAttempts + " answers in the whole topic</small></div><span class=\"now\"></span><span></span><span class=\"to\">" + (h.areaAccuracy != null ? pct(h.areaAccuracy) : "—") + "</span></div>" +
+          (r.previous ? '<div class="an-target"><div class="lbl">This question before<small>' + esc(r.previous.testName) + " · " + esc(F.date(r.previous.at)) + '</small></div><span class="now"></span><span></span><span class="to">' +
+            (r.previous.status === "correct" ? "Right" : r.previous.status === "wrong" ? "Wrong" : "Blank") + "</span></div>" : "") +
+        "</div></div>" +
+      say([
+        h.attempts >= 3 && h.accuracy != null ? "You get " + B(pct(h.accuracy)) + " of " + esc(h.subAreaName) + " questions right" +
+          (h.othersAccuracy != null ? ", against " + B(pct(h.othersAccuracy)) + " for other students on the same questions." : ".") : "A few more " + esc(h.subAreaName) + " questions will show a clear pattern."
+      ]));
+
+    var maxQ = Math.max.apply(null, r.activity.map(function(a){ return a.questions; }).concat([1]));
+    var active = r.activity.filter(function(a){ return a.questions; }).length;
+    html += sec("Step 7", "Am I practising regularly?", "Each square is a day in the last two weeks; darker = more questions answered.",
+      '<div class="an-card"><div class="an-cal">' + r.activity.map(function(a){
+        var lv = a.questions ? Math.min(4, Math.ceil(a.questions / maxQ * 4)) : 0;
+        var dt = new Date(a.day + "T12:00:00");
+        return '<div class="an-day2 l' + lv + '" tabindex="0" data-tip="' + esc(HBC.tipRows(dt.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }), [["Questions", a.questions]])) + '">' +
+          "<span>" + dt.toLocaleDateString("en-IN", { weekday: "narrow" }) + "</span></div>";
+      }).join("") + "</div>" +
+      '<p class="sm mt-s"><b>' + active + " of 14 days</b> with practice. " + (active >= 8 ? "Great rhythm, keep it up." : "Aim for a little every day; even one question keeps the habit.") + "</p></div>");
+
+    return html;
+  }
+
+  function questionView(ctx, m){
+    var many = m.questions.length > 1;
+    var html = (many ? '<section class="an-card rise"><h2 style="font-size:22px">' + esc(m.testName) + '</h2><p class="sm mut">' + m.questions.length +
+      " questions · " + F.num(m.score) + " of " + F.num(m.maxScore) + " marks</p></section>" : "") +
+      m.questions.map(function(r, i){ return oneQuestion(r, i, many); }).join('<div class="an-sep"></div>');
+    return {
+      html: html,
+      after: function(root){
+        m.questions.forEach(function(r, i){
+          if(r.marks) HBC.mount(root.querySelector("#c-ms" + i), HBC.marksSpread(r.marks.bins, r.outcome === "skipped" ? null : Math.round(Math.max(0, r.q.score) * 10) / 10, r.q.marks));
+          if(r.time.bands.length) HBC.mount(root.querySelector("#c-tb" + i), HBC.timeBands(r.time.bands, r.outcome === "skipped" ? null : r.time.you));
+        });
+      }
+    };
+  }
+
   /* ---------------- analysing overlay (after a live submit) ---------------- */
   function analysing(info, done){
     var steps = [
@@ -518,5 +653,5 @@ var HBR = (function(){
     })();
   }
 
-  return { testView: testView, progressView: progressView, analysing: analysing };
+  return { testView: testView, progressView: progressView, questionView: questionView, analysing: analysing };
 })();

@@ -440,6 +440,68 @@ var HBC = (function(){
     };
   }
 
+  /* ---------------- 9. speed vs success (one question) ----------------
+     Each column is a time band: how many students answered in that time,
+     green = right, red = wrong. The dashed line marks the student's own time. */
+  function timeBands(bands, you){
+    return function(W){
+      var id = "tb" + (++uid);
+      var H = 230, p = { l: 34, r: 12, t: 34, b: 30 }, iw = W - p.l - p.r, ih = H - p.t - p.b;
+      var max = niceMax(Math.max.apply(null, bands.map(function(b){ return b.attempts; }).concat([1])));
+      var slot = iw / bands.length, bw = Math.min(46, slot - 8);
+      var span = bands[bands.length - 1].to;
+      var y = function(v){ return p.t + ih - v / max * ih; };
+      var defs = vgrad(id + "o", C.okLt, C.ok) + vgrad(id + "e", C.errLt, C.err);
+      var s = grid(p.l, W - p.r, y(max), max) + grid(p.l, W - p.r, y(max / 2), max / 2);
+      bands.forEach(function(b, i){
+        var x = p.l + i * slot + (slot - bw) / 2, wrong = b.attempts - b.right;
+        var yr = y(b.right), yw = y(b.attempts);
+        if(b.right) s += '<path class="an-mark grow" style="animation-delay:' + (i * 50) + 'ms" d="M' + x + "," + y(0) + "V" + yr + "H" + (x + bw) + "V" + y(0) + 'Z" fill="url(#' + id + 'o)"/>';
+        if(wrong) s += '<path class="an-mark grow" style="animation-delay:' + (i * 50 + 80) + 'ms" d="' + bar(x, yw, bw, yr - yw - (b.right ? 2 : 0)) + '" fill="url(#' + id + 'e)"/>';
+        else if(b.right) s += '<path d="' + bar(x, yr, bw, 6) + '" fill="url(#' + id + 'o)"/>';
+        var rate = b.attempts ? Math.round(b.right / b.attempts * 100) : null;
+        if(b.attempts >= 3) s += txt(x + bw / 2, yw - 6, rate + "%", { anchor: "middle", weight: 700, size: 11, fill: rate >= 50 ? C.ok : C.err });
+        /* narrow screens: label fewer bands, and only by their start */
+        var every = Math.ceil(78 / slot), wide = slot >= 78;
+        if(i % every === 0) s += txt(wide ? x + bw / 2 : p.l + i * slot, H - 10, wide ? dur(b.from) + "–" + dur(b.to) : dur(b.from), { anchor: wide ? "middle" : "start", size: 10 });
+        s += '<rect x="' + (p.l + i * slot) + '" y="' + p.t + '" width="' + slot + '" height="' + ih + '" fill="transparent" tabindex="0" data-tip="' +
+          esc(tipRows("Answered in " + dur(b.from) + "–" + dur(b.to), [["Students", b.attempts], ["Got it right", b.right, C.ok], ["Got it wrong", wrong, C.err],
+            ["Success rate", rate == null ? "—" : rate + "%"]])) + '"/>';
+      });
+      s += grid(p.l, W - p.r, y(0), 0, { axis: 1 });
+      if(you != null){
+        var yx = p.l + Math.min(you, span) / span * iw;
+        s += '<line x1="' + yx + '" x2="' + yx + '" y1="' + (p.t - 8) + '" y2="' + y(0) + '" stroke="' + C.you + '" stroke-width="2.5" stroke-dasharray="5 4"/>';
+        s += pill(Math.min(W - 46, Math.max(46, yx)), p.t - 18, "You · " + dur(you));
+      }
+      return svg(W, H, defs, s, "How long students took and how often they got it right");
+    };
+  }
+
+  /* ---------------- 10. marks spread (partial credit) ---------------- */
+  function marksSpread(bins, mine, full){
+    return function(W){
+      var id = "ms" + (++uid);
+      var H = 210, p = { l: 34, r: 10, t: 34, b: 28 }, iw = W - p.l - p.r, ih = H - p.t - p.b;
+      var max = niceMax(Math.max.apply(null, bins.map(function(b){ return b.count; }).concat([1])));
+      var slot = iw / bins.length, bw = Math.min(40, slot - 6);
+      var y = function(v){ return p.t + ih - v / max * ih; };
+      var defs = vgrad(id + "p", C.peerLt, C.peer, .9, .55) + vgrad(id + "y", C.youLt, C.youDk) + vgrad(id + "f", C.okLt, C.ok);
+      var s = grid(p.l, W - p.r, y(max), max) + grid(p.l, W - p.r, y(max / 2), max / 2);
+      bins.forEach(function(b, i){
+        var x = p.l + i * slot + (slot - bw) / 2, you = mine != null && Math.abs(b.score - mine) < 0.05, isFull = b.score >= full;
+        if(you) s += '<rect x="' + (x - 5) + '" y="' + (y(b.count) - 5) + '" width="' + (bw + 10) + '" height="' + (y(0) - y(b.count) + 5) + '" rx="9" fill="' + C.you + '" opacity=".12"/>';
+        s += '<path class="an-mark grow" style="animation-delay:' + (i * 40) + 'ms" d="' + bar(x, y(b.count), bw, y(0) - y(b.count)) + '" fill="url(#' + id + (you ? "y" : isFull ? "f" : "p") + ')"/>';
+        s += txt(x + bw / 2, H - 9, b.score, { anchor: "middle", size: 10.5, weight: you ? 700 : 400, fill: you ? C.ink : C.muted });
+        s += '<rect x="' + (p.l + i * slot) + '" y="' + p.t + '" width="' + slot + '" height="' + ih + '" fill="transparent" tabindex="0" data-tip="' +
+          esc(tipRows(b.score + " marks", [["Students", b.count, you ? C.you : isFull ? C.ok : C.peer]], you ? "Your marks" : isFull ? "Full marks" : "")) + '"/>';
+        if(you) s += pill(Math.min(W - 40, Math.max(40, x + bw / 2)), Math.max(11, y(b.count) - 18), "You · " + b.score);
+      });
+      s += grid(p.l, W - p.r, y(0), 0, { axis: 1 });
+      return svg(W, H, defs, s, "Marks every student earned on this question");
+    };
+  }
+
   /* ---------------- 8. donut ring (score) ---------------- */
   function ring(value){
     var id = "r" + (++uid), r = 72, c = 2 * Math.PI * r, v = Math.max(0, Math.min(1, value));
@@ -447,9 +509,9 @@ var HBC = (function(){
       '<linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="' + C.you + '"/><stop offset="1" stop-color="#4338ca"/></linearGradient></defs>' +
       '<circle cx="85" cy="85" r="' + r + '" fill="none" stroke="#eef2f8" stroke-width="15"/>' +
       '<circle cx="85" cy="85" r="' + r + '" fill="none" stroke="#e3ebfb" stroke-width="15" stroke-dasharray="2 6" opacity=".9"/>' +
-      '<circle class="an-ringarc" cx="85" cy="85" r="' + r + '" fill="none" stroke="url(#' + id + ')" stroke-width="15" stroke-linecap="round" stroke-dasharray="' + (c * v) + " " + c + '" style="--len:' + (c * v) + '"/></svg>';
+      (v > 0 ? '<circle class="an-ringarc" cx="85" cy="85" r="' + r + '" fill="none" stroke="url(#' + id + ')" stroke-width="15" stroke-linecap="round" stroke-dasharray="' + (c * v) + " " + c + '" style="--len:' + (c * v) + '"/>' : "") + "</svg>";
   }
 
   return { mount: mount, histogram: histogram, waterfall: waterfall, quadrant: quadrant, pacing: pacing,
-           strip: strip, trend: trend, bars: bars, ring: ring, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
+           strip: strip, trend: trend, bars: bars, ring: ring, timeBands: timeBands, marksSpread: marksSpread, tipRows: tipRows, esc: esc, dur: dur, pct: pct, C: C };
 })();

@@ -21,6 +21,14 @@
   .opt.sel{border-color:var(--brand);background:rgba(var(--brand-rgb),.05);box-shadow:var(--ring)}
   .opt input{margin-top:3px;accent-color:var(--brand);width:17px;height:17px;flex:none}
   .palette{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+  .code-wrap{border:1.5px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:#0b1630}
+  .code-wrap .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:#121d3a;color:#a9b8d8;font-size:12px}
+  .code-wrap textarea{display:block;width:100%;min-height:260px;border:0;outline:0;resize:vertical;padding:14px 16px;background:#0b1630;color:#e6edff;
+    font:13.5px/1.6 ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;tab-size:2}
+  .run-out{margin-top:12px;display:grid;gap:6px}
+  .run-row{display:flex;gap:10px;align-items:flex-start;font:12.5px/1.5 ui-monospace,Consolas,monospace;padding:8px 10px;border-radius:9px;background:var(--line-2)}
+  .run-row.ok{background:var(--ok-bg);color:var(--ok)} .run-row.bad{background:var(--err-bg);color:var(--err)}
+  .ex{font:13px/1.6 ui-monospace,Consolas,monospace;background:var(--line-2);border-radius:9px;padding:10px 12px;margin:-6px 0 16px;color:var(--ink)}
   .pal-sec{grid-column:1/-1;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px}
   .pal{aspect-ratio:1;border-radius:10px;border:1.5px solid var(--line);background:#fff;cursor:pointer;
     font-weight:700;font-size:13.5px;color:var(--body);transition:.15s}
@@ -111,16 +119,20 @@ var T = (function(){
     T = mine[0];
   }
 
-  /* the paper comes from the tagged item bank (js/hb-analytics.js); ?practice=pm-0N runs a practice mock */
-  var practice = HBX.PRACTICE.filter(function(p){ return p.testId === hbeParam("practice"); })[0];
+  /* the paper comes from the tagged item bank (js/hb-analytics.js);
+     ?practice=pm-0N runs a practice mock, ?practice=qp-… a one-question quick practice */
+  var practice = HBX.PRACTICE.concat(HBX.QUICK).filter(function(p){ return p.testId === hbeParam("practice"); })[0];
   var bp = practice || HBX.paperFor(c, T);
-  if(practice) T = { id: practice.testId, name: practice.testName, durationMin: Math.ceil(practice.questions.length * 1.5) };
+  var hasCode = bp.questions.some(function(q){ return q.coding; });
+  if(practice) T = { id: practice.testId, name: practice.testName,
+    durationMin: hasCode ? 20 : Math.max(3, Math.ceil(practice.questions.length * 1.5)) };
   var paper = bp.questions;
   var answers = new Array(paper.length).fill(-1);
+  var codes = paper.map(function(q){ return q.coding ? q.starter : null; });   /* coding answers */
   /* telemetry per question — becomes one `student_question_analytics` row each */
   var tel = paper.map(function(){ return { firstViewedAt:null, attemptedAt:null, ms:0, changes:0, visits:0 }; });
   var cur = 0, shownAt = Date.now();
-  var total = Math.min(T.durationMin, Math.ceil(paper.length * 1.5)) * 60, tick;
+  var total = (practice ? T.durationMin : Math.min(T.durationMin, Math.ceil(paper.length * 1.5))) * 60, tick;
 
   var lg = document.getElementById("lg");
   lg.src = c.logo;
@@ -146,10 +158,26 @@ var T = (function(){
     var q = paper[cur];
     document.getElementById("qSec").textContent = q.sectionName;
     document.getElementById("qNum").textContent = "Question " + (cur+1) + " of " + paper.length + " · " + q.areaTitle;
-    document.getElementById("qText").textContent = q.text;
-    document.getElementById("opts").innerHTML = q.choices.map(function(o,i){
-      return '<label class="opt'+(answers[cur]===i?" sel":"")+'" onclick="T.pick('+i+')">' +
-             '<input type="radio" name="o" '+(answers[cur]===i?"checked":"")+'><span>'+hbeEsc(o)+"</span></label>"; }).join("");
+    if(q.coding){
+      document.getElementById("qText").textContent = q.title;
+      document.getElementById("opts").innerHTML =
+        '<p style="margin:-8px 0 14px">' + hbeEsc(q.text) + "</p>" +
+        '<div class="ex">' + q.samples.map(function(s){ return hbeEsc(q.fn + "(" + s[0].map(function(a){ return JSON.stringify(a); }).join(", ") + ")") + "  \u2192  " + hbeEsc(JSON.stringify(s[1])); }).join("<br>") + "</div>" +
+        '<div class="code-wrap"><div class="bar"><span>JavaScript</span><span>Hidden tests decide your marks</span></div>' +
+        '<textarea id="code" spellcheck="false" oninput="T.code(this.value)">' + hbeEsc(codes[cur]) + "</textarea></div>" +
+        '<div class="row" style="gap:10px;margin-top:12px"><button class="btn btn-soft btn-sm" onclick="T.run()">' + ico("rocket") + " Run sample tests</button>" +
+        '<span class="xs mut">Prototype: answers are written in JavaScript. The live platform uses its own code engine.</span></div>' +
+        '<div class="run-out" id="runOut"></div>';
+      var ta = document.getElementById("code");
+      ta.addEventListener("keydown", function(e){
+        if(e.key === "Tab"){ e.preventDefault(); var s = ta.selectionStart; ta.value = ta.value.slice(0, s) + "  " + ta.value.slice(ta.selectionEnd); ta.selectionStart = ta.selectionEnd = s + 2; setCode(ta.value); }
+      });
+    } else {
+      document.getElementById("qText").textContent = q.text;
+      document.getElementById("opts").innerHTML = q.choices.map(function(o,i){
+        return '<label class="opt'+(answers[cur]===i?" sel":"")+'" onclick="T.pick('+i+')">' +
+               '<input type="radio" name="o" '+(answers[cur]===i?"checked":"")+'><span>'+hbeEsc(o)+"</span></label>"; }).join("");
+    }
 
     var lastSec = null;
     document.getElementById("pal").innerHTML = paper.map(function(p,i){
@@ -187,7 +215,33 @@ var T = (function(){
     if(n < 0 || n >= paper.length){ if(n>=paper.length) hbeToast("That was the last question. Submit when you are ready.","info"); return; }
     leave(); arrive(n); draw();
   }
-  function clearAns(){ answers[cur] = -1; tel[cur].attemptedAt = null; draw(); }
+  function clearAns(){
+    answers[cur] = -1; tel[cur].attemptedAt = null;
+    if(paper[cur].coding) codes[cur] = paper[cur].starter;
+    draw();
+  }
+
+  /* ---------------- coding ---------------- */
+  function setCode(v){
+    codes[cur] = v;
+    var written = v.trim() && v.trim() !== paper[cur].starter.trim();
+    answers[cur] = written ? 0 : -1;
+    if(written) tel[cur].attemptedAt = new Date().toISOString();
+    document.getElementById("cAns").textContent = answers.filter(function(a){ return a>-1; }).length;
+    document.getElementById("cRem").textContent = answers.filter(function(a){ return a===-1; }).length;
+  }
+  function run(){
+    var out = document.getElementById("runOut");
+    out.innerHTML = '<div class="run-row">Running…</div>';
+    HBX.grade(paper[cur].questionId, codes[cur], "samples").then(function(res){
+      if(res.error){ out.innerHTML = '<div class="run-row bad">' + hbeEsc(res.error) + "</div>"; return; }
+      out.innerHTML = res.results.map(function(t){
+        return '<div class="run-row ' + (t.ok ? "ok" : "bad") + '">' + (t.ok ? "\u2713" : "\u2717") + " " +
+          hbeEsc(paper[cur].fn + "(" + t.input.map(function(a){ return JSON.stringify(a); }).join(", ") + ")") +
+          " \u2192 " + hbeEsc(t.error ? "error: " + t.error : JSON.stringify(t.got)) + (t.ok ? "" : "  (expected " + hbeEsc(JSON.stringify(t.expected)) + ")") + "</div>";
+      }).join("");
+    });
+  }
 
   function submit(auto){
     var done = answers.filter(function(a){ return a>-1; }).length;
@@ -197,10 +251,30 @@ var T = (function(){
     clearInterval(tick);
     leave();
 
+    /* coding answers are graded against the hidden tests first */
+    var graded = {};
+    var jobs = paper.map(function(q, i){
+      if(!q.coding || answers[i] === -1) return Promise.resolve();
+      return HBX.grade(q.questionId, codes[i], "tests").then(function(res){
+        var passed = res.results.filter(function(x){ return x.ok; }).length, total = q.tests.length;
+        graded[i] = { passed: passed, total: total };
+      });
+    });
+    if(hasCode) hbeToast("Running your code against the hidden tests…", "rocket", 4000);
+    Promise.all(jobs).then(function(){ finish(graded); });
+  }
+
+  function finish(graded){
     /* one row per question, exactly the Elasticsearch `student_question_analytics` shape */
     var now = new Date().toISOString();
     var rows = paper.map(function(q, i){
       var t = tel[i], att = answers[i] > -1, ok = att && answers[i] === q.answer;
+      var g = graded[i];
+      var score = att ? (ok ? q.marks : -q.negative) : 0;
+      if(q.coding){
+        ok = !!g && g.passed === g.total;
+        score = g ? Math.round(g.passed / g.total * q.marks * 10) / 10 : 0;   /* partial credit */
+      }
       return {
         studentId: st.id, testId: T.id, testName: T.name,
         questionId: q.questionId, uniqueQno: q.uniqueQno, qno: q.qno,
@@ -208,9 +282,9 @@ var T = (function(){
         areaId: q.areaId, areaTitle: q.areaTitle, subAreaId: q.subAreaId, subAreaName: q.subAreaName,
         moduleId: bp.moduleId, moduleName: bp.moduleName, lod: q.lod, typeOfQues: q.typeOfQues, attemptType: "test",
         isAttempted: att, isCorrect: ok,
-        score: att ? (ok ? q.marks : -q.negative) : 0, questionMarks: q.marks,
+        score: score, questionMarks: q.marks,
         timeTaken: Math.max(1, Math.round(t.ms / 1000)),
-        selectedAnswer: att ? "ABCDEFGH"[answers[i]] : null,
+        selectedAnswer: att && !q.coding ? "ABCDEFGH"[answers[i]] : null,
         firstViewedAt: t.firstViewedAt, attemptedAt: att ? t.attemptedAt : null,
         createdAt: t.firstViewedAt || now, updatedAt: now
       };
@@ -225,7 +299,7 @@ var T = (function(){
 
   arrive(0);
   draw();
-  return { pick:pick, jump:jump, go:go, clear:clearAns, submit:submit };
+  return { pick:pick, jump:jump, go:go, clear:clearAns, submit:submit, code:setCode, run:run };
 })();
 </script>
 </body>
