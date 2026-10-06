@@ -120,6 +120,33 @@ var R = (function(){
     else values[f.id] = "";
   });
 
+  /* prototype: fill the form from the roster record so a demo is one click.
+     Runs twice so dependent dropdowns and department-only fields get their options. */
+  function demoValue(f){
+    var opts = hbeFieldOptions(f, values);
+    var digits = String(gate.uid || "").replace(/\D/g, "") + "73915264";
+    var known = { firstName: gate.firstName, lastName: gate.lastName, universityId: gate.uid, email: gate.email,
+                  department: gate.department, programme: gate.programme, course: gate.course, session: gate.session };
+    if(f.type === "select" || f.type === "radio"){
+      if(known[f.id] && opts.indexOf(known[f.id]) > -1) return known[f.id];
+      var no = opts.filter(function(o){ return /^(no|none|0)$/i.test(o); })[0];
+      return no || opts[0] || "";
+    }
+    if(f.type === "checkbox") return "Yes";
+    if(f.type === "email") return gate.email || "";
+    if(f.type === "tel") return "9" + digits.slice(0, 9);
+    if(f.type === "number") return /cgpa|gpa/i.test(f.id + f.label) ? "8.2" : /percent|%/i.test(f.label) ? "78" : "1";
+    if(f.type === "textarea") return "Prefilled for the demo.";
+    if(known[f.id]) return known[f.id];
+    return f.label ? "Demo " + f.label.split(" ")[0] : "Demo";
+  }
+  for(var pass = 0; pass < 2; pass++){
+    (c.fields || []).forEach(function(f){
+      if(values[f.id] || !hbeFieldVisible(f, values)) return;
+      values[f.id] = demoValue(f);
+    });
+  }
+
   /* ---------------- rendering ---------------- */
   function fieldHTML(f){
     var req  = f.required ? '<span class="req">*</span>' : '';
@@ -186,7 +213,7 @@ var R = (function(){
     });
     if(open) out += "</div>";
 
-    g("body").innerHTML = out;
+    g("body").innerHTML = '<div class="demo-fill">' + ico("info") + '<span><b>Demo:</b> every field is prefilled from the campus list. Check it, then continue.</span></div>' + out;
   }
 
   /* ---------------- interactions ---------------- */
@@ -275,6 +302,7 @@ var R = (function(){
     g("review").style.display = "";
     g("lead").textContent = "Step 3 of 3 \u2014 read every line and tick it before you submit.";
     counter();
+    tickAll();                                               /* prototype: declaration pre-ticked */
     window.scrollTo({ top:0, behavior:"smooth" });
   }
 
