@@ -1,0 +1,81 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Batches &amp; logins</h1>
+      <p class="sm mut">Batches and logins are created in the Hitbullseye admin panel. Here each batch gets its access code, and anything can be switched off — never deleted.</p>
+    </div>
+    @if (isSuper()) {
+      <button class="btn btn-primary btn-sm" (click)="syncNow()" [disabled]="syncing()"><hb-icon name="sync" /> Sync from admin panel</button>
+    }
+  </div>
+
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Batches</h2><p class="sm mut">Students register with their batch's code, so they land in the right batch. {{ isSuper() ? 'Change a code if it leaked; the old one stops working at once.' : 'Share each code only with that batch.' }}</p></div>
+      @if (isSuper() && codesDirty()) { <button class="btn btn-primary btn-sm" (click)="saveCodes()" [disabled]="saving()"><hb-icon name="save" /> Save codes</button> }
+    </div>
+    <div class="tbl-wrap">
+      <table class="table tbl-min">
+        <thead><tr><th>Batch</th><th>Access code</th><th>Expected</th><th>On the list</th><th>Registered</th><th>Admin panel</th><th>Portal</th><th></th></tr></thead>
+        <tbody>
+          @for (b of batches(); track b.batchId) {
+            <tr [class.is-inactive]="b.status === 'inactive' || b.panelStatus !== 'active'">
+              <td><span class="nm">{{ b.name }}</span><br><span class="xs mut">{{ b.batchId }}{{ b.passingYear ? ' · passing ' + b.passingYear : '' }}</span></td>
+              <td>
+                @if (isSuper()) {
+                  <input class="form-control form-control-sm mono" style="max-width:150px;letter-spacing:.12em;font-weight:700" [ngModel]="codes()[b.batchId]" (ngModelChange)="setCode(b.batchId, $event)" placeholder="SET A CODE">
+                } @else {
+                  <span class="d-inline-flex gap-2 align-items-center"><code style="font-size:14px;letter-spacing:.12em">{{ b.accessCode || '—' }}</code>
+                    @if (b.accessCode) { <button class="icon-btn sm" title="Copy" (click)="copy(b.accessCode)"><hb-icon name="file" /></button> }</span>
+                }
+                @if (!b.accessCode) { <br><span class="xs err-t">no code yet — registration closed</span> }
+              </td>
+              <td>@if (b.estimated) { <b>{{ num(b.estimated) }}</b><br><span class="xs mut">{{ b.estimatedBy }}</span> }
+                @else { <a routerLink="/console/profile" class="badge warn">not filled</a> }</td>
+              <td>{{ counts()[b.batchId].list || 0 }}</td>
+              <td>{{ counts()[b.batchId].reg || 0 }}</td>
+              <td><span class="pstat" [class.off]="b.panelStatus !== 'active'"><i></i>{{ b.panelStatus === 'active' ? 'Active' : 'Inactive' }}</span></td>
+              <td><hb-status [status]="b.status" [reason]="b.statusReason" [by]="b.statusBy" /></td>
+              <td>@if (isSuper()) {
+                @if (b.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggleBatch(b)">Make active</button> }
+                @else { <button class="icon-btn sm danger" title="Make inactive" (click)="toggleBatch(b)"><hb-icon name="power" /></button> }
+              }</td>
+            </tr>
+          } @empty { <tr><td colspan="8" class="center mut">No batches — they come from the Hitbullseye admin panel.</td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Placement-cell logins</h2><p class="sm mut">Usernames and passwords are created (and reset) in the Hitbullseye admin panel. Switching a login off here only blocks it on this portal{{ isSuper() ? '' : ' — ask Hitbullseye to switch one off' }}.</p></div>
+    </div>
+    @if (admins() === null) { <div class="loading-page" style="min-height:120px"><span class="spinner"></span></div> }
+    @else {
+      <div class="tbl-wrap">
+        <table class="table">
+          <thead><tr><th>Name</th><th>Username</th><th>Admin panel</th><th>Portal</th><th>Last sign-in</th><th></th></tr></thead>
+          <tbody>
+            @for (a of admins(); track a.adminRef) {
+              <tr [class.is-inactive]="a.status === 'inactive' || a.panelStatus !== 'active'">
+                <td><span class="nm">{{ a.name }}</span><br><span class="xs mut">{{ a.adminRef }}</span></td>
+                <td>{{ a.username }}</td>
+                <td><span class="pstat" [class.off]="a.panelStatus !== 'active'"><i></i>{{ a.panelStatus === 'active' ? 'Active' : 'Inactive' }}</span></td>
+                <td><hb-status [status]="a.status" [reason]="a.statusReason" [by]="a.statusBy" /></td>
+                <td>{{ a.lastLoginAt ? ago(a.lastLoginAt) : 'never' }}</td>
+                <td>@if (isSuper()) {
+                  @if (a.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggleAdmin(a)">Make active</button> }
+                  @else { <button class="icon-btn sm danger" title="Switch off on this portal" (click)="toggleAdmin(a)"><hb-icon name="power" /></button> }
+                }</td>
+              </tr>
+            } @empty { <tr><td colspan="6" class="center mut">No placement-cell logins yet.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Batch ids, client ids and logins come from the Hitbullseye admin panel.</span></footer>
+</main>

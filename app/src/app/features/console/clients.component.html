@@ -1,0 +1,119 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">Hitbullseye HQ</span>
+      <h1>Clients</h1>
+      <p class="sm mut">Every campus from the admin panel: what they filled in, how far their students got, and where their account stands.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      <button class="btn btn-ghost btn-sm" (click)="print()">Print / PDF</button>
+      <button class="btn btn-ghost btn-sm" (click)="csv()"><hb-icon name="down" /> Export</button>
+      <button class="btn btn-primary btn-sm" (click)="syncAll()" [disabled]="syncing()">
+        @if (syncing()) { <span class="spinner" style="border-top-color:#fff;width:14px;height:14px"></span> } @else { <hb-icon name="sync" /> } Sync all from admin panel
+      </button>
+    </div>
+  </div>
+
+  <section class="stats stats-6 mt">
+    <div class="stat"><div class="lbl">Active clients</div><div class="val">{{ kpi().clients }}<small>/{{ kpi().all }}</small></div>
+      <div class="sub">{{ kpi().fresh ? kpi().fresh + ' new in the admin panel' : 'all panel clients set up' }}</div></div>
+    <div class="stat hl"><div class="lbl">Estimated → signed in</div><div class="val">{{ num(kpi().signedIn) }}<small>/{{ num(kpi().est) }}</small></div>
+      <div class="sub">signed in, of the students the colleges expect</div></div>
+    <div class="stat"><div class="lbl">Registration complete</div><div class="val">{{ num(kpi().registered) }}</div>
+      <div class="sub">{{ pctOf(kpi().registered, kpi().onList) }}% of the {{ num(kpi().onList) }} on the lists</div></div>
+    <div class="stat"><div class="lbl">Mid-way, needs a nudge</div><div class="val">{{ kpi().draft + kpi().signedOnly }}</div>
+      <div class="sub">{{ kpi().draft }} drafts · {{ kpi().signedOnly }} signed in, form not started</div></div>
+    <div class="stat"><div class="lbl">Contracted value</div><div class="val" style="font-size:24px">{{ money(kpi().value) }}</div><div class="sub">{{ money(kpi().due) }} outstanding</div></div>
+    <div class="stat"><div class="lbl">Profiles incomplete</div><div class="val">{{ kpi().pending }}</div><div class="sub">{{ kpi().pending ? 'chase these campuses' : 'everything submitted' }}</div></div>
+  </section>
+
+  @if (fresh().length) {
+    <section class="mt">
+      <div class="row-b" style="margin-bottom:14px"><div><h2>New in the admin panel</h2>
+        <p class="sm mut">These clients are live in the Hitbullseye admin panel but have no portal yet. Set one up and its batches and students sync in.</p></div></div>
+      <div class="tcards">
+        @for (p of fresh(); track p.clientId) {
+          <div class="tcard client-new">
+            <div class="top"><h3>{{ p.name }}</h3><span class="badge warn">Not set up</span></div>
+            <div class="meta"><span class="chip">{{ p.clientId }}</span><span class="chip">{{ p.city }}</span>
+              <span class="chip">{{ p.status === 'active' ? 'Active in panel' : 'Inactive in panel' }}</span></div>
+            <div class="aud"><hb-icon name="info" /><span>Starts from the standard form and one aptitude test; branding, assessments and access codes are then set in the Form builder.</span></div>
+            <div class="foot"><button class="btn btn-primary btn-sm" (click)="setUp(p)" [disabled]="settingUp() === p.clientId || p.status !== 'active'">
+              @if (settingUp() === p.clientId) { Setting up… } @else { <hb-icon name="plus" /> Set up portal }</button></div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="card card-body mt">
+    <div class="sec-head"><h2>What each campus has submitted</h2>
+      <p class="sm mut">Profile filled by the college's placement cell; sign-up progress from the synced master list. Click a row to open that campus.</p></div>
+    @if (!data()) { <div class="loading-page" style="min-height:140px"><span class="spinner"></span></div> }
+    @else {
+      <div class="tbl-wrap">
+        <table class="table table-hover tbl-min-l">
+          <thead><tr><th>Client</th><th>Profile</th><th>SPOC</th><th>Strength</th><th>Batches</th><th>Estimated vs signed in</th><th>Sign-up progress</th><th>Account</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            @for (r of rows(); track r.c.id) {
+              <tr class="clickable" [class.is-inactive]="r.c.status === 'inactive'" (click)="open(r.c, 'analytics')">
+                <td><span class="nm">{{ r.c.name }}</span><br><span class="xs mut">{{ r.c.externalClientId }} · {{ r.c.campus }}</span></td>
+                <td><span class="badge" [class.ok]="r.complete === 100" [class.warn]="r.complete < 100 && r.complete >= 60" [class.err]="r.complete < 60">{{ r.complete }}% filled</span>
+                  <br><span class="xs mut">{{ r.c.profile.updatedAt ? 'updated ' + fmtDate(r.c.profile.updatedAt) : 'never saved' }}</span></td>
+                <td>@if (r.spoc; as sp) { <span class="nm">{{ sp.name }}</span><br><span class="xs mut email" [title]="sp.email">{{ sp.email }}</span>
+                    @if (r.spocs > 1) { <br><span class="badge">+{{ r.spocs - 1 }} more</span> } } @else { <span class="badge warn">not given</span> }</td>
+                <td><b>{{ r.strength ? num(r.strength) : '—' }}</b><br><span class="xs mut">{{ r.finalYr ? num(r.finalYr) + ' final year · ' : '' }}{{ r.depts }} depts</span></td>
+                <td><b>{{ r.batchesOpen }}</b><span class="mut">/{{ r.batches }}</span> open<br><span class="xs mut">{{ r.tests }} assessments · {{ r.attempts }} attempts</span></td>
+                <td>
+                  @if (r.f.estimated !== null) { <b>{{ num(r.f.signedIn) }}</b> <span class="mut">/ {{ num(r.f.estimated) }}</span><br><span class="xs mut">{{ pctOf(r.f.signedIn, r.f.estimated) }}% of the estimate</span> }
+                  @else { <b>{{ num(r.f.signedIn) }}</b> signed in<br><span class="badge warn">estimate missing</span> }
+                  @if (r.f.estimatedMissing.length && r.f.estimated !== null) { <br><span class="xs warn-t">no estimate: {{ r.f.estimatedMissing.join(', ') }}</span> }
+                </td>
+                <td>
+                  <div class="minibar" [title]="r.f.registered + ' registered, ' + r.f.draft + ' drafts, ' + r.f.signedInOnly + ' signed in, ' + r.f.invited + ' not started'">
+                    <i class="ok" [style.width.%]="bar(r.f).reg"></i><i class="draft" [style.width.%]="bar(r.f).draft"></i><i class="warn" [style.width.%]="bar(r.f).signed"></i><i class="idle" [style.width.%]="bar(r.f).idle"></i>
+                  </div>
+                  <span class="xs mut">{{ r.f.registered }} done · {{ r.f.draft }} draft · {{ r.f.signedInOnly }} signed in · {{ r.f.invited }} not started</span>
+                </td>
+                <td>{{ money(r.value) }}<br>@if (r.due) { <span class="badge" [class.err]="r.overdue" [class.warn]="!r.overdue">{{ money(r.due) }} due</span> } @else { <span class="badge ok">settled</span> }</td>
+                <td><hb-status [status]="r.c.status" [reason]="r.c.statusReason" [by]="r.c.statusBy" />
+                  @if (r.panel && r.panel.status !== 'active') { <br><span class="badge inactive">off in panel</span> }</td>
+                <td><div class="d-flex gap-1 justify-content-end">
+                  <span class="btn btn-soft btn-sm">Open</span>
+                  @if (r.c.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggle(r, $event)">Make active</button> }
+                  @else { <button class="icon-btn sm danger" title="Make this client inactive" (click)="toggle(r, $event)"><hb-icon name="power" /></button> }
+                </div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px"><div><h2>Client cards</h2><p class="sm mut">Jump straight into any campus.</p></div></div>
+    <div class="tcards">
+      @for (r of rows(); track r.c.id) {
+        <div class="tcard" [style.opacity]="r.c.status === 'inactive' ? .65 : 1">
+          <div class="top"><h3>{{ r.c.shortName || r.c.name }}</h3>
+            <span class="badge" [class.ok]="r.complete === 100" [class.warn]="r.complete < 100">{{ r.complete }}%</span></div>
+          <div class="meta"><span class="chip">{{ r.depts }} departments</span><span class="chip">{{ r.strength ? num(r.strength) : '—' }} students</span>
+            <span class="chip">{{ r.tests }} assessments</span><span class="chip">{{ r.batches }} batches</span></div>
+          <div class="aud"><hb-icon name="user" /><span>{{ r.spoc ? r.spoc.name + (r.spoc.role ? ' · ' + r.spoc.role : '') : 'no SPOC on record' }}</span></div>
+          <div class="aud"><hb-icon name="file" /><span>{{ r.c.profile.nomenclature.uid || 'University ID' }} · {{ r.c.profile.nomenclature.department || 'Department' }}</span></div>
+          <div class="res"><div><b>{{ r.f.estimated !== null ? num(r.f.estimated) : '—' }}</b><span>Estimated</span></div>
+            <div><b>{{ r.f.signedIn }}</b><span>Signed in</span></div><div><b>{{ r.f.registered }}</b><span>Registered</span></div></div>
+          <div class="foot">
+            <button class="btn btn-primary btn-sm" (click)="open(r.c, 'analytics')">Analytics <hb-icon name="arrow" /></button>
+            <button class="btn btn-ghost btn-sm" (click)="open(r.c, 'profile')">Profile</button>
+            <button class="btn btn-ghost btn-sm" (click)="open(r.c, 'form')">Form</button>
+            <button class="btn btn-ghost btn-sm" (click)="open(r.c, 'commercial')">Commercial</button>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Master view — only Hitbullseye staff see this page.</span></footer>
+</main>

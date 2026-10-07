@@ -1,0 +1,47 @@
+/* =====================================================================
+   Design tokens. Campus colours (--brand*, --accent*) are overwritten at
+   runtime by CampusService.applyTheme(), and the same values are pushed
+   into Bootstrap's --bs-primary so its components follow the campus.
+   ===================================================================== */
+:root {
+  --brand: #0b4f9e; --brand-dk: #062f61; --brand-rgb: 11,79,158;
+  --accent: #f5a524; --accent-rgb: 245,165,36;
+
+  --ink: #0a1523; --body: #36485f; --muted: #6d7f96;
+  --line: #e6ecf5; --line-2: #f2f6fb;
+  --surface: #ffffff; --bg: #f5f8fc;
+
+  --ok: #0f8a56; --ok-bg: #e9f8f0;
+  --warn: #b7791f; --warn-bg: #fdf6e6;
+  --err: #d33a3a; --err-bg: #fdeeee;
+
+  --r-xl: 28px; --r-lg: 20px; --r-md: 13px; --r-sm: 9px;
+  --sh-1: 0 1px 2px rgba(10,21,35,.04), 0 8px 22px -10px rgba(10,21,35,.12);
+  --sh-2: 0 2px 4px rgba(10,21,35,.04), 0 22px 48px -18px rgba(10,21,35,.22);
+  --sh-3: 0 34px 80px -30px rgba(10,21,35,.45);
+  --sh-soft: 0 1px 2px rgba(10,21,35,.03), 0 12px 28px -14px rgba(10,21,35,.16);
+  --sh-lift: 0 2px 6px rgba(10,21,35,.05), 0 28px 54px -24px rgba(10,21,35,.3);
+  --ring: 0 0 0 4px rgba(var(--brand-rgb),.13);
+  --ease: cubic-bezier(.22,1,.36,1);
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Bootstrap, re-pointed at the tokens */
+  --bs-primary: var(--brand);
+  --bs-primary-rgb: var(--brand-rgb);
+  --bs-body-font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --bs-body-font-size: 15px;
+  --bs-body-line-height: 1.62;
+  --bs-body-color: var(--body);
+  --bs-body-bg: var(--bg);
+  --bs-border-color: var(--line);
+  --bs-heading-color: var(--ink);
+  --bs-link-color: var(--brand);
+  --bs-link-color-rgb: var(--brand-rgb);
+  --bs-link-hover-color: var(--brand-dk);
+  --bs-border-radius: var(--r-md);
+  --bs-border-radius-lg: var(--r-lg);
+  --bs-success: var(--ok);
+  --bs-danger: var(--err);
+  --bs-warning: var(--warn);
+  --bs-secondary-color: var(--muted);
+}

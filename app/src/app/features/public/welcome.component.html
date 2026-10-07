@@ -1,0 +1,260 @@
+@if (c(); as c) {
+<hb-site-nav [campus]="c">
+  <a class="site-link on" [routerLink]="['/c', c.id]">Home</a>
+  <a class="site-link" [routerLink]="['/c', c.id, 'verify']">Register</a>
+  <a class="btn btn-ghost btn-sm" routerLink="/login"><hb-icon name="user" /> Sign in</a>
+</hb-site-nav>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="rise">
+      <span class="eyebrow"><span class="dot"></span>{{ c.welcome.eyebrow }}</span>
+      <h1>{{ title().before }}@if (title().hl) {<em>{{ title().hl }}</em>}{{ title().after }}</h1>
+      <p class="lede">{{ c.welcome.subtitle }}</p>
+      <ul class="ticks">
+        @for (p of c.welcome.points; track p) { <li><hb-icon name="check" /><span>{{ p }}</span></li> }
+      </ul>
+      <div class="hero-cta">
+        @if (open()) {
+          <a class="btn btn-lg btn-accent" [routerLink]="['/c', c.id, 'verify']">{{ c.welcome.cta }} <hb-icon name="arrow" /></a>
+        } @else {
+          <span class="btn btn-lg btn-line disabled">Registration closed</span>
+        }
+        <a class="btn btn-lg btn-line" routerLink="/login">Sign in</a>
+      </div>
+      <div class="hero-stats">
+        @for (s of c.welcome.stats; track s.label) { <div><b>{{ s.value }}</b><span>{{ s.label }}</span></div> }
+      </div>
+    </div>
+
+    <div class="hero-side rise" style="animation-delay:.14s">
+      <figure class="shot shot-hero">
+        <img [src]="c.photo" [alt]="c.name + ' campus'">
+        <figcaption>
+          <span class="plate"><img [src]="c.logo" alt="" [style.max-height.px]="logoH(c.logoHeight, 4)"></span>
+          <span><b>{{ c.name }}</b><em>{{ c.campus }}</em></span>
+        </figcaption>
+      </figure>
+      @if (primary(); as t) {
+        <div class="glass">
+          <div class="row-b" style="margin-bottom:4px">
+            <h3>Your assessment</h3>
+            <span class="badge brand">{{ tests().length > 1 ? '1 of ' + tests().length : 'Open' }}</span>
+          </div>
+          <p class="sm mut" style="margin-bottom:14px">{{ t.name }}</p>
+          <div class="kv"><span>Duration</span><b>{{ t.durationMin }} min</b></div>
+          <div class="kv"><span>Questions</span><b>{{ t.questions }} questions</b></div>
+          <div class="kv"><span>Window</span><b>{{ t.window }}</b></div>
+          <div class="kv"><span>Attempts</span><b>{{ t.attempts || '1 attempt' }}</b></div>
+          <div class="kv" style="align-items:flex-start"><span>Sections</span>
+            <div class="chips">@for (s of t.sections; track s) { <span class="chip">{{ s }}</span> }</div>
+          </div>
+          <div class="divider"></div>
+          @if (open()) {
+            <a class="btn btn-primary btn-lg w-100" [routerLink]="['/c', c.id, 'verify']">{{ c.welcome.cta }} <hb-icon name="arrow" /></a>
+          }
+          <div class="secure"><hb-icon name="shield" /><span>ID verified registration · one registration per email</span></div>
+        </div>
+      }
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <!-- ==================== HOW TO REGISTER ==================== -->
+  <section class="wrap pull">
+    <div class="howto">
+      @for (s of brand()?.steps || []; track s.title; let i = $index) {
+        <div class="st rise">
+          <span class="n">{{ i + 1 }}</span>
+          <div class="ic"><hb-icon [name]="s.icon || 'check'" /></div>
+          <h3>{{ s.title }}</h3><p>{{ s.text }}</p>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="wrap mt">
+    @if (!open()) {
+      <div class="alert alert-warning"><hb-icon name="lock" />
+        <div><b>Registration for {{ c.shortName }} is closed right now.</b> If you think this is a mistake, write to your placement cell.</div>
+      </div>
+    } @else {
+      <div class="alert alert-info"><hb-icon name="info" />
+        <div><b>Before you start:</b> keep your <b>{{ c.gate.idLabel }}</b> handy. Only IDs shared by the {{ c.shortName }}
+          placement cell can register, each email registers only once, and the one-time code goes to the email on that record.
+          @if (openBatches().length) {
+            <div class="mt-s d-flex gap-2 flex-wrap align-items-center">
+              <span class="xs fw-650">Open for:</span>
+              @for (b of openBatches(); track b.batchId) { <span class="badge brand">{{ b.name }}</span> }
+              <span class="xs mut">— each batch has its own access code.</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- ==================== CAMPUS BAND ==================== -->
+  <section class="wrap mt-l">
+    <div class="media-split">
+      <figure class="shot shot-tall">
+        <img [src]="c.photo" [alt]="c.name + ' campus'">
+        <figcaption>
+          <span class="plate"><img [src]="c.logo" alt="" [style.max-height.px]="logoH(c.logoHeight, 4)"></span>
+          <span><b>{{ c.name }}</b><em>{{ c.campus }}</em></span>
+        </figcaption>
+      </figure>
+      <div>
+        <span class="eyebrow">Built for your campus</span>
+        <h2 style="margin:14px 0 16px">Made for {{ c.shortName || c.name }} students</h2>
+        <ul class="plist">
+          @for (p of c.campusPoints; track p) { <li><hb-icon name="check" /><span>{{ p }}</span></li> }
+        </ul>
+        <div class="pill-row">
+          @for (s of c.welcome.stats; track s.label) { <div class="pill"><b>{{ s.value }}</b><span>{{ s.label }}</span></div> }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ASSESSMENTS ==================== -->
+  <section class="wrap mt-l">
+    <div class="section-title">
+      <span class="eyebrow">This cycle</span>
+      <h2 style="margin-top:14px">Assessments on your campus</h2>
+      <p>Each paper opens for the departments and batches your placement cell picks.</p>
+    </div>
+    <div class="tcards">
+      @for (x of tests(); track x.id) {
+        <div class="tcard">
+          <div class="top"><h3>{{ x.name }}</h3><span class="badge" [class.warn]="isRestricted(x)" [class.brand]="!isRestricted(x)">{{ x.tag || 'Assessment' }}</span></div>
+          <div class="meta">
+            <span class="chip">{{ x.durationMin }} min</span><span class="chip">{{ x.questions }} questions</span>
+            <span class="chip">{{ x.window }}</span><span class="chip">{{ x.attempts || '1 attempt' }}</span>
+          </div>
+          <div class="aud"><hb-icon name="users" /><span><b>Who can attempt:</b> {{ audienceText(x, campusesBatchName) }}</span></div>
+          <div class="aud"><hb-icon name="file" /><span>{{ x.sections.join(' · ') }}</span></div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ==================== TESTIMONIALS ==================== -->
+  @if (c.testimonials.length) {
+    <section class="wrap mt-l">
+      <div class="section-title">
+        <span class="eyebrow">In their words</span>
+        <h2 style="margin-top:14px">What your seniors say</h2>
+      </div>
+      <div class="quotes">
+        @for (q of c.testimonials; track q.name) {
+          <div class="quote"><span class="mark">&ldquo;</span><p>{{ q.quote }}</p>
+            <div class="who"><span class="avatar">{{ initials(q.name) }}</span><span><b>{{ q.name }}</b><span>{{ q.meta }}</span></span></div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ==================== CAMPUS CARDS ==================== -->
+  <section class="wrap mt-l">
+    <div class="section-title">
+      <span class="eyebrow">Partner campuses</span>
+      <h2 style="margin-top:14px">Running on campuses like yours</h2>
+    </div>
+    <div class="campus-cards">
+      @for (x of allCampuses(); track x.id) {
+        <a class="ccard" [class.on]="x.id === c.id" [routerLink]="['/c', x.id]">
+          <span class="ph"><img [src]="x.photo" [alt]="x.name + ' campus'"></span>
+          <span class="bd"><img [src]="x.logo" alt="" [style.max-height.px]="logoH(x.logoHeight, 8)">
+            <span><b>{{ x.shortName || x.name }}</b><em>{{ x.campus }}</em></span></span>
+        </a>
+      }
+    </div>
+  </section>
+
+  <!-- ==================== FAQ ==================== -->
+  <section class="wrap mt-l">
+    <div class="section-title">
+      <span class="eyebrow">Good to know</span>
+      <h2 style="margin-top:14px">Quick answers</h2>
+    </div>
+    <div class="faq">
+      @for (f of brand()?.faq || []; track f.q; let i = $index) {
+        <details [open]="i === 0"><summary>{{ f.q }}</summary><div class="a">{{ f.a }}</div></details>
+      }
+      <details><summary>I filled half the form and closed the tab.</summary>
+        <div class="a">Your answers are saved as a draft as you type. Verify your ID again (or sign in) and the form opens where you left it.</div></details>
+      <details><summary>Can I register twice with the same email?</summary>
+        <div class="a">No. One email can register only once on the whole platform. If you already registered, just sign in.</div></details>
+    </div>
+  </section>
+
+  <!-- ==================== CTA BAND ==================== -->
+  @if (open()) {
+    <section class="wrap mt-l">
+      <div class="band">
+        <h2>Your batch is already <em>registering</em>.</h2>
+        <p>Registration closes with the test window{{ closesOn() ? ' on ' + closesOn() : '' }}.</p>
+        <a class="btn btn-lg btn-accent" [routerLink]="['/c', c.id, 'verify']">{{ c.welcome.cta }} <hb-icon name="arrow" /></a>
+      </div>
+    </section>
+  }
+
+  <!-- ==================== DEMO CONTROLS ==================== -->
+  @if (demo) {
+    <section class="wrap mt-l">
+      <div class="card card-body dashed">
+        <div class="row-b">
+          <div>
+            <span class="badge">Demo controls</span>
+            <p class="sm mut" style="margin-top:8px">Switch campus, or sign in as a placement cell or as Hitbullseye HQ.</p>
+          </div>
+          <div class="d-flex gap-2 flex-wrap align-items-center">
+            <select class="form-select" style="width:auto;min-width:238px" [value]="c.id" (change)="go($any($event.target).value)">
+              @for (x of allCampuses(); track x.id) { <option [value]="x.id" [selected]="x.id === c.id">{{ x.name }}</option> }
+            </select>
+            <a class="btn btn-ghost" [routerLink]="'/login'" [queryParams]="{ as: 'admin' }">Placement cell sign in</a>
+            <a class="btn btn-ghost" routerLink="/hq/login">HQ sign in</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div>
+          <div class="logo-plate bare" style="margin-bottom:14px"><img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:40px"></div>
+          <p class="sm mut" style="max-width:270px">Campus assessment and placement-readiness platform.</p>
+        </div>
+        <div>
+          <h4>Students</h4>
+          <a [routerLink]="['/c', c.id, 'verify']">Verify &amp; register</a>
+          <a routerLink="/login">Sign in</a>
+          <a routerLink="/login">My report</a>
+        </div>
+        <div>
+          <h4>Placement cells</h4>
+          <a routerLink="/login" [queryParams]="{ as: 'admin' }">Admin console</a>
+          <a routerLink="/login" [queryParams]="{ as: 'admin' }">Student reports</a>
+          <a routerLink="/hq/login">Hitbullseye HQ</a>
+        </div>
+        <div>
+          <h4>Support</h4>
+          <span class="li">{{ brand()?.supportEmail }}</span>
+          <span class="li">Mon – Sat, 9am – 7pm</span>
+        </div>
+      </div>
+      <div class="foot-bottom row-b">
+        <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+        <span>Campus photos via Wikimedia Commons</span>
+      </div>
+    </div>
+  </footer>
+</main>
+}

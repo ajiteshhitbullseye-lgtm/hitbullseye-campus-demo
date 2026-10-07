@@ -1,0 +1,75 @@
+<div class="auth">
+  <!-- ---------- left art panel ---------- -->
+  <aside class="auth-art">
+    <div class="d-flex gap-3 align-items-center">
+      @if (c(); as c) { <span class="logo-plate"><img [src]="c.logo" [alt]="c.name" [style.max-height.px]="logoH(c.logoHeight) + 2"></span> }
+      <span class="logo-plate"><img src="assets/hitbullseye-real.png" alt="Hitbullseye" style="max-height:34px"></span>
+    </div>
+    <h2>One platform.<br>Two <em>points of view</em>.</h2>
+    <p>Students track their own progress and get a personalised improvement plan. Placement teams see every student, every attempt and every report in one place.</p>
+    <ul class="ticks" style="margin-top:26px">
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Students</b> — sign in with the login your college gave you. Not registered yet? It opens your form, with your draft.</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span><b>Placement cells</b> — your cohort, master list, reports and account, for your campus only.</span></li>
+      <li><span style="margin-top:2px">&#9679;</span><span><b>One login</b> — the same username and password as the Hitbullseye admin panel.</span></li>
+    </ul>
+    <div class="hero-stats" style="margin-top:auto">
+      @for (s of stats(); track s.label) { <div><b>{{ s.value }}</b><span>{{ s.label }}</span></div> }
+    </div>
+  </aside>
+
+  <!-- ---------- right form ---------- -->
+  <section class="auth-form">
+    <div class="auth-box">
+      @if (c(); as c) {
+        <div class="auth-lock">
+          <span class="plate"><img [src]="c.logo" [alt]="c.name" [style.max-height.px]="logoH(c.logoHeight)"></span>
+          <span class="txt"><b>{{ c.shortName || c.name }}</b>Assessment Portal</span>
+        </div>
+      }
+      <h2 style="margin-bottom:6px">Sign in</h2>
+      <p class="sm mut" style="margin-bottom:22px">Use the username and password from your college / Hitbullseye.</p>
+
+      <div class="tabs" style="margin-bottom:22px">
+        <button type="button" [class.on]="tab() === 'student'" (click)="setTab('student')">I'm a student</button>
+        <button type="button" [class.on]="tab() === 'admin'" (click)="setTab('admin')">I'm a placement cell</button>
+      </div>
+
+      @if (demo) {
+        <div class="demo-fill"><hb-icon name="info" /><span><b>Demo:</b> a {{ tab() === 'admin' ? 'placement-cell' : 'student' }} login is filled in. Pick another below.</span></div>
+      }
+
+      <form (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="lu">{{ tab() === 'admin' ? 'Email / username' : 'Username (University ID) or email' }}</label>
+          <input id="lu" name="u" class="form-control" [(ngModel)]="username" autocomplete="username"
+            [placeholder]="tab() === 'admin' ? 'you@college.edu' : 'e.g. 2210991201'">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="lp">Password</label>
+          <input id="lp" name="p" type="password" class="form-control" [(ngModel)]="password" autocomplete="current-password" placeholder="Enter password">
+        </div>
+        @if (error()) { <div class="alert alert-danger mb-3"><hb-icon name="alert" /><div>{{ error() }}</div></div> }
+        <button class="btn btn-primary btn-lg w-100" type="submit" [disabled]="busy()">
+          @if (busy()) { <span class="spinner" style="border-top-color:#fff"></span> } Sign in
+        </button>
+      </form>
+
+      @if (demo) {
+        <div class="mt">
+          <div class="caps" style="margin-bottom:8px">Demo logins — click to fill</div>
+          @for (d of (tab() === 'admin' ? adminCreds() : studentCreds()); track d.username) {
+            <button type="button" class="demo-id" (click)="fill(d)"><b>{{ d.username }} / {{ d.password }}</b><span>{{ d.who }} · {{ d.note }}</span></button>
+          }
+        </div>
+      }
+
+      @if (tab() === 'student') {
+        <p class="xs mut" style="margin-top:16px">No login yet? @if (c(); as c) { <a [routerLink]="['/c', c.id, 'verify']">Verify with your access code</a> } instead.</p>
+      } @else {
+        <p class="xs mut center" style="margin-top:20px">Hitbullseye staff? <a routerLink="/hq/login">Sign in at HQ</a></p>
+      }
+      <p class="xs mut center" style="margin-top:20px">@if (c(); as c) { <a [routerLink]="['/c', c.id]">&#8592; Back to welcome page</a> }</p>
+    </div>
+    <p class="auth-legal">Your details are used only for this campus assessment. Questions? <a [href]="'mailto:' + (brand()?.supportEmail || '')">{{ brand()?.supportEmail }}</a></p>
+  </section>
+</div>

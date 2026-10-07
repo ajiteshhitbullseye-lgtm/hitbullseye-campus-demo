@@ -1,0 +1,175 @@
+@if (st(); as st) {
+<hb-student-nav [campus]="c()" [hasReports]="done().length > 0 || practiceDone() > 0" />
+
+<header class="pband">
+  <div class="wrap pband-in">
+    <div class="d-flex gap-3 align-items-center">
+      <div class="avatar pband-av">{{ initials(st.name) }}</div>
+      <div>
+        <span class="eyebrow">My dashboard</span>
+        <h1>Welcome back, {{ st.name.split(' ')[0] }}</h1>
+        <p class="sm">{{ subtitle() }}</p>
+      </div>
+    </div>
+    <div class="pband-side">
+      <span class="badge ok">Registered</span>
+      <span class="badge light">{{ st.regNo }}</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap page" style="padding-bottom:60px">
+  <div class="pband-stats">
+    @if (latest(); as r) {
+      <div class="stats">
+        <div class="stat"><div class="lbl">Latest score</div><div class="val">{{ r.score }}<small>/{{ r.max }}</small></div><div class="sub">{{ r.pct }}% · {{ r.testName }}</div></div>
+        <div class="stat"><div class="lbl">Percentile</div><div class="val">{{ r.percentile }}</div><div class="sub">All India, this test</div></div>
+        <div class="stat"><div class="lbl">Accuracy</div><div class="val">{{ r.accuracy }}%</div><div class="sub">{{ r.attempted }} of {{ r.max }} attempted</div></div>
+        <div class="stat"><div class="lbl">Campus rank</div><div class="val">{{ rank()?.pos || '—' }}<small>/{{ rank()?.of || 0 }}</small></div><div class="sub">{{ c()?.shortName }} cohort</div></div>
+      </div>
+    } @else {
+      <div class="alert alert-info"><hb-icon name="info" />
+        <div><b>Nothing attempted yet.</b> Pick an assessment below — your report is generated the moment you submit.</div></div>
+    }
+  </div>
+
+  <!-- assessments -->
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div><h2>My assessments</h2><p class="sm mut">Shown to you because of your department, programme, session and batch.</p></div>
+      <span class="badge brand">{{ mine().length }} {{ mine().length === 1 ? 'assessment' : 'assessments' }}</span>
+    </div>
+    <div class="tcards">
+      @for (x of mine(); track x.t.id) {
+        <div class="tcard">
+          <div class="top"><h3>{{ x.t.name }}</h3><span class="badge" [class.ok]="x.res" [class.brand]="!x.res">{{ x.res ? 'Attempted' : (x.t.tag || 'Open') }}</span></div>
+          <div class="meta">
+            <span class="chip">{{ x.t.durationMin }} min</span><span class="chip">{{ x.t.questions }} questions</span>
+            <span class="chip">{{ x.t.window }}</span><span class="chip">{{ x.t.attempts || '1 attempt' }}</span>
+          </div>
+          <div class="aud"><hb-icon name="users" /><span>{{ audienceText(x.t) }}</span></div>
+          @if (x.res; as r) {
+            <div class="res">
+              <div><b>{{ r.pct }}%</b><span>Score</span></div>
+              <div><b>{{ r.percentile }}</b><span>Percentile</span></div>
+              <div><b>{{ r.accuracy }}%</b><span>Accuracy</span></div>
+              <span [class]="'badge ms-auto ' + band(r.pct).cls">{{ band(r.pct).label }}</span>
+            </div>
+            <div class="foot">
+              <a class="btn btn-primary btn-sm" routerLink="/me/report" [queryParams]="{ test: x.t.id }">View report <hb-icon name="arrow" /></a>
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/me/test', x.t.id]">Re-attempt (demo)</a>
+            </div>
+          } @else {
+            <div class="aud"><hb-icon name="clock" /><span>Sections: {{ x.t.sections.join(', ') }}</span></div>
+            <div class="foot"><a class="btn btn-primary btn-sm" [routerLink]="['/me/test', x.t.id]">Start assessment <hb-icon name="arrow" /></a></div>
+          }
+        </div>
+      } @empty {
+        <div class="empty"><hb-icon name="file" /><h3>No assessment is open for your department yet</h3><p class="sm mut">Your placement cell will publish one shortly.</p></div>
+      }
+    </div>
+  </section>
+
+  <!-- progress snapshot -->
+  @if (journey(); as j) {
+    <section class="mt-l">
+      <div class="row-b" style="margin-bottom:18px">
+        <div><h2>My progress</h2><p class="sm mut">Across {{ j.tests.length }} tests, from your answers to every question.</p></div>
+        <a class="btn btn-primary btn-sm" routerLink="/me/report" [queryParams]="{ view: 'progress' }">Full progress report <hb-icon name="arrow" /></a>
+      </div>
+      <div class="an-grid an-12">
+        <div class="an-card">
+          <div class="row-b">
+            <div><h3>Percentile, test by test</h3><div class="sub">Latest: {{ lastTest()?.testName }}</div></div>
+            <div class="an-tile" style="min-width:120px"><div class="l">Latest</div><div class="v">{{ ordinal(lastTest()?.percentile) }}</div></div>
+          </div>
+          <hb-chart [draw]="trendDraw()" />
+        </div>
+        <div class="an-grid">
+          @if (j.insights[0]; as top) {
+            <div [class]="'an-ins ' + top.tone"><span [class]="'an-tone ' + top.tone"><hb-icon name="chart" />Biggest signal</span><h4>{{ top.title }}</h4><p>{{ top.detail }}</p></div>
+          }
+          @if (j.actions[0]; as act) {
+            <div class="an-act"><div class="n">1</div><div class="grow"><span class="an-focus">Do this first</span><h4>{{ act.title }}</h4><div class="why">{{ act.why }}</div></div></div>
+          }
+        </div>
+      </div>
+    </section>
+  } @else if (rep()?.mode === 'single') {
+    <section class="mt-l">
+      <div class="an-sim"><div class="grow"><b>Your progress report starts after your second test.</b>
+        <span class="sm mut">Take a practice mock below, or open your report to preview it with a simulated journey.</span></div>
+        <a class="btn btn-primary btn-sm" routerLink="/me/report">Open my report <hb-icon name="arrow" /></a></div>
+    </section>
+  }
+
+  <!-- practice series -->
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div><h2>Placement Practice Series</h2><p class="sm mut">Six full-length practice mocks. Each one adds to your progress report.</p></div>
+      <span class="badge brand">{{ practiceDone() }} of {{ practice().length }} done</span>
+    </div>
+    <div class="tcards">
+      @for (x of practice(); track x.p.testId) {
+        <div class="tcard">
+          <div class="top"><h3>{{ x.p.testName }}</h3>
+            <span class="badge" [class.ok]="x.done" [class.brand]="!x.done && x.open">{{ x.done ? 'Done' : x.open ? 'Next up' : 'Locked' }}</span></div>
+          <div class="meta"><span class="chip">{{ x.p.questions.length }} questions</span><span class="chip">{{ mins(x.p.questions.length) }} min</span></div>
+          <div class="aud"><hb-icon name="clock" /><span>{{ x.secs.join(', ') }}</span></div>
+          @if (x.pct !== null) { <div class="res"><div><b>{{ x.pct }}%</b><span>Score</span></div></div> }
+          <div class="foot">
+            @if (x.done) { <a class="btn btn-primary btn-sm" routerLink="/me/report" [queryParams]="{ test: x.p.testId }">View report <hb-icon name="arrow" /></a> }
+            @else if (x.open) { <a class="btn btn-primary btn-sm" [routerLink]="['/me/practice', x.p.testId]">Start mock <hb-icon name="arrow" /></a> }
+            @else { <span class="xs mut">Opens after the previous mock</span> }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- quick practice -->
+  <section class="mt-l">
+    <div class="row-b" style="margin-bottom:18px">
+      <div><h2>Quick practice</h2><p class="sm mut">One question at a time: an MCQ in 3 minutes or a coding problem in 20. Each gets its own report.</p></div>
+      <span class="badge brand">{{ quickDone() }} of {{ quick().length }} done</span>
+    </div>
+    <div class="tcards">
+      @for (x of quick(); track x.p.testId) {
+        <div class="tcard">
+          <div class="top"><h3>{{ x.name }}</h3><span class="badge" [class.brand]="x.q.coding">{{ x.q.coding ? 'Coding' : 'MCQ' }}</span></div>
+          <div class="meta"><span class="chip">1 question</span><span class="chip">{{ x.q.coding ? '20 min' : '3 min' }}</span><span class="chip">{{ x.q.lod }}</span></div>
+          <div class="aud"><hb-icon name="target" /><span>{{ x.q.areaTitle }} › {{ x.q.subAreaName }}</span></div>
+          @if (x.res; as r) {
+            <div class="res"><div><b>{{ r[1] }}</b><span>Last attempt</span></div><span [class]="'badge ms-auto ' + r[0]">{{ r[0] === 'ok' ? 'Done' : 'Try again' }}</span></div>
+          }
+          <div class="foot">
+            @if (x.done) {
+              <a class="btn btn-primary btn-sm" routerLink="/me/report" [queryParams]="{ test: x.p.testId }">View report <hb-icon name="arrow" /></a>
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/me/practice', x.p.testId]">Try again</a>
+            } @else {
+              <a class="btn btn-primary btn-sm" [routerLink]="['/me/practice', x.p.testId]">Start <hb-icon name="arrow" /></a>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- registration details -->
+  <section class="card card-body mt-l">
+    <div class="sec-head"><h2>My registration details</h2><p class="sm mut">Submitted through the campus registration form. To change anything, write to your placement cell.</p></div>
+    <div class="form-grid">
+      @for (d of profileRows(); track d.label) {
+        <div class="f"><label class="form-label">{{ d.label }}</label><input type="text" class="form-control" [value]="d.value" readonly></div>
+      }
+    </div>
+  </section>
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Need help? {{ support() }}</span>
+  </footer>
+</main>
+} @else {
+  <div class="loading-page"><span class="spinner"></span></div>
+}

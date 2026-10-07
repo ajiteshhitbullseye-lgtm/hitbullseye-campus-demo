@@ -1,0 +1,80 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ sessions.isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Student reports</h1>
+      <p class="sm mut">Every registration and every attempt for {{ ctx.campus()?.shortName }}{{ ' · ' + ctx.batchLabel() }}.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      @if (sessions.isSuper()) { <a class="btn btn-ghost btn-sm" routerLink="/console/form"><hb-icon name="settings" /> Edit registration form</a> }
+      <button class="btn btn-primary btn-sm" (click)="csv()"><hb-icon name="down" /> Export CSV</button>
+    </div>
+  </div>
+
+  <section class="stats mt">
+    <div class="stat"><div class="lbl">Registered students</div><div class="val">{{ kpi().n }}</div><div class="sub">active, matching the filters</div></div>
+    <div class="stat"><div class="lbl">Attempted</div><div class="val">{{ kpi().done }}</div><div class="sub">{{ kpi().n ? (kpi().done * 100 / kpi().n).toFixed(0) + '% of the cohort' : '—' }}</div></div>
+    <div class="stat"><div class="lbl">Average score</div><div class="val">{{ kpi().avg }}%</div><div class="sub">{{ testId() ? 'selected assessment' : 'latest attempt' }}</div></div>
+    <div class="stat"><div class="lbl">Top performer</div><div class="val">{{ kpi().top ? pick(kpi().top!)!.pct + '%' : '—' }}</div><div class="sub">{{ kpi().topName || 'No attempts yet' }}</div></div>
+    <div class="stat"><div class="lbl">Inactive</div><div class="val">{{ kpi().inactive }}</div><div class="sub">kept with their history · <a href="#" (click)="$event.preventDefault(); active.set('inactive')">show</a></div></div>
+  </section>
+
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Cohort</h2><p class="sm mut">Click any row to open that student's full report.</p></div>
+      <span class="badge brand">{{ filtered().length }} students</span>
+    </div>
+    <div class="toolbar">
+      <div class="search"><hb-icon name="search" /><input class="form-control" placeholder="Search by name, email or roll number" [ngModel]="q()" (ngModelChange)="q.set($event)"></div>
+      <select class="form-select" [ngModel]="testId()" (ngModelChange)="testId.set($event)">
+        <option value="">All assessments</option>
+        @for (t of tests(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }
+      </select>
+      <select class="form-select" [ngModel]="dept()" (ngModelChange)="dept.set($event)"><option value="">All departments</option>@for (d of depts(); track d) { <option [value]="d">{{ d }}</option> }</select>
+      <select class="form-select" [ngModel]="course()" (ngModelChange)="course.set($event)"><option value="">All courses</option>@for (d of courses(); track d) { <option [value]="d">{{ d }}</option> }</select>
+      <select class="form-select" [ngModel]="sess()" (ngModelChange)="sess.set($event)"><option value="">All sessions</option>@for (d of sessionsList(); track d) { <option [value]="d">{{ d }}</option> }</select>
+      <select class="form-select" [ngModel]="attempt()" (ngModelChange)="attempt.set($event)"><option value="">Any attempt</option><option value="done">Test attempted</option><option value="pending">Not attempted</option></select>
+      <select class="form-select" [ngModel]="active()" (ngModelChange)="active.set($event)"><option value="active">Active students</option><option value="inactive">Inactive students</option><option value="all">Active + inactive</option></select>
+      <select class="form-select" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+        <option value="score">Sort: highest score</option><option value="low">Sort: lowest score</option><option value="name">Sort: name (A–Z)</option><option value="new">Sort: newest registration</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" (click)="clear()">Clear</button>
+    </div>
+
+    @if (all() === null) {
+      <div class="loading-page" style="min-height:160px"><span class="spinner"></span></div>
+    } @else if (!filtered().length) {
+      <div class="empty"><hb-icon name="search" /><h3>No students match these filters</h3><p class="sm">Try clearing the search box, or pick another batch at the top.</p></div>
+    } @else {
+      <div class="tbl-wrap">
+        <table class="table table-hover tbl-min">
+          <thead><tr><th>Student</th><th>University ID</th><th>Batch · Department</th><th>Course · Programme</th><th>Attempts</th><th>Score</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            @for (x of filtered(); track x.id) {
+              <tr class="clickable" [class.is-inactive]="x.status === 'inactive'" (click)="open(x)">
+                <td><div class="d-flex gap-2 align-items-center"><span class="avatar">{{ initials(x.name) }}</span>
+                  <span><span class="nm">{{ x.name }}</span><br><span class="xs mut email">{{ x.email }}</span></span></div></td>
+                <td>{{ x.uid }}<br><span class="xs mut">{{ x.regNo }}</span></td>
+                <td><span class="badge">{{ batchName(x.batchId) }}</span><br><span class="xs mut trunc" [title]="x.department">{{ x.department || '—' }}</span></td>
+                <td><span class="trunc" [title]="x.course">{{ x.course || '—' }}</span><br><span class="xs mut">{{ x.programme }} · {{ x.session }}</span></td>
+                <td>@if (pick(x)) { <span class="badge ok">Attempted</span> } @else { <span class="badge warn">Pending</span> }
+                  <br><span class="xs mut">{{ nDone(x) }} of {{ nOpen(x) }} assessments</span></td>
+                <td>@if (pick(x); as r) {
+                    <b>{{ r.score }}</b>/{{ r.max }}<br><span [class]="'badge ' + band(r.pct).cls">{{ r.pct }}%</span> <span class="xs mut">{{ r.percentile }}%ile</span>
+                  } @else { <span class="mut">—</span> }</td>
+                <td><hb-status [status]="x.status" [reason]="x.statusReason" [by]="x.statusBy" /></td>
+                <td><div class="d-flex gap-1 justify-content-end">
+                  <span class="btn btn-soft btn-sm">View</span>
+                  @if (x.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggle(x, $event)">Make active</button> }
+                  @else { <button class="icon-btn sm danger" title="Make inactive" (click)="toggle(x, $event)"><hb-icon name="power" /></button> }
+                </div></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>There is no delete: inactive students keep their registration and results.</span></footer>
+</main>
