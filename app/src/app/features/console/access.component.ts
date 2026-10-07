@@ -56,12 +56,71 @@ export class AccessComponent {
   });
   readonly codesDirty = computed(() => this.batches().some(b => (this.codes()[b.batchId] ?? '') !== (b.accessCode || '')));
 
+  /* ---------- every client in one place (HQ only) ---------- */
+  readonly scope = signal<'campus' | 'all'>('campus');
+  readonly allAdmins = signal<AdminAccess[] | null>(null);
+  readonly q = signal('');
+
+  readonly allCampuses = computed(() => this.campuses.campuses());
+
+  /** one row per login, with its campus and that campus's batch codes alongside */
+  readonly allRows = computed(() => {
+    const list = this.allAdmins() || [];
+    const needle = this.q().trim().toLowerCase();
+    return list
+      .map(a => {
+        const c = this.campuses.byId(a.campusId);
+        const batches = c ? this.campuses.batchesOf(a.campusId) : [];
+        return {
+          a,
+          campusName: c?.name || a.campusId,
+          campusShort: c?.shortName || a.campusId,
+          codes: batches.filter(b => isActive(b) && b.accessCode).map(b => ({ name: b.name, code: b.accessCode! }))
+        };
+      })
+      .filter(r => !needle
+        || r.a.name.toLowerCase().includes(needle)
+        || r.a.email.toLowerCase().includes(needle)
+        || r.a.username.toLowerCase().includes(needle)
+        || r.campusName.toLowerCase().includes(needle))
+      .sort((x, y) => x.campusName.localeCompare(y.campusName) || x.a.name.localeCompare(y.a.name));
+  });
+
+  readonly allTotals = computed(() => {
+    const rows = this.allAdmins() || [];
+    const on = rows.filter(a => isActive(a) && a.panelStatus === 'active').length;
+    const campuses = this.allCampuses();
+    const noCode = campuses.filter(c =>
+      this.campuses.batchesOf(c.id).filter(b => isActive(b)).some(b => !b.accessCode)).length;
+    return {
+      campuses: campuses.length,
+      logins: rows.length,
+      on,
+      off: rows.length - on,
+      noCode
+    };
+  });
+
   constructor() {
     effect(() => {
       const id = this.ctx.campusId();
       if (id) untracked(() => this.load(id));
     });
+    effect(() => {
+      if (this.scope() === 'all' && this.isSuper()) untracked(() => this.loadAll());
+    });
   }
+
+  /** logins for every campus at once */
+  async loadAll(): Promise<void> {
+    const list = this.campuses.campuses();
+    const per = await Promise.all(
+      list.map(c => firstValueFrom(this.api.getAdminAccess(c.id)).catch(() => [] as AdminAccess[]))
+    );
+    this.allAdmins.set(per.flat());
+  }
+
+  setScope(v: 'campus' | 'all'): void { this.scope.set(v); }
 
   async load(campusId: string): Promise<void> {
     const [admins, regs, roster] = await Promise.all([
@@ -112,7 +171,35 @@ export class AccessComponent {
     const ok = await this.statuses.change('admin', a.campusId, a.adminRef, a.name + ' (' + a.email + ')', isActive(a) ? 'inactive' : 'active', {
       what: 'login', note: 'They can no longer sign in to this portal. The account itself lives in the Hitbullseye admin panel.'
     });
-    if (ok) await this.load(a.campusId);
+    if (!ok) return;
+    if (a.campusId === this.ctx.campusId()) await this.load(a.campusId);
+    if (this.scope() === 'all') await this.loadAll();
+  }
+
+  /** jump the whole console to that client */
+  openCampus(campusId: string): void {
+    this.ctx.setCampus(campusId);
+    this.scope.set('campus');
+  }
+
+  exportAll(): void {
+    const rows = this.allRows();
+    const head = ['Client', 'Name', 'Username', 'Email', 'Admin panel', 'Portal', 'Last sign-in', 'Access codes'];
+    const body = rows.map(r => [
+      r.campusName, r.a.name, r.a.username, r.a.email,
+      r.a.panelStatus === 'active' ? 'Active' : 'Inactive',
+      isActive(r.a) ? 'Active' : 'Switched off',
+      r.a.lastLoginAt ? fmtDateTime(r.a.lastLoginAt) : 'never',
+      r.codes.map(c => c.name + ': ' + c.code).join(' | ')
+    ].map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(','));
+
+    const blob = new Blob([head.join(',') + '\n' + body.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hitbullseye-client-logins.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    this.toast.ok('Exported ' + rows.length + ' logins across ' + this.allTotals().campuses + ' clients.');
   }
 
   copy(code: string): void {

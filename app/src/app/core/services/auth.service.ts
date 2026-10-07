@@ -56,7 +56,7 @@ export class AuthService {
           username, at: nowIso()
         });
         this.campuses.rememberCampus(campus.id);
-        return { ok: true, url: '/console/analytics' };
+        return { ok: true, url: '/console/home' };
       }
 
       /* ---------------- student ---------------- */

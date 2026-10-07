@@ -1,5 +1,5 @@
-import { Component, computed, effect, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { CampusService } from '../../core/services/campus.service';
 import { ConsoleContext } from '../../core/services/console-context.service';
@@ -7,7 +7,7 @@ import { SessionStore } from '../../core/session.store';
 import { initials, isActive } from '../../core/util';
 import { IconComponent } from '../../shared/icon.component';
 
-interface Tab { path: string; label: string; icon: string; hq?: boolean; }
+interface Tab { path: string; label: string; icon: string; hq?: boolean; group: string; }
 
 /**
  * The console app bar, shared by the placement cell and HQ.
@@ -62,13 +62,34 @@ interface Tab { path: string; label: string; icon: string; hq?: boolean; }
         </div>
       </div>
       <div class="cnav-tabs">
-        <div class="cnav-in">
-          <div class="ctabs">
-            @for (t of tabs(); track t.path) {
-              <a class="ctab" [routerLink]="'/console/' + t.path" routerLinkActive="on">
-                <hb-icon [name]="t.icon" /><span>{{ t.label }}</span>
-                @if (t.hq) { <i class="hq-dot" title="HQ only"></i> }
-              </a>
+        <div class="cnav-in cnav-bar">
+          <a class="crumb-home" routerLink="/console/home" title="All sections">
+            <hb-icon name="grid" /><span>Home</span>
+          </a>
+          @if (current(); as t) {
+            <hb-icon name="chev" class="crumb-sep" />
+            <span class="crumb-now"><hb-icon [name]="t.icon" />{{ t.label }}</span>
+          }
+
+          <div class="sections" [class.open]="menu()">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="menu.set(!menu())">
+              <hb-icon name="layers" /> Sections <hb-icon name="chevDown" class="caret" />
+            </button>
+            @if (menu()) {
+              <div class="sections-back" (click)="menu.set(false)"></div>
+              <div class="sections-pop">
+                @for (g of grouped(); track g.name) {
+                  <div class="sec-group">
+                    <span class="sec-group-title">{{ g.name }}</span>
+                    @for (t of g.tabs; track t.path) {
+                      <a class="sec-item" [routerLink]="'/console/' + t.path" routerLinkActive="on" (click)="menu.set(false)">
+                        <hb-icon [name]="t.icon" /><span>{{ t.label }}</span>
+                        @if (t.hq) { <i class="hq-dot" title="Hitbullseye only"></i> }
+                      </a>
+                    }
+                  </div>
+                }
+              </div>
             }
           </div>
         </div>
@@ -86,6 +107,7 @@ export class ConsoleShellComponent {
   readonly ctx = inject(ConsoleContext);
   readonly campuses = inject(CampusService);
   readonly auth = inject(AuthService);
+  private router = inject(Router);
   private sessions = inject(SessionStore);
 
   readonly session = this.sessions.session;
@@ -95,29 +117,54 @@ export class ConsoleShellComponent {
   readonly active = (x: { status?: 'active' | 'inactive' } | null) => isActive(x);
   readonly logoH = computed(() => Math.min(+(this.ctx.campus()?.logoHeight || 32), 32));
 
+  readonly menu = signal(false);
+
   readonly tabs = computed<Tab[]>(() => {
     const su = this.isSuper();
     const t: Tab[] = [];
-    if (su) t.push({ path: 'clients', label: 'Clients', icon: 'grid', hq: true });
+    if (su) t.push({ path: 'clients', label: 'Clients', icon: 'grid', hq: true, group: 'Across every campus' });
     t.push(
-      { path: 'analytics', label: 'Analytics', icon: 'chart' },
-      { path: 'insights', label: 'Insights', icon: 'target' },
-      { path: 'students', label: 'Students', icon: 'users' },
-      { path: 'roster', label: 'Master list', icon: 'list' },
-      { path: 'access', label: 'Batches & logins', icon: 'key' },
-      { path: 'commercial', label: 'Commercial', icon: 'rupee' },
-      { path: 'profile', label: 'Profile', icon: 'building' },
-      { path: 'form', label: su ? 'Form builder' : 'Form (view)', icon: 'settings' },
-      { path: 'audit', label: 'Activity', icon: 'history' }
+      { path: 'analytics', label: 'Analytics', icon: 'chart', group: 'Reports & analytics' },
+      { path: 'insights', label: 'Insights', icon: 'target', group: 'Reports & analytics' },
+      { path: 'students', label: 'Students', icon: 'users', group: 'Reports & analytics' },
+      { path: 'roster', label: 'Master list', icon: 'list', group: 'Students & setup' },
+      { path: 'commercial', label: 'Commercial', icon: 'rupee', group: 'Account' },
+      { path: 'profile', label: 'Campus profile', icon: 'building', group: 'Students & setup' },
+      { path: 'form', label: su ? 'Form builder' : 'Registration form', icon: 'settings', group: 'Students & setup' },
+      { path: 'audit', label: 'Activity log', icon: 'history', group: 'Account' }
     );
     if (su) {
-      t.push({ path: 'data', label: 'Data & sync', icon: 'code', hq: true });
-      t.push({ path: 'engine', label: 'Engine', icon: 'rocket', hq: true });
+      /* access codes and campus logins are a Hitbullseye job, not a campus one */
+      t.push({ path: 'access', label: 'Access & logins', icon: 'key', hq: true, group: 'Across every campus' });
+      t.push({ path: 'data', label: 'Data & sync', icon: 'code', hq: true, group: 'Across every campus' });
+      t.push({ path: 'engine', label: 'Engine', icon: 'rocket', hq: true, group: 'Across every campus' });
     }
     return t;
   });
 
+  /** the same grouping the hub uses, so the menu and the boxes agree */
+  readonly grouped = computed(() => {
+    const order = ['Reports & analytics', 'Students & setup', 'Account', 'Across every campus'];
+    const by = new Map<string, Tab[]>();
+    this.tabs().forEach(t => {
+      if (!by.has(t.group)) by.set(t.group, []);
+      by.get(t.group)!.push(t);
+    });
+    return order.filter(g => by.has(g)).map(g => ({ name: g, tabs: by.get(g)! }));
+  });
+
+  /** which section is open, for the breadcrumb */
+  private readonly url = signal(this.router.url);
+  readonly current = computed(() => {
+    const seg = this.url().split('?')[0].split('/')[2] || '';
+    if (!seg || seg === 'home') return null;
+    return this.tabs().find(t => t.path === seg) || null;
+  });
+
   constructor() {
+    this.router.events.subscribe(e => {
+      if (e instanceof NavigationEnd) { this.url.set(e.urlAfterRedirects); this.menu.set(false); }
+    });
     effect(() => {
       const c = this.ctx.campus();
       this.campuses.applyTheme(c, (c?.shortName || 'Console') + ' · ' + (this.isSuper() ? 'Hitbullseye HQ' : 'Placement cell'));

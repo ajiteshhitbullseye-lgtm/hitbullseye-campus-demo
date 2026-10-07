@@ -1,0 +1,59 @@
+<main class="console-main page hub">
+
+  <!-- ---------------- greeting ---------------- -->
+  <section class="hub-hero">
+    <div class="hub-hero-in">
+      <div class="hub-hello">
+        <span class="eyebrow">{{ isSuper() ? 'Hitbullseye HQ' : 'Placement cell console' }}</span>
+        <h1>{{ hello() }}{{ greetName() ? ', ' + greetName() : '' }}.</h1>
+        @if (campus(); as c) {
+          <p class="lede">
+            You are looking at <b>{{ c.name }}</b>{{ ctx.batchId() ? ', ' + ctx.batchLabel() : ', all batches' }}.
+            @if (isSuper()) { Switch client from the app bar at any time. }
+          </p>
+        }
+
+        <div class="hub-quick">
+          <a class="hub-stat" routerLink="/console/roster">
+            <b>{{ num(counts().onList) }}</b><span>on the master list</span>
+          </a>
+          <a class="hub-stat" routerLink="/console/students">
+            <b>{{ num(counts().registered) }}</b><span>registered</span>
+          </a>
+          <a class="hub-stat" routerLink="/console/analytics">
+            <b>{{ num(counts().attempted) }}</b><span>attempted a test</span>
+          </a>
+        </div>
+      </div>
+
+      <img class="hub-bull" src="assets/brand/bull-presenter.webp" alt="" aria-hidden="true">
+    </div>
+  </section>
+
+  <!-- ---------------- the boxes ---------------- -->
+  @for (g of groups(); track g.name) {
+    <section class="hub-group">
+      <h2 class="hub-group-title">{{ g.name }}</h2>
+      <div class="hub-grid">
+        @for (card of g.cards; track card.path) {
+          <a class="hub-card" [routerLink]="'/console/' + card.path">
+            <span class="hub-ic"><hb-icon [name]="card.icon" /></span>
+            <span class="hub-body">
+              <b>{{ card.label }}@if (card.hq) { <i class="hq-dot" title="Hitbullseye only"></i> }</b>
+              <em>{{ card.blurb }}</em>
+            </span>
+            @if (card.stat) {
+              <span class="hub-num"><b>{{ card.stat!() }}</b><em>{{ card.statLabel }}</em></span>
+            }
+            <span class="hub-go"><hb-icon name="arrow" /></span>
+          </a>
+        }
+      </div>
+    </section>
+  }
+
+  <footer class="foot row-b">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Every section is also in the <b>Sections</b> menu once you are inside a page.</span>
+  </footer>
+</main>

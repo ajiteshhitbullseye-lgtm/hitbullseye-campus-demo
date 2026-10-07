@@ -68,7 +68,7 @@ export class LoginComponent implements OnInit {
     if (this.as() === 'admin') this.tab.set('admin');
     const s = this.sessions.session();
     if (s && !this.next()) {
-      this.router.navigateByUrl(s.role === 'student' ? '/me' : s.role === 'super_admin' ? '/console/clients' : '/console/analytics');
+      this.router.navigateByUrl(s.role === 'student' ? '/me' : '/console/home');
       return;
     }
     this.prefill();

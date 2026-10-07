@@ -1,15 +1,25 @@
 <main class="console-main page">
   <div class="page-head">
     <div>
-      <span class="eyebrow">{{ isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
-      <h1>Batches &amp; logins</h1>
-      <p class="sm mut">Batches and logins are created in the Hitbullseye admin panel. Here each batch gets its access code, and anything can be switched off — never deleted.</p>
+      <span class="eyebrow">Hitbullseye HQ · all clients</span>
+      <h1>Access &amp; logins</h1>
+      <p class="sm mut">Every client's placement-cell logins and batch access codes. Accounts are created and
+        reset in the Hitbullseye admin panel; here they are switched on or off for this portal, and each batch
+        gets the code its students register with. Nothing is ever deleted.</p>
     </div>
-    @if (isSuper()) {
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <div class="seg">
+        <button type="button" [class.on]="scope() === 'campus'" (click)="setScope('campus')">This client</button>
+        <button type="button" [class.on]="scope() === 'all'" (click)="setScope('all')">All clients</button>
+      </div>
+      @if (scope() === 'all') {
+        <button class="btn btn-ghost btn-sm" (click)="exportAll()"><hb-icon name="down" /> Export CSV</button>
+      }
       <button class="btn btn-primary btn-sm" (click)="syncNow()" [disabled]="syncing()"><hb-icon name="sync" /> Sync from admin panel</button>
-    }
+    </div>
   </div>
 
+  @if (scope() === 'campus') {
   <section class="card card-body mt">
     <div class="sec-head row-b">
       <div><h2>Batches</h2><p class="sm mut">Students register with their batch's code, so they land in the right batch. {{ isSuper() ? 'Change a code if it leaked; the old one stops working at once.' : 'Share each code only with that batch.' }}</p></div>
@@ -76,6 +86,75 @@
       </div>
     }
   </section>
+
+  }
+
+  <!-- ============ every client at once ============ -->
+  @if (scope() === 'all') {
+    @if (allAdmins() === null) {
+      <div class="loading-page" style="min-height:220px"><span class="spinner"></span></div>
+    } @else {
+      <section class="stats mt">
+        <div class="stat"><div class="lbl">Clients</div><div class="val">{{ allTotals().campuses }}</div>
+          <div class="sub">on this portal</div></div>
+        <div class="stat"><div class="lbl">Placement-cell logins</div><div class="val">{{ allTotals().logins }}</div>
+          <div class="sub">across every client</div></div>
+        <div class="stat"><div class="lbl">Able to sign in</div><div class="val">{{ allTotals().on }}</div>
+          <div class="sub">{{ allTotals().off }} switched off</div></div>
+        <div class="stat"><div class="lbl">Clients missing a code</div><div class="val">{{ allTotals().noCode }}</div>
+          <div class="sub">{{ allTotals().noCode ? 'those batches cannot register' : 'every active batch has one' }}</div></div>
+      </section>
+
+      <section class="card card-body mt">
+        <div class="sec-head row-b">
+          <div><h2>Logins across every client</h2>
+            <p class="sm mut">Switch an account off and it stops working on this portal at once. Open a client
+              to change that campus's access codes.</p></div>
+          <div class="search">
+            <hb-icon name="search" />
+            <input placeholder="Search a client, a name or a username"
+                   [value]="q()" (input)="q.set($any($event.target).value)">
+          </div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="table">
+            <thead><tr><th>Client</th><th>Login</th><th>Username</th><th>Admin panel</th>
+              <th>Portal</th><th>Last sign-in</th><th>Batch codes</th><th></th></tr></thead>
+            <tbody>
+              @for (r of allRows(); track r.a.campusId + r.a.adminRef) {
+                <tr [class.is-inactive]="r.a.status === 'inactive' || r.a.panelStatus !== 'active'">
+                  <td><span class="nm">{{ r.campusShort }}</span><br>
+                    <span class="xs mut">{{ r.campusName }}</span></td>
+                  <td><span class="nm">{{ r.a.name }}</span><br>
+                    <span class="xs mut email">{{ r.a.email }}</span></td>
+                  <td>{{ r.a.username }}</td>
+                  <td><span class="pstat" [class.off]="r.a.panelStatus !== 'active'"><i></i>{{ r.a.panelStatus === 'active' ? 'Active' : 'Inactive' }}</span></td>
+                  <td><hb-status [status]="r.a.status" [reason]="r.a.statusReason" [by]="r.a.statusBy" /></td>
+                  <td>{{ r.a.lastLoginAt ? ago(r.a.lastLoginAt) : 'never' }}</td>
+                  <td>
+                    @for (c of r.codes; track c.code) {
+                      <button class="code-chip" type="button" [title]="c.name + ' — click to copy'" (click)="copy(c.code)">{{ c.code }}</button>
+                    } @empty { <span class="xs err-t">no code</span> }
+                  </td>
+                  <td><div class="row" style="gap:6px;flex-wrap:nowrap">
+                    @if (r.a.status === 'inactive') {
+                      <button class="btn btn-ok-soft btn-sm" (click)="toggleAdmin(r.a)">Make active</button>
+                    } @else {
+                      <button class="icon-btn sm danger" title="Switch off on this portal" (click)="toggleAdmin(r.a)"><hb-icon name="power" /></button>
+                    }
+                    <button class="btn btn-soft btn-sm" (click)="openCampus(r.a.campusId)">Open</button>
+                  </div></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="center mut">No logins match that search.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
 
   <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Batch ids, client ids and logins come from the Hitbullseye admin panel.</span></footer>
 </main>

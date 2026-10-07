@@ -37,7 +37,8 @@ export const routes: Routes = [
     path: 'console', canActivate: [adminGuard],
     loadComponent: () => import('./features/console/console-shell.component').then(m => m.ConsoleShellComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'analytics' },
+      { path: '', pathMatch: 'full', redirectTo: 'home' },
+      { path: 'home', title: 'Console', loadComponent: () => import('./features/console/hub.component').then(m => m.HubComponent) },
       { path: 'clients', canActivate: [superGuard], loadComponent: () => import('./features/console/clients.component').then(m => m.ClientsComponent) },
       { path: 'analytics', loadComponent: () => import('./features/console/analytics.component').then(m => m.AnalyticsComponent) },
       { path: 'insights', loadComponent: () => import('./features/console/insights.component').then(m => m.InsightsComponent) },
@@ -46,7 +47,7 @@ export const routes: Routes = [
       { path: 'commercial', loadComponent: () => import('./features/console/commercial.component').then(m => m.CommercialComponent) },
       { path: 'profile', loadComponent: () => import('./features/console/profile.component').then(m => m.ProfileComponent) },
       { path: 'form', loadComponent: () => import('./features/console/form-builder.component').then(m => m.FormBuilderComponent) },
-      { path: 'access', loadComponent: () => import('./features/console/access.component').then(m => m.AccessComponent) },
+      { path: 'access', canActivate: [superGuard], loadComponent: () => import('./features/console/access.component').then(m => m.AccessComponent) },
       { path: 'audit', loadComponent: () => import('./features/console/audit.component').then(m => m.AuditComponent) },
       { path: 'data', canActivate: [superGuard], loadComponent: () => import('./features/console/data.component').then(m => m.DataComponent) },
       { path: 'engine', canActivate: [superGuard], loadComponent: () => import('./features/console/engine.component').then(m => m.EngineComponent) },

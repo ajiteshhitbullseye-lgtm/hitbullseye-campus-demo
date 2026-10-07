@@ -256,7 +256,7 @@ svg [tabindex]:focus-visible{outline:2px solid var(--brand)}
 /* cards: soft lift and a coloured cap on chart cards */
 .an-card{position:relative;border-radius:20px;box-shadow:0 1px 2px rgba(10,21,35,.04),0 12px 32px -18px rgba(37,99,235,.28)}
 .an-card:has(.an-chart)::before{content:"";position:absolute;left:20px;right:20px;top:0;height:3px;border-radius:0 0 4px 4px;
-  background:linear-gradient(90deg,#22d3ee,#2563eb 55%,#6366f1);opacity:.85}
+  background:linear-gradient(90deg,rgba(var(--brand-rgb),.45),var(--brand) 55%,var(--brand-dk));opacity:.85}
 .an-card h3{display:flex;align-items:center;gap:8px}
 
 /* score ring */
@@ -477,7 +477,7 @@ i.cell.imp{background:#f6a39a;color:#7a1610} i.cell.na{background:#d5dbe5;color:
 /* =====================================================================
    TABBED REPORTS — a short page, one topic at a time
    ===================================================================== */
-.an-subnav{position:sticky;top:64px;z-index:20;display:flex;gap:4px;margin:18px 0 0;padding:6px;border-radius:16px;
+.an-subnav{position:sticky;top:56px;z-index:20;display:flex;gap:4px;margin:18px 0 0;padding:6px;border-radius:16px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   border:1px solid var(--line);box-shadow:0 10px 24px -18px rgba(10,21,35,.4);overflow-x:auto;scrollbar-width:none}
 .an-subnav::-webkit-scrollbar{display:none}
@@ -485,8 +485,8 @@ i.cell.imp{background:#f6a39a;color:#7a1610} i.cell.na{background:#d5dbe5;color:
   padding:10px 14px;border-radius:11px;font:inherit;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
 .an-subnav button svg{width:16px;height:16px}
 .an-subnav button:hover{color:var(--ink);background:var(--line-2)}
-.an-subnav button.on{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;box-shadow:0 6px 14px -6px rgba(37,99,235,.7)}
-@media(max-width:700px){ .an-subnav{top:58px} .an-subnav button{flex:0 0 auto;padding:9px 11px} .an-subnav button span{font-size:12.5px} }
+.an-subnav button.on{background:linear-gradient(135deg,var(--brand),var(--brand-dk));color:#fff;box-shadow:0 6px 14px -6px rgba(var(--brand-rgb),.75)}
+@media(max-width:700px){ .an-subnav{top:52px} .an-subnav button{flex:0 0 auto;padding:9px 11px} .an-subnav button span{font-size:12.5px} }
 .an-panel{animation:an-fade .25s ease both}
 .an-panel > .an-sec:first-child{margin-top:22px}
 @media print{ .an-panel[hidden]{display:block!important} }
@@ -529,12 +529,13 @@ body:has(.an-subnav),body:has(.an-herocard){
 }
 
 /* ---- hero: deep gradient card ---- */
-.an-herocard{position:relative;overflow:hidden;border:0;color:#dbe4ff;
+/* the analytics hero wears the campus colour, not a fixed indigo */
+.an-herocard{position:relative;overflow:hidden;border:0;color:rgba(255,255,255,.86);
   background:
-    radial-gradient(520px 260px at 92% -10%, rgba(56,189,248,.35), transparent 60%),
-    radial-gradient(420px 260px at 0% 110%, rgba(236,72,153,.28), transparent 60%),
-    linear-gradient(135deg,#0b1437 0%,#1e2a78 55%,#4338ca 100%);
-  box-shadow:0 30px 60px -30px rgba(30,42,120,.65)}
+    radial-gradient(560px 280px at 92% -14%, rgba(var(--accent-rgb),.32), transparent 62%),
+    radial-gradient(420px 260px at 0% 112%, rgba(255,255,255,.12), transparent 60%),
+    linear-gradient(138deg, var(--brand-dk) 0%, var(--brand) 62%, rgba(var(--brand-rgb),.82) 100%);
+  box-shadow:0 30px 60px -30px rgba(var(--brand-rgb),.6)}
 .an-herocard::before{content:"";position:absolute;inset:0;opacity:.18;pointer-events:none;
   background-image:radial-gradient(rgba(255,255,255,.35) 1px, transparent 1px);background-size:22px 22px}
 .an-herocard > *{position:relative}
@@ -581,7 +582,7 @@ body:has(.an-subnav),body:has(.an-herocard){
 .an-tile.h-amber::before{background:linear-gradient(180deg,#fbbf24,#ea580c)} .an-tile.h-teal::before{background:linear-gradient(180deg,#5eead4,#0d9488)}
 
 /* ---- a hue per tab ---- */
-.an-panel[data-k="summary"],.an-subnav button[data-k="summary"]{--th1:#818cf8;--th2:#4f46e5}
+.an-panel[data-k="summary"],.an-subnav button[data-k="summary"]{--th1:rgba(var(--brand-rgb),.65);--th2:var(--brand)}
 .an-panel[data-k="sections"],.an-subnav button[data-k="sections"]{--th1:#2dd4bf;--th2:#0d9488}
 .an-panel[data-k="topics"],.an-subnav button[data-k="topics"]{--th1:#c084fc;--th2:#9333ea}
 .an-panel[data-k="time"],.an-subnav button[data-k="time"]{--th1:#fbbf24;--th2:#ea580c}
@@ -595,7 +596,7 @@ body:has(.an-subnav),body:has(.an-herocard){
 .an-subnav button.on svg{color:#fff}
 .an-panel .an-kicker{color:var(--th2,var(--brand))}
 .an-panel .an-kicker::before{background:linear-gradient(135deg,var(--th1,#60a5fa),var(--th2,#2563eb));width:8px;height:8px}
-.an-panel .an-card:has(.an-chart)::before{background:linear-gradient(90deg,var(--th1,#22d3ee),var(--th2,#6366f1))}
+.an-panel .an-card:has(.an-chart)::before{background:linear-gradient(90deg,var(--th1,rgba(var(--brand-rgb),.5)),var(--th2,var(--brand)))}
 .an-panel .an-say{background:linear-gradient(135deg,color-mix(in srgb,var(--th1,#60a5fa) 14%,#fff),#fff);border-color:color-mix(in srgb,var(--th1,#60a5fa) 40%,#fff)}
 .an-panel .an-say > i{background:linear-gradient(135deg,var(--th1,#60a5fa),var(--th2,#2563eb))}
 .an-panel .an-say .an-say-l{color:var(--th2,#2563c9)}
