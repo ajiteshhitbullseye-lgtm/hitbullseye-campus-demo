@@ -1,0 +1,82 @@
+name: Deploy to GitHub Pages
+
+# The Angular app in app/ becomes the site. The original plain-HTML
+# prototype is kept alongside it under /legacy/ so nothing is lost.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      # Pages serves the repo from a sub-path, so the app needs to know it.
+      - name: Build
+        working-directory: app
+        run: npm run build -- --base-href "/${GITHUB_REPOSITORY#*/}/"
+
+      - name: Assemble the site
+        run: |
+          set -e
+          OUT=_site
+          mkdir -p "$OUT"
+          cp -r app/dist/hitbullseye-campus/browser/. "$OUT"/
+
+          # Angular routes like /console/roster are not real files. GitHub Pages
+          # serves 404.html for anything it cannot find, so a copy of index.html
+          # under that name gives us the SPA fallback.
+          cp "$OUT/index.html" "$OUT/404.html"
+
+          # The original prototype, still reachable at /legacy/
+          mkdir -p "$OUT/legacy"
+          for f in *.html robots.txt README.txt DEPLOY.md; do
+            [ -e "$f" ] && cp "$f" "$OUT/legacy/" || true
+          done
+          for d in css js assets; do
+            [ -d "$d" ] && cp -r "$d" "$OUT/legacy/" || true
+          done
+
+          # Jekyll would otherwise swallow files beginning with an underscore
+          touch "$OUT/.nojekyll"
+          cp robots.txt "$OUT/robots.txt" 2>/dev/null || true
+
+          echo "--- built site ---"
+          ls "$OUT" | head -20
+          echo "legacy: $(ls "$OUT/legacy" | wc -l) entries"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

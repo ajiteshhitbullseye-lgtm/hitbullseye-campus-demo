@@ -39,7 +39,7 @@ import { CampusService } from '../../core/services/campus.service';
           <form (ngSubmit)="go()" novalidate>
             <div class="mb-3">
               <label class="form-label" for="he">Work email</label>
-              <input id="he" name="e" type="email" class="form-control" [(ngModel)]="email" placeholder="you@hitbullseye.com" autocomplete="username">
+              <input id="he" name="e" type="email" class="form-control" [(ngModel)]="email" placeholder="you@demo.com" autocomplete="username">
             </div>
             <div class="mb-3">
               <label class="form-label" for="hp">Password</label>
