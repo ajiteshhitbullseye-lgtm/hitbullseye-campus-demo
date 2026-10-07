@@ -1,0 +1,257 @@
+<main class="console-main page">
+  @if (cfg(); as c) {
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ ro() ? 'View only' : 'No code required' }}</span>
+      <h1>Registration form {{ ro() ? '' : 'builder' }}</h1>
+      <p class="sm mut">Branding, the welcome copy, the verification step, every field on the form and every assessment for {{ c.name }}.</p>
+    </div>
+    @if (!ro()) {
+      <div class="d-flex gap-2 flex-wrap align-items-center no-print">
+        @if (dirty()) { <span class="badge warn">Unsaved changes</span> }
+        <button class="btn btn-ghost btn-sm" (click)="exportJson()">Export JSON</button>
+        <label class="btn btn-ghost btn-sm mb-0">Import JSON <input type="file" accept=".json" (change)="importJson($event)" hidden></label>
+        <button class="btn btn-ghost btn-sm" (click)="discard()">Discard changes</button>
+        <button class="btn btn-primary btn-sm" (click)="save()" [disabled]="saving()"><hb-icon name="save" /> Save</button>
+      </div>
+    }
+  </div>
+
+  @if (ro()) {
+    <div class="viewonly mt"><hb-icon name="eye" />
+      <div><b>View only.</b> This is exactly what your students see and fill. Only Hitbullseye HQ can change the form — write to them for any change
+        (a new field, a label, an assessment). Your own details are on the <a routerLink="/console/profile">Profile</a> tab.</div></div>
+  } @else {
+    <div class="alert alert-info mt"><hb-icon name="info" />
+      <div>Edit anything, then <b>Save</b>. Fields and assessments are never deleted: switch them <b>off</b> (with a reason, saved to the Activity log) and they disappear for students but stay in the history.
+        In production this whole object is served by <code>GET /api/portal/campuses</code>.</div></div>
+  }
+
+  <fieldset [disabled]="ro()" [class.ro]="ro()">
+  <div class="split mt">
+    <!-- ============ LEFT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Campus</h3>
+        <div class="mini">
+          <div class="full"><label class="form-label">Campus name</label><input class="form-control" [(ngModel)]="c.name" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Short name</label><input class="form-control" [(ngModel)]="c.shortName" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">City</label><input class="form-control" [(ngModel)]="c.campus" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">Logo</label>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="logo-plate" style="min-height:48px;padding:6px 12px"><img [src]="c.logo" alt="" [style.max-height.px]="c.logoHeight || 34"></span>
+              @if (!ro()) { <label class="btn btn-ghost btn-sm mb-0">Upload <input type="file" accept="image/*" (change)="logoUp($event)" hidden></label> }
+            </div>
+          </div>
+          <div class="full"><label class="form-label">Logo height (px)</label><input type="number" min="20" max="64" class="form-control" [(ngModel)]="c.logoHeight" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Primary</label><input type="color" class="form-control" [(ngModel)]="c.theme.primary" (ngModelChange)="liveTheme()"></div>
+          <div><label class="form-label">Dark shade</label><input type="color" class="form-control" [(ngModel)]="c.theme.primaryDark" (ngModelChange)="liveTheme()"></div>
+          <div class="full"><label class="form-label">Accent</label><input type="color" class="form-control" [(ngModel)]="c.theme.accent" (ngModelChange)="liveTheme()"></div>
+          <div class="full"><label class="form-label">Campus photo URL</label><input class="form-control" [(ngModel)]="c.photo" (ngModelChange)="touch()"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Access code step</h3>
+        <div class="mini">
+          <div class="full"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="secOn" [(ngModel)]="c.security.enabled" (ngModelChange)="touch()">
+            <label class="form-check-label" for="secOn">Ask for the batch access code before the ID</label></div></div>
+          <div class="full"><label class="form-label">Field label</label><input class="form-control" [(ngModel)]="c.security.label" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">Helper text</label><input class="form-control" [(ngModel)]="c.security.help" (ngModelChange)="touch()"></div>
+        </div>
+        <p class="xs mut mt-s">Codes are set per batch on <a routerLink="/console/access">Batches &amp; logins</a>:
+          @for (b of batches(); track b.batchId; let last = $last) { {{ b.name }} <code>{{ ro() ? '••••' : (b.accessCode || '—') }}</code>@if (!last) {, } }</p>
+      </div>
+
+      <div class="panel mt">
+        <h3>ID verification</h3>
+        <div class="mini">
+          <div class="full"><label class="form-label">ID field label</label><input class="form-control" [(ngModel)]="c.gate.idLabel" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">ID placeholder</label><input class="form-control" [(ngModel)]="c.gate.idPlaceholder" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">ID helper text</label><input class="form-control" [(ngModel)]="c.gate.idHelp" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">OTP length</label><input type="number" min="4" max="8" class="form-control" [(ngModel)]="c.verification.otpLength" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Resend after (s)</label><input type="number" min="10" max="120" class="form-control" [(ngModel)]="c.verification.resendSeconds" (ngModelChange)="touch()"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <h3>Confirmation page</h3>
+        <div class="mini">
+          <div class="full"><label class="form-label">Title</label><input class="form-control" [(ngModel)]="c.thankyou.title" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">Message</label><textarea rows="3" class="form-control" [(ngModel)]="c.thankyou.message" (ngModelChange)="touch()"></textarea></div>
+          <div><label class="form-label">Redirect after (s)</label><input type="number" min="0" max="60" class="form-control" [(ngModel)]="c.thankyou.redirectSeconds" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Button label</label><input class="form-control" [(ngModel)]="c.thankyou.dashboardLabel" (ngModelChange)="touch()"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Welcome page content</h3>
+        <div class="mini">
+          <div><label class="form-label">Eyebrow / programme</label><input class="form-control" [(ngModel)]="c.welcome.eyebrow" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Call-to-action text</label><input class="form-control" [(ngModel)]="c.welcome.cta" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Headline</label><input class="form-control" [(ngModel)]="c.welcome.title" (ngModelChange)="touch()"></div>
+          <div><label class="form-label">Highlighted word</label><input class="form-control" [(ngModel)]="c.welcome.highlight" (ngModelChange)="touch()"></div>
+          <div class="full"><label class="form-label">Sub-headline</label><textarea rows="2" class="form-control" [(ngModel)]="c.welcome.subtitle" (ngModelChange)="touch()"></textarea></div>
+          <div class="full"><label class="form-label">Bullet points (one per line)</label><textarea rows="4" class="form-control" [(ngModel)]="pointsText" (ngModelChange)="touch()"></textarea></div>
+          <div class="full"><label class="form-label">Trust stats (value | label, one per line)</label><textarea rows="3" class="form-control" [(ngModel)]="statsText" (ngModelChange)="touch()"></textarea></div>
+          <div class="full"><label class="form-label">Note under the button</label><input class="form-control" [(ngModel)]="c.welcome.note" (ngModelChange)="touch()"></div>
+        </div>
+      </div>
+
+      <!-- assessments -->
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">Assessments</h3>@if (!ro()) { <button class="btn btn-primary btn-sm" (click)="addTest()">+ Add assessment</button> }</div>
+        <p class="sm mut" style="margin-bottom:14px">Leave an audience box empty to show that paper to the whole campus; fill it to restrict it to departments, programmes, sessions or batches.</p>
+        @for (e of tests(); track $index; let i = $index) {
+          <div class="fl" [class.off]="e.t.status === 'inactive'">
+            <div class="fl-head">
+              @if (!ro()) {
+                <button class="icon-btn sm" title="Move up" (click)="moveTest(i, -1)"><hb-icon name="up" /></button>
+                <button class="icon-btn sm" title="Move down" (click)="moveTest(i, 1)"><hb-icon name="down" /></button>
+              }
+              <span class="nm">{{ e.t.name }}</span>
+              <span class="badge">{{ e.t.tag || 'Assessment' }}</span><span class="badge">{{ e.t.durationMin }} min</span>
+              @if (isRestricted(e)) { <span class="badge warn">restricted</span> } @else { <span class="badge ok">whole campus</span> }
+              <hb-status [status]="e.t.status" [reason]="e.t.statusReason" [quiet]="true" />
+              <span class="icon-btn sm" role="button" tabindex="0" [title]="ro() ? 'View' : 'Edit'" (click)="toggleTestOpen(i)" (keydown.enter)="toggleTestOpen(i)"><hb-icon [name]="ro() ? 'eye' : 'edit'" /></span>
+              @if (!ro()) {
+                @if (e.isNew) { <button class="icon-btn sm" title="Discard (not saved yet)" (click)="discardTest(i)"><hb-icon name="x" /></button> }
+                @else if (e.t.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="status('assessment', e.t.id, e.t.name, false)">Turn on</button> }
+                @else { <button class="icon-btn sm danger" title="Turn off (inactive)" (click)="status('assessment', e.t.id, e.t.name, true)"><hb-icon name="power" /></button> }
+              }
+            </div>
+            @if (e.open) {
+              <div class="fl-body"><div class="mini mt-s">
+                <div class="full"><label class="form-label">Assessment name</label><input class="form-control" [(ngModel)]="e.t.name" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Tag (badge)</label><input class="form-control" [(ngModel)]="e.t.tag" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Test id (backend key)</label><input class="form-control" [(ngModel)]="e.t.id" (ngModelChange)="touch()" [disabled]="!e.isNew || ro()"></div>
+                <div><label class="form-label">Duration (minutes)</label><input type="number" class="form-control" [(ngModel)]="e.t.durationMin" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Total questions</label><input type="number" class="form-control" [(ngModel)]="e.t.questions" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Test window</label><input class="form-control" [(ngModel)]="e.t.window" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Attempts allowed</label><input class="form-control" [(ngModel)]="e.t.attempts" (ngModelChange)="touch()"></div>
+                <div class="full"><label class="form-label">Sections (comma separated)</label><input class="form-control" [(ngModel)]="e.sections" (ngModelChange)="touch()"></div>
+                <div class="full" style="border-top:1px dashed var(--line);padding-top:12px"><label class="form-label">Visible to departments (empty = all)</label><input class="form-control" [(ngModel)]="e.depts" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Only these programmes</label><input class="form-control" [(ngModel)]="e.progs" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Only these sessions</label><input class="form-control" [(ngModel)]="e.sessions" (ngModelChange)="touch()"></div>
+                <div class="full"><label class="form-label">Only these batches (none ticked = every batch)</label>
+                  <div class="d-flex gap-3 flex-wrap">
+                    @for (b of batches(); track b.batchId) {
+                      <div class="form-check"><input class="form-check-input" type="checkbox" [id]="e.t.id + b.batchId" [checked]="hasBatch(e, b.batchId)" (change)="toggleBatch(e, b.batchId, $any($event.target).checked)">
+                        <label class="form-check-label" [for]="e.t.id + b.batchId">{{ b.name }}</label></div>
+                    }
+                  </div>
+                </div>
+              </div></div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- department-wise form -->
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">Department-wise form</h3>
+          @if (!ro()) { <button class="btn btn-ghost btn-sm" (click)="allOn()">Show all everywhere</button> }</div>
+        <p class="sm mut" style="margin-bottom:14px">One form per campus, tuned per department. Untick a box and that department never sees the field — not shown, not required.</p>
+        @if (!deptList().length) {
+          <div class="empty"><hb-icon name="building" /><h3>No departments yet</h3><p class="sm">Give the Department field some options (or fill the profile) and they appear here.</p></div>
+        } @else {
+          <div class="tbl-wrap">
+            <table class="table matrix">
+              <thead><tr><th class="lead-col">Field</th>
+                @for (d of deptList(); track d) { <th [title]="d"><span>{{ short(d) }}</span>@if (!ro()) { <button type="button" class="colTog" (click)="toggleCol(d)">all</button> }</th> }
+              </tr></thead>
+              <tbody>
+                @for (f of tunable(); track f.id) {
+                  <tr><td class="lead-col"><b>{{ f.label }}</b><br><span class="xs mut">{{ f.id }} · {{ f.type }}{{ f.required ? ' · required' : '' }}</span>
+                    @if (fieldNote(f)) { <br><span class="badge warn">{{ fieldNote(f) }}</span> }</td>
+                    @for (d of deptList(); track d) {
+                      <td class="cell"><label class="dcheck"><input type="checkbox" [checked]="matrix()[f.id]?.[d]" (change)="setCell(f.id, d, $any($event.target).checked)"><span></span></label></td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="xs mut mt-s">{{ tunable().length }} tunable fields × {{ deptList().length }} departments. Name, email, University ID and Department are always asked.</p>
+        }
+      </div>
+
+      <!-- fields -->
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:14px"><h3 style="margin:0">Form fields</h3>@if (!ro()) { <button class="btn btn-primary btn-sm" (click)="addField()">+ Add field</button> }</div>
+        @for (e of fields(); track $index; let i = $index) {
+          <div class="fl" [class.off]="e.f.status === 'inactive'">
+            <div class="fl-head">
+              @if (!ro()) {
+                <button class="icon-btn sm" title="Move up" (click)="moveField(i, -1)"><hb-icon name="up" /></button>
+                <button class="icon-btn sm" title="Move down" (click)="moveField(i, 1)"><hb-icon name="down" /></button>
+              }
+              <span class="nm">{{ e.f.label || e.f.id }}</span>
+              <span class="badge">{{ e.f.type }}</span>
+              @if (e.f.required) { <span class="badge err">Required</span> }
+              @if (e.f.prefill) { <span class="badge ok">pre-filled</span> }
+              @if (e.f.lock) { <span class="badge">locked</span> }
+              @if (e.f.dependsOn) { <span class="badge brand">depends on {{ labelOf(e.f.dependsOn) }}</span> }
+              @if (e.f.showIf) { <span class="badge warn">conditional</span> }
+              <hb-status [status]="e.f.status" [reason]="e.f.statusReason" [quiet]="true" />
+              <span class="icon-btn sm" role="button" tabindex="0" [title]="ro() ? 'View' : 'Edit'" (click)="toggleField(i)" (keydown.enter)="toggleField(i)"><hb-icon [name]="ro() ? 'eye' : 'edit'" /></span>
+              @if (!ro()) {
+                @if (e.isNew) { <button class="icon-btn sm" title="Discard (not saved yet)" (click)="discardField(i)"><hb-icon name="x" /></button> }
+                @else if (isCore(e.f)) { <span class="badge" title="Needed by the ID check and reports"><hb-icon name="lock" /> core</span> }
+                @else if (e.f.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="status('field', e.f.id, e.f.label, false)">Turn on</button> }
+                @else { <button class="icon-btn sm danger" title="Turn off (inactive)" (click)="status('field', e.f.id, e.f.label, true)"><hb-icon name="power" /></button> }
+              }
+            </div>
+            @if (e.open) {
+              <div class="fl-body"><div class="mini mt-s">
+                <div class="full"><label class="form-label">Label shown to the student</label><input class="form-control" [(ngModel)]="e.f.label" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Field id (backend key)</label><input class="form-control" [(ngModel)]="e.f.id" (ngModelChange)="touch()" [disabled]="!e.isNew || ro()"></div>
+                <div><label class="form-label">Type</label><select class="form-select" [(ngModel)]="e.f.type" (ngModelChange)="touch()">@for (t of types; track t) { <option [value]="t">{{ t }}</option> }</select></div>
+                <div><label class="form-label">Section heading</label><input class="form-control" [(ngModel)]="e.f.section" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Placeholder</label><input class="form-control" [(ngModel)]="e.f.placeholder" (ngModelChange)="touch()"></div>
+                <div class="full"><label class="form-label">Helper text</label><input class="form-control" [(ngModel)]="e.f.help" (ngModelChange)="touch()"></div>
+                <div class="full"><label class="form-label">Options for dropdown / radio (comma separated)</label><input class="form-control" [(ngModel)]="e.optionsText" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Pre-fill from verified ID</label><select class="form-select" [(ngModel)]="e.f.prefill" (ngModelChange)="touch()">@for (p of prefills; track p) { <option [value]="p">{{ p || '— none —' }}</option> }</select></div>
+                <div class="d-flex align-items-end gap-3">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" [id]="'lk' + i" [(ngModel)]="e.f.lock" (ngModelChange)="touch()"><label class="form-check-label" [for]="'lk' + i">Locked</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" [id]="'rq' + i" [(ngModel)]="e.f.required" (ngModelChange)="touch()"><label class="form-check-label" [for]="'rq' + i">Required</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" [id]="'hf' + i" [(ngModel)]="e.f.half" (ngModelChange)="touch()"><label class="form-check-label" [for]="'hf' + i">Half width</label></div>
+                </div>
+                <div class="full" style="border-top:1px dashed var(--line);padding-top:12px"><label class="form-label">Dependent field — parent</label>
+                  <select class="form-select" [(ngModel)]="e.f.dependsOn" (ngModelChange)="touch()"><option [ngValue]="undefined">— independent —</option>
+                    @for (o of fields(); track o.f.id) { @if (o.f.id !== e.f.id) { <option [ngValue]="o.f.id">{{ o.f.label }}</option> } }</select></div>
+                @if (e.f.dependsOn) {
+                  <div class="full"><label class="form-label">Options by parent value (one line: <b>parent &gt; a, b, c</b>; * = any)</label>
+                    <textarea rows="4" class="form-control" style="font-size:12.5px" [(ngModel)]="e.mapText" (ngModelChange)="touch()"></textarea></div>
+                }
+                <div><label class="form-label">Show only when field</label>
+                  <select class="form-select" [(ngModel)]="e.showField" (ngModelChange)="touch()"><option value="">— always show —</option>
+                    @for (o of fields(); track o.f.id) { @if (o.f.id !== e.f.id) { <option [value]="o.f.id">{{ o.f.label }}</option> } }</select></div>
+                <div><label class="form-label">… has one of these values</label><input class="form-control" [(ngModel)]="e.showValues" (ngModelChange)="touch()"></div>
+              </div></div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (!ro()) {
+        <div class="d-flex gap-2 flex-wrap mt">
+          <button class="btn btn-primary btn-lg grow" style="min-width:230px" (click)="save()" [disabled]="saving()">Save configuration</button>
+          <a class="btn btn-ghost" [routerLink]="['/c', c.id]">Open the welcome page</a>
+          <a class="btn btn-ghost" [routerLink]="['/c', c.id, 'verify']">Open the live form</a>
+        </div>
+      } @else {
+        <div class="d-flex gap-2 flex-wrap mt">
+          <a class="btn btn-ghost" [routerLink]="['/c', c.id]">Open the welcome page</a>
+          <a class="btn btn-ghost" [routerLink]="['/c', c.id, 'verify']">Open the live form</a>
+        </div>
+      }
+    </div>
+  </div>
+  </fieldset>
+  }
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>{{ ro() ? 'Read-only for placement cells' : 'Changes are audited' }}</span></footer>
+</main>

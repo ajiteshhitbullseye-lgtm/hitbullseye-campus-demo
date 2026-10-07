@@ -1,0 +1,76 @@
+@if (paper(); as paper) {
+<div class="test-bar">
+  <div class="in">
+    @if (c(); as c) { <span class="logo-plate" style="min-height:44px;padding:6px 12px"><img [src]="c.logo" alt="" [style.max-height.px]="c.logoHeight || 34"></span> }
+    <div class="grow">
+      <div style="font-weight:700;color:var(--ink);font-size:14.5px">{{ testName() }}</div>
+      <div class="xs mut">{{ st()?.name }} · {{ st()?.regNo }} · {{ total() }} questions</div>
+    </div>
+    <div class="timer" [class.low]="left() <= 60"><hb-icon name="clock" />{{ clock() }}</div>
+    <button class="btn btn-primary" (click)="submit(false)" [disabled]="submitting()">Submit test</button>
+  </div>
+</div>
+
+<main class="wrap" style="padding-bottom:60px">
+  <div class="q-grid">
+    <section class="card card-body">
+      @if (q(); as q) {
+        <div class="row-b" style="margin-bottom:6px">
+          <span class="badge brand">{{ q.sectionName }}</span>
+          <span class="sm mut">Question {{ cur() + 1 }} of {{ total() }} · {{ q.areaTitle }}</span>
+        </div>
+        @if (q.coding) {
+          <h2 style="font-size:19px;line-height:1.45;margin:10px 0 20px">{{ q.title }}</h2>
+          <p style="margin:-8px 0 14px">{{ q.text }}</p>
+          <div class="ex">@for (s of q.samples; track $index) { {{ sampleText(q, s) }}<br> }</div>
+          <div class="code-wrap">
+            <div class="cbar"><span>JavaScript</span><span>Hidden tests decide your marks</span></div>
+            <textarea spellcheck="false" [value]="codes()[cur()] || ''" (input)="setCode($any($event.target).value)" (keydown)="codeKey($event)"></textarea>
+          </div>
+          <div class="d-flex gap-2 align-items-center flex-wrap" style="margin-top:12px">
+            <button class="btn btn-soft btn-sm" (click)="run()"><hb-icon name="rocket" /> Run sample tests</button>
+            <span class="xs mut">Demo: answers are written in JavaScript. The live platform uses its own code engine.</span>
+          </div>
+          <div class="run-out">@for (r of runOut(); track $index) { <div class="run-row" [class]="'run-row ' + r.cls">{{ r.text }}</div> }</div>
+        } @else {
+          <h2 style="font-size:19px;line-height:1.45;margin:10px 0 20px">{{ q.text }}</h2>
+          @for (o of q.choices; track $index; let i = $index) {
+            <label class="opt" [class.sel]="answers()[cur()] === i" (click)="pick(i)">
+              <input type="radio" name="opt" [checked]="answers()[cur()] === i"><span><b class="me-1">{{ letter(i) }}.</b> {{ o }}</span>
+            </label>
+          }
+        }
+        <div class="divider"></div>
+        <div class="row-b">
+          <button class="btn btn-ghost" (click)="go(-1)" [disabled]="cur() === 0">Previous</button>
+          <div class="d-flex gap-2">
+            <button class="btn btn-ghost" (click)="clear()">Clear answer</button>
+            <button class="btn btn-primary" (click)="go(1)">Save &amp; next</button>
+          </div>
+        </div>
+      }
+    </section>
+
+    <aside class="card card-body pad-s">
+      <h3 style="font-size:14.5px;margin-bottom:14px">Question palette</h3>
+      <div class="palette">
+        @for (p of palette(); track p.i) {
+          @if (p.head) { <div class="pal-sec">{{ p.head }}</div> }
+          <button class="pal" [class.cur]="p.i === cur()" [class.ans]="p.i !== cur() && answers()[p.i] > -1" (click)="jump(p.i)">{{ p.i + 1 }}</button>
+        }
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--ok-bg);border:1px solid #bfe8d3"></i>Answered</span>
+        <span><i style="background:#fff;border:1px solid var(--line)"></i>Not answered</span>
+      </div>
+      <div class="divider"></div>
+      <div class="kv"><span>Answered</span><b>{{ answered() }}</b></div>
+      <div class="kv"><span>Remaining</span><b>{{ total() - answered() }}</b></div>
+      <button class="btn btn-primary w-100" style="margin-top:14px" (click)="submit(false)" [disabled]="submitting()">Submit test</button>
+      <p class="xs mut center" style="margin-top:10px">Demo: a short version of the real paper. Your time on every question is recorded for the report.</p>
+    </aside>
+  </div>
+</main>
+} @else {
+  <div class="loading-page"><span class="spinner"></span></div>
+}

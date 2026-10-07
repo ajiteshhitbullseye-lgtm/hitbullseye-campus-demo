@@ -1,0 +1,116 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ sessions.isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Student master list</h1>
+      <p class="sm mut">The list your campus uploads in the Hitbullseye admin panel — and exactly how far each student has got.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      <button class="btn btn-ghost btn-sm" (click)="exportCsv()"><hb-icon name="down" /> Download CSV</button>
+      <button class="btn btn-primary btn-sm" (click)="syncNow()" [disabled]="syncing()">
+        @if (syncing()) { <span class="spinner" style="border-top-color:#fff;width:14px;height:14px"></span> } @else { <hb-icon name="sync" /> } Sync now
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-info mt"><hb-icon name="info" />
+    <div class="grow">Students are added (one by one or from Excel) in the <b>Hitbullseye admin panel</b>, which also creates their logins.
+      They appear here after a sync. Nothing is deleted here: a row can only be made <b>inactive</b>, with a reason.
+      <div class="xs mt-s">Last sync: <b>{{ lastSync() ? fmtDateTime(lastSync()!.at) + ' (' + ago(lastSync()!.at) + ')' : 'never' }}</b>
+        @if (lastSync()) { · by {{ lastSync()!.by }} }</div>
+    </div>
+  </div>
+
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Where your students have got to</h2>
+        <p class="sm mut">Of the {{ funnel()?.onList || 0 }} active students on the list, {{ funnel()?.signedIn || 0 }} have signed in. Tap any number to filter the table.</p></div>
+    </div>
+    @if (funnel()) { <hb-funnel [f]="funnel()" [active]="$any(filter())" (pick)="jump($event)" /> }
+    @else { <div class="loading-page" style="min-height:120px"><span class="spinner"></span></div> }
+  </section>
+
+  <section class="stats mt">
+    <div class="stat"><div class="lbl">Coverage of the estimate</div><div class="val">{{ listStats().coverage }}</div>
+      <div class="sub">{{ listStats().est ? listStats().live + ' on the list of ' + listStats().est + ' expected' : 'estimate not filled in Profile' }}</div></div>
+    <div class="stat"><div class="lbl">Departments on the list</div><div class="val">{{ listStats().depts }}</div>
+      <div class="sub">{{ listStats().noDept ? listStats().noDept + ' rows have no department' : 'every row is tagged' }}</div></div>
+    <div class="stat" [class.warn]="listStats().bad"><div class="lbl">Rows needing attention</div><div class="val">{{ listStats().bad }}</div>
+      <div class="sub">invalid email or duplicate ID · <a href="#" (click)="$event.preventDefault(); jump('bad')">show</a></div></div>
+    <div class="stat"><div class="lbl">Last activity</div><div class="val" style="font-size:24px">{{ ago(listStats().last) }}</div>
+      <div class="sub">{{ listStats().last ? 'most recent student to get through' : 'nobody has started yet' }}</div></div>
+  </section>
+
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Students on the list</h2><p class="sm mut">Search, filter by stage, or make a row inactive.</p></div>
+      <span class="badge brand">{{ filtered().length }} of {{ rows().length }} rows</span>
+    </div>
+    <div class="toolbar">
+      <div class="search"><hb-icon name="search" />
+        <input class="form-control" placeholder="Search by ID, name, email or department" [ngModel]="q()" (ngModelChange)="q.set($event); page.set(1)"></div>
+      <select class="form-select" [ngModel]="filter()" (ngModelChange)="jump($event)">
+        <option value="">All rows</option>
+        <option value="list">Active rows</option>
+        <option value="signed">Signed in (any stage)</option>
+        <option value="registered">Registration complete</option>
+        <option value="draft">Draft — form half-filled</option>
+        <option value="signed_only">Signed in, form not started</option>
+        <option value="invited">Never signed in</option>
+        <option value="attempted">Test attempted</option>
+        <option value="inactive">Inactive</option>
+        <option value="bad">Needs attention</option>
+      </select>
+    </div>
+
+    @if (!data()) {
+      <div class="loading-page" style="min-height:160px"><span class="spinner"></span></div>
+    } @else if (!filtered().length) {
+      <div class="empty"><hb-icon name="users" /><h3>No rows</h3><p class="sm">Nothing matches this filter. Students added in the admin panel appear after a sync.</p></div>
+    } @else {
+      <div class="tbl-wrap">
+        <table class="table tbl-min">
+          <thead><tr><th>University ID</th><th>Student</th><th>Batch</th><th>Department</th><th>Programme · Course</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            @for (r of paged(); track r.row.key) {
+              <tr [class.is-inactive]="r.inactive">
+                <td><b>{{ r.row.uid || '—' }}</b></td>
+                <td><span class="nm">{{ r.row.name || '—' }}</span><br><span class="xs mut email" [title]="r.row.email">{{ r.row.email || '—' }}</span></td>
+                <td><span class="badge">{{ batchName(r.row.batchId) }}</span><br><span class="xs mut">{{ r.row.session }}</span></td>
+                <td><span class="trunc" [title]="r.row.department || ''">{{ r.row.department || '—' }}</span></td>
+                <td><span class="trunc" [title]="r.row.course || ''">{{ r.row.course || '—' }}</span><br><span class="xs mut">{{ r.row.programme || '—' }}</span></td>
+                <td>
+                  @if (isBad(r)) { <span class="badge err">Check row</span><br> }
+                  @switch (r.stage) {
+                    @case ('registered') { <span class="badge ok">Registered</span><br><span class="xs mut">{{ r.attempted ? 'test attempted' : 'test not taken' }}</span> }
+                    @case ('draft') { <span class="badge brand">Draft {{ r.draft?.completion }}%</span><br><span class="xs mut">saved {{ ago(r.draft?.updatedAt) }}</span> }
+                    @case ('signed_in') { <span class="badge warn">Signed in</span><br><span class="xs mut">form not started · {{ r.signup?.via === 'credentials' ? 'college login' : 'email code' }}</span> }
+                    @default { <span class="badge">Not started</span><br><span class="xs mut">never signed in</span> }
+                  }
+                </td>
+                <td>
+                  <hb-status [status]="r.inactive ? 'inactive' : 'active'" [reason]="r.row.statusReason || (r.row.panelStatus !== 'active' ? 'Inactive in the admin panel' : r.student?.statusReason)" [by]="r.row.statusBy" />
+                  @if (r.row.panelStatus !== 'active') { <br><span class="xs mut">off in admin panel</span> }
+                </td>
+                <td>
+                  <div class="d-flex gap-1 justify-content-end">
+                    @if (r.student) { <a class="btn btn-soft btn-sm" [routerLink]="['/console/report', r.student.id]">Report</a> }
+                    @if (r.row.panelStatus === 'active') {
+                      @if (r.row.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggle(r)">Make active</button> }
+                      @else { <button class="icon-btn sm danger" title="Make inactive" (click)="toggle(r)"><hb-icon name="power" /></button> }
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (paged().length < filtered().length) {
+        <div class="center mt"><button class="btn btn-ghost btn-sm" (click)="page.set(page() + 1)">Show more ({{ filtered().length - paged().length }} left)</button></div>
+      }
+    }
+  </section>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Synced from the Hitbullseye admin panel · nothing is ever deleted</span></footer>
+</main>

@@ -1,0 +1,156 @@
+@if (c(); as c) {
+<hb-site-nav [campus]="c">
+  <a class="site-link" [routerLink]="['/c', c.id]">Home</a>
+  <a class="site-link on">Registration</a>
+  <a class="btn btn-ghost btn-sm" routerLink="/login"><hb-icon name="user" /> Sign in</a>
+</hb-site-nav>
+
+<main class="wrap-narrow page" style="padding-top:10px;padding-bottom:60px">
+  <hb-stepper [active]="2" />
+
+  <div class="card card-body rise">
+    <div class="sec-head">
+      <span class="eyebrow">{{ c.name }} · {{ batchName() }}</span>
+      <h2 style="margin-top:12px">Student registration</h2>
+      <p class="sm mut">
+        @if (stage() === 'review') { Step 3 of 3 — read every line and tick it before you submit. }
+        @else { Step 2 of 3 — fill your details. Everything you type is saved as a draft, so you can stop and continue later. }
+      </p>
+    </div>
+
+    @if (gate(); as g) {
+      <div class="matched" style="margin-bottom:22px">
+        <div class="d-flex gap-3 align-items-center">
+          <hb-icon name="check" />
+          <div><b>ID and email verified</b>
+            <div class="xs mut">{{ g.uid }} · {{ g.email }} · on record as {{ g.name }} · via {{ g.via === 'otp' ? 'email code' : 'your college login' }}</div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (stage() === 'loading') {
+      <div class="loading-page" style="min-height:200px"><span class="spinner"></span></div>
+    }
+
+    @if (stage() === 'form') {
+      <!-- draft bar: progress + saved state -->
+      <div class="draft-bar">
+        <span class="pct">{{ completion() }}%</span>
+        <span class="meter"><i [style.width.%]="completion()"></i></span>
+        <span class="saved-dot" [class.saving]="saveState() === 'saving'" [class.err]="saveState() === 'error'">
+          <i></i>
+          @switch (saveState()) {
+            @case ('saving') { Saving draft… }
+            @case ('saved') { Draft saved {{ savedAgo() }} }
+            @case ('error') { Saved in this browser (server not reachable) }
+            @default { Not saved yet }
+          }
+        </span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="saveAndExit()"><hb-icon name="save" /> Save &amp; finish later</button>
+      </div>
+
+      @if (restored(); as r) {
+        <div class="resume-note mb-3"><hb-icon name="history" />
+          <span class="grow"><b>Draft restored.</b> You left this form {{ agoOf(r.at) }} with {{ r.completion }}% filled — carry on from here.</span>
+          @if (demo && completion() < 100) { <button type="button" class="btn btn-ghost btn-sm" (click)="fillRest()">Fill the rest (demo)</button> }</div>
+      }
+      @if (demo && !restored()) {
+        <div class="demo-fill"><hb-icon name="info" /><span><b>Demo:</b> every field is prefilled from the campus list. Change anything — it is saved as a draft.</span></div>
+      }
+
+      <form autocomplete="off" novalidate (submit)="$event.preventDefault(); review()">
+        @for (gp of groups(); track gp.section + $index; let gi = $index) {
+          <div class="group-title" [class.first]="gi === 0"><span class="n">{{ gi + 1 }}</span>{{ gp.section }}</div>
+          <div class="form-grid">
+            @for (f of gp.fields; track f.id) {
+              @if (fieldVisible(f, values())) {
+                @if (f.type === 'checkbox') {
+                  <div class="f full" [id]="'fd_' + f.id">
+                    <label class="check"><input type="checkbox" [checked]="values()[f.id] === 'Yes'" (change)="set(f.id, $any($event.target).checked ? 'Yes' : '')">
+                      <span>{{ f.label }}@if (f.required) {<span class="req">*</span>}</span></label>
+                    @if (errors()[f.id]) { <div class="err-msg">{{ errors()[f.id] }}</div> }
+                  </div>
+                } @else {
+                  <div class="f" [class.full]="!f.half" [class.locked]="f.lock" [id]="'fd_' + f.id">
+                    <label class="form-label" [for]="'in_' + f.id">{{ f.label }}@if (f.required) {<span class="req">*</span>}</label>
+                    @switch (f.type) {
+                      @case ('select') {
+                        <select class="form-select" [id]="'in_' + f.id" [class.is-invalid]="errors()[f.id]"
+                          [disabled]="!!f.dependsOn && !values()[f.dependsOn!]" (change)="pick(f.id, $any($event.target).value)">
+                          <option value="">{{ f.dependsOn && !values()[f.dependsOn!] ? 'Select ' + labelOf(f.dependsOn!) + ' first' : 'Select an option' }}</option>
+                          @for (o of fieldOptions(f, values()); track o) { <option [value]="o" [selected]="o === values()[f.id]">{{ o }}</option> }
+                        </select>
+                      }
+                      @case ('radio') {
+                        <div class="opts" [class.bad]="errors()[f.id]">
+                          @for (o of fieldOptions(f, values()); track o) {
+                            <label [class.on]="o === values()[f.id]"><input type="radio" [name]="'rd_' + f.id" [checked]="o === values()[f.id]" (change)="pick(f.id, o)"><span>{{ o }}</span></label>
+                          }
+                        </div>
+                      }
+                      @case ('textarea') {
+                        <textarea class="form-control" rows="3" [id]="'in_' + f.id" [class.is-invalid]="errors()[f.id]" [placeholder]="f.placeholder || ''"
+                          [value]="values()[f.id] || ''" (input)="set(f.id, $any($event.target).value)"></textarea>
+                      }
+                      @default {
+                        <input class="form-control" [type]="f.type || 'text'" [id]="'in_' + f.id" [class.is-invalid]="errors()[f.id]"
+                          [placeholder]="f.placeholder || ''" [readOnly]="!!f.lock" [value]="values()[f.id] || ''" (input)="set(f.id, $any($event.target).value)">
+                      }
+                    }
+                    @if (f.lock) { <div class="lock-note"><hb-icon name="lock" /> Verified in step 1</div> }
+                    @else if (f.dependsOn) { <div class="dep-note">Depends on {{ labelOf(f.dependsOn) }}</div> }
+                    @else if (f.help) { <div class="form-text">{{ f.help }}</div> }
+                    @if (errors()[f.id]) { <div class="err-msg">{{ errors()[f.id] }}</div> }
+                  </div>
+                }
+              }
+            }
+          </div>
+        }
+
+        <div class="d-flex gap-2 flex-wrap" style="margin-top:30px">
+          <a class="btn btn-ghost" [routerLink]="['/c', c.id, 'verify']">Back</a>
+          <button type="button" class="btn btn-ghost" (click)="saveAndExit()">Save &amp; finish later</button>
+          <button class="btn btn-primary btn-lg grow" type="submit" style="min-width:230px">Review &amp; confirm <hb-icon name="arrow" /></button>
+        </div>
+        <p class="xs mut center" style="margin-top:14px">Fields marked * are required. Your email and ID are locked because step 1 verified them.</p>
+      </form>
+    }
+
+    @if (stage() === 'review') {
+      <div class="alert alert-info" style="margin-bottom:20px"><hb-icon name="info" />
+        <div><b>Check each line and tick it.</b> Nothing is submitted until every row is confirmed — this is what keeps the placement cell's data clean.</div>
+      </div>
+      <div class="review-head">
+        <div><h3>Confirm your details</h3><p class="sm mut">Tick the box next to a row once you have read it.</p></div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="progress-pill" [class.done]="needed() && tickCount() === needed()">{{ tickCount() }} of {{ needed() }} confirmed</span>
+          <button type="button" class="btn btn-soft btn-sm" (click)="tickAll()">Tick all</button>
+        </div>
+      </div>
+      <div class="review">
+        @for (r of reviewRows(); track r.field.id) {
+          @if (r.optional) {
+            <div class="rrow"><span class="lbl">{{ r.field.label }}</span><span class="val none">Not provided</span>
+              <span class="tickbox" style="opacity:.45">Optional</span></div>
+          } @else {
+            <div class="rrow" [id]="'rr_' + r.field.id" [class.ok]="ticked()[r.field.id]" [class.miss]="missing() === r.field.id">
+              <span class="lbl">{{ r.field.label }}</span><span class="val">{{ r.value }}</span>
+              <label class="tickbox"><input type="checkbox" [checked]="!!ticked()[r.field.id]" (change)="toggleTick(r.field.id, $any($event.target).checked)"> Correct</label>
+            </div>
+          }
+        }
+      </div>
+      <div class="d-flex gap-2 flex-wrap" style="margin-top:26px">
+        <button type="button" class="btn btn-ghost" (click)="edit()">Back &amp; edit</button>
+        <button type="button" class="btn btn-primary btn-lg grow" style="min-width:230px" (click)="submit()"
+          [disabled]="!needed() || tickCount() !== needed() || submitting()">
+          @if (submitting()) { <span class="spinner" style="border-top-color:#fff"></span> } Confirm &amp; submit
+        </button>
+      </div>
+      <p class="xs mut center" style="margin-top:14px">By confirming you declare that the details above are true, complete and yours.</p>
+    }
+  </div>
+</main>
+}

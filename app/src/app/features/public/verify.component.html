@@ -1,0 +1,129 @@
+@if (c(); as c) {
+<hb-site-nav [campus]="c">
+  <a class="site-link" [routerLink]="['/c', c.id]">Home</a>
+  <a class="site-link on" [routerLink]="['/c', c.id, 'verify']">Verify ID</a>
+  <a class="btn btn-ghost btn-sm" routerLink="/login"><hb-icon name="user" /> Sign in</a>
+</hb-site-nav>
+
+<main class="wrap page" style="padding-top:10px;padding-bottom:60px">
+  <hb-stepper [active]="1" />
+
+  <div class="gate-grid">
+    <!-- ---------- form side ---------- -->
+    <div class="card card-body rise">
+      <span class="eyebrow">{{ c.name }} · {{ c.campus }}</span>
+      <h2 style="margin:14px 0 6px">Verify your identity</h2>
+      <p class="sm mut">Step 1 of 2 — we check your ID against the list your placement cell shared with us.</p>
+
+      @if (!open()) {
+        <div class="alert alert-warning mt"><hb-icon name="lock" /><div>Registration for {{ c.shortName }} is closed right now.</div></div>
+      } @else if (!match()) {
+        <form class="mt" (ngSubmit)="check()" autocomplete="off" novalidate>
+          @if (demo && demoIds().length) {
+            <div class="demo-fill"><hb-icon name="info" /><span><b>Demo:</b> access code, ID and email are prefilled. Just press continue; the code we send is filled in for you.</span></div>
+          }
+          @if (c.security.enabled) {
+            <div class="code-field mb-3">
+              <label class="form-label" for="vcode">{{ c.security.label || 'Campus access code' }}<span class="req">*</span></label>
+              <div class="code-input">
+                <hb-icon name="lock" />
+                <input id="vcode" name="code" class="form-control" [class.is-invalid]="errs().code" [(ngModel)]="code" [placeholder]="codeMask()" spellcheck="false">
+              </div>
+              @if (errs().code) { <div class="err-msg">{{ errs().code }}</div> }
+              <div class="form-text">{{ c.security.help || 'Shared by your placement cell' }} — every batch has its own code.</div>
+            </div>
+          }
+          <div class="mb-3">
+            <label class="form-label" for="vuid">{{ c.gate.idLabel }}<span class="req">*</span></label>
+            <input id="vuid" name="uid" class="form-control" [class.is-invalid]="errs().uid" [(ngModel)]="uid" [placeholder]="c.gate.idPlaceholder">
+            @if (errs().uid) { <div class="err-msg">{{ errs().uid }}</div> }
+            <div class="form-text">{{ c.gate.idHelp }}</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="vmail">Email on record<span class="req">*</span></label>
+            <input id="vmail" name="email" type="email" class="form-control" [class.is-invalid]="errs().email" [(ngModel)]="email" placeholder="you@college.edu">
+            @if (errs().email) { <div class="err-msg">{{ errs().email }}</div> }
+            <div class="form-text">Must match the email your campus has on file. One email can register only once.</div>
+          </div>
+          <button class="btn btn-primary btn-lg w-100" type="submit" [disabled]="busy()">
+            @if (busy()) { <span class="spinner" style="border-top-color:#fff"></span> } Verify &amp; send code
+          </button>
+          <p class="xs mut center" style="margin-top:12px">Not on the list? Contact {{ brand()?.supportEmail }}</p>
+          <p class="xs mut center">Already have a login from your college? <a routerLink="/login">Sign in with it</a> — it opens your form directly.</p>
+        </form>
+      } @else {
+        @if (match(); as m) {
+          <div class="mt">
+            <div class="matched">
+              <div class="d-flex gap-3 align-items-center">
+                <hb-icon name="check" />
+                <div>
+                  <b>{{ m.name }}</b>
+                  <div class="xs mut">{{ m.batchName }} · {{ m.department }} · {{ m.course }} · {{ m.session }}</div>
+                </div>
+              </div>
+            </div>
+            @if (m.hasDraft) {
+              <div class="resume-note mt-s"><hb-icon name="save" />
+                <span>You have a <b>saved draft ({{ m.draftCompletion || 0 }}% filled)</b>. After the code, the form opens where you left it.</span></div>
+            }
+            <div class="otp mt">
+              <div class="ttl"><hb-icon name="mail" /> Code sent to {{ sentTo() }}</div>
+              <div class="otp-row">
+                <input class="form-control otp-in" inputmode="numeric" name="otp" [(ngModel)]="otp" placeholder="••••••" (keyup.enter)="confirm()">
+                <button class="btn btn-primary" type="button" (click)="confirm()" [disabled]="busy()">Verify &amp; continue</button>
+                <button class="btn btn-ghost" type="button" (click)="send()" [disabled]="left() > 0">Resend</button>
+                @if (left() > 0) { <span class="xs mut">Resend in {{ left() }}s</span> }
+              </div>
+              @if (otpErr()) { <div class="err-msg">{{ otpErr() }}</div> }
+            </div>
+            <button class="btn btn-ghost w-100" style="margin-top:16px" type="button" (click)="back()">Use a different ID</button>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- ---------- info side ---------- -->
+    <aside>
+      <figure class="shot shot-hero" style="height:170px">
+        <img [src]="c.photo" alt="">
+        <figcaption>
+          <span class="plate"><img [src]="c.logo" alt="" [style.max-height.px]="logoH(c.logoHeight)"></span>
+          <span><b>{{ c.name }}</b><em>{{ c.campus }}</em></span>
+        </figcaption>
+      </figure>
+
+      <div class="card card-body mt">
+        <h3 style="margin-bottom:12px">Why this step?</h3>
+        <ul class="plist sm">
+          <li><hb-icon name="check" /><span>Only IDs on your campus list can register</span></li>
+          <li><hb-icon name="check" /><span>One registration per email, across the whole platform</span></li>
+          <li><hb-icon name="check" /><span>Your batch's access code puts you in the right batch</span></li>
+          <li><hb-icon name="check" /><span>Half-filled forms are saved, so you can come back</span></li>
+        </ul>
+        @if (primary(); as t) {
+          <div class="divider"></div>
+          <div class="kv"><span>Assessment</span><b>{{ t.name }}</b></div>
+          <div class="kv"><span>Window</span><b>{{ t.window }}</b></div>
+          @if (nTests() > 1) { <div class="kv"><span>In this cycle</span><b>{{ nTests() }} assessments</b></div> }
+        }
+      </div>
+
+      @if (demo) {
+        <div class="card card-body mt dashed">
+          <span class="badge">Demo</span>
+          <p class="sm mut" style="margin:8px 0 10px">Batch access codes:
+            @for (b of demoCodes(); track b.batchId; let last = $last) { <b>{{ b.name }}</b> <code>{{ b.accessCode || '—' }}</code>@if (!last) {, } }
+          </p>
+          <p class="sm mut" style="margin:0 0 10px">Try one of these IDs (not registered yet):</p>
+          @for (d of demoIds(); track d.uid) {
+            <button type="button" class="demo-id" (click)="fill(d)"><b>{{ d.uid }}</b><span>{{ d.email }} · {{ d.batch }}</span></button>
+          } @empty {
+            <p class="sm mut">Every demo ID is already registered. Use "Reset demo data" on the HQ Data page.</p>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+</main>
+}

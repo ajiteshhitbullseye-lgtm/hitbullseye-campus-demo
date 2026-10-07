@@ -1,0 +1,172 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ isHQ() ? 'Hitbullseye HQ' : 'Placement cell console' }}</span>
+      <h1>{{ isHQ() ? 'Commercial across clients' : 'Our account' }}</h1>
+      <p class="sm mut">{{ c()?.commercial?.clientName || c()?.name }}</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      <button class="btn btn-ghost btn-sm" (click)="print()">Print / PDF</button>
+      <button class="btn btn-primary btn-sm" (click)="csv()"><hb-icon name="down" /> Export</button>
+    </div>
+  </div>
+
+  @if (isHQ()) {
+    <section class="stats mt">
+      <div class="stat"><div class="lbl">Contracted value</div><div class="val" style="font-size:25px">{{ money(hqKpi().value) }}</div><div class="sub">{{ hqKpi().n }} clients</div></div>
+      <div class="stat"><div class="lbl">Collected</div><div class="val" style="font-size:25px">{{ money(hqKpi().paid) }}</div><div class="sub">{{ hqKpi().value ? (hqKpi().paid * 100 / hqKpi().value).toFixed(0) + '% of contracted' : '—' }}</div></div>
+      <div class="stat"><div class="lbl">Outstanding</div><div class="val" style="font-size:25px">{{ money(hqKpi().due) }}</div><div class="sub">{{ hqKpi().overdue ? money(hqKpi().overdue) + ' overdue' : 'nothing overdue' }}</div></div>
+      <div class="stat"><div class="lbl">Licences</div><div class="val" style="font-size:25px">{{ hqKpi().used }} / {{ hqKpi().lic }}</div><div class="sub">used across all campuses</div></div>
+    </section>
+    <section class="card card-body mt">
+      <div class="sec-head"><h2>All clients</h2><p class="sm mut">Click a row to open that client's account below.</p></div>
+      <div class="tbl-wrap"><table class="table table-hover tbl-min">
+        <thead><tr><th>Client</th><th>Contract</th><th>Licences</th><th>Value</th><th>Collected</th><th>Outstanding</th><th>Next due</th><th></th></tr></thead>
+        <tbody>
+          @for (r of hq(); track r.c.id) {
+            <tr class="clickable" (click)="open(r.c.id)" [class.is-inactive]="r.c.status === 'inactive'">
+              <td><span class="nm">{{ r.c.commercial.clientName || r.c.name }}</span><br><span class="xs mut">{{ r.c.campus }}</span></td>
+              <td>{{ r.c.commercial.contract.id || '—' }}</td>
+              <td>{{ r.used }} / {{ r.t.licences }}<br><span class="xs mut">{{ r.t.licences ? (r.used * 100 / r.t.licences).toFixed(0) : 0 }}% used</span></td>
+              <td>{{ money(r.t.value) }}</td><td><span class="badge ok">{{ money(r.t.paid) }}</span></td>
+              <td>@if (r.t.due) { <span class="badge" [class.err]="r.t.overdue" [class.warn]="!r.t.overdue">{{ money(r.t.due) }}</span> } @else { <span class="badge ok">clear</span> }</td>
+              <td>{{ r.t.nextDue || '—' }}</td><td><span class="btn btn-soft btn-sm">Open</span></td>
+            </tr>
+          }
+        </tbody>
+      </table></div>
+    </section>
+  }
+
+  @if (c() && t(); as t) {
+    <section class="stats mt">
+      <div class="stat"><div class="lbl">Licences bought</div><div class="val">{{ t.licences }}</div><div class="sub">{{ t.tests }} assessments on the contract</div></div>
+      <div class="stat"><div class="lbl">Used</div><div class="val">{{ used() }}</div><div class="sub">{{ usage()?.pct }}% of the licences</div></div>
+      <div class="stat"><div class="lbl">Remaining</div><div class="val">{{ usage()?.left }}</div><div class="sub">{{ usage()?.left ? 'can still register' : 'top-up needed' }}</div></div>
+      <div class="stat"><div class="lbl">Outstanding</div><div class="val" style="font-size:25px">{{ money(t.due) }}</div><div class="sub">{{ t.overdue ? money(t.overdue) + ' overdue' : (t.due ? 'due ' + t.nextDue : 'all clear') }}</div></div>
+    </section>
+
+    <div class="media-split mt" style="align-items:stretch">
+      <section class="card card-body">
+        <div class="sec-head"><h2>Licence usage</h2><p class="sm mut">{{ used() }} of {{ t.licences }} licences used · {{ usage()?.left }} left</p></div>
+        <div class="bar" [class]="'bar ' + ((usage()?.pct || 0) > 90 ? 'err' : (usage()?.pct || 0) > 70 ? 'warn' : 'ok')" style="height:14px"><i [style.width.%]="usage()?.pct || 2"></i></div>
+        <div class="row-b" style="margin-top:10px"><span class="xs mut">0</span><span class="xs mut">{{ t.licences }} licences</span></div>
+        <div class="divider"></div>
+        @for (i of t.items; track i.id) {
+          @if (i.status !== 'Cancelled') {
+            <div style="margin-bottom:14px"><div class="row-b" style="margin-bottom:6px"><span class="sm fw-650 ink">{{ i.item }}</span><span class="sm mut">{{ i.licences }} licences</span></div>
+              <div class="bar mid"><i [style.width.%]="i.licences ? (used() < i.licences ? used() * 100 / i.licences : 100) : 2"></i></div></div>
+          }
+        }
+      </section>
+      <section class="card card-body">
+        <div class="sec-head"><h2>Account</h2><p class="sm mut">Contract and who we bill.</p></div>
+        <div class="kv"><span>Client</span><b>{{ c()!.commercial.clientName || c()!.name }}</b></div>
+        <div class="kv"><span>Contract</span><b>{{ c()!.commercial.contract.id || '—' }}</b></div>
+        <div class="kv"><span>Period</span><b>{{ (c()!.commercial.contract.start || '—') + ' — ' + (c()!.commercial.contract.end || '—') }}</b></div>
+        <div class="kv"><span>PO number</span><b>{{ c()!.commercial.contract.po || '—' }}</b></div>
+        <div class="kv"><span>Rate per student</span><b>{{ money(c()!.commercial.rate || 0) }}</b></div>
+        <div class="kv"><span>Contracted value</span><b>{{ money(t.value) }}</b></div>
+        <div class="kv"><span>SPOC</span><b>{{ spoc()?.name || '—' }}<br><span class="xs mut">{{ spoc()?.email }}</span></b></div>
+      </section>
+    </div>
+
+    <section class="card card-body mt">
+      <div class="sec-head row-b">
+        <div><h2>Purchases &amp; invoices</h2><p class="sm mut">{{ isHQ() ? 'Raise an invoice, mark it paid, or open any one as a PDF. A wrong invoice is cancelled with a reason — never deleted.' : 'What was bought, what is paid, what is due. Open any invoice to download it.' }}</p></div>
+        <div class="d-flex gap-2 align-items-center">
+          @if (t.due) { <span class="badge" [class.err]="t.overdue" [class.warn]="!t.overdue">{{ money(t.due) }} outstanding</span> } @else { <span class="badge ok">All settled</span> }
+          @if (isHQ()) { <button class="btn btn-primary btn-sm" (click)="openInv(-1)">+ Raise invoice</button> }
+        </div>
+      </div>
+
+      @if (edit(); as e) {
+        <div class="panel" id="invForm" style="margin-bottom:22px">
+          <div class="row-b" style="margin-bottom:14px"><h3 style="margin:0">{{ e.ix > -1 ? 'Edit invoice' : 'Raise an invoice' }}</h3><span class="badge brand">{{ c()!.commercial.clientName || c()!.name }}</span></div>
+          <div class="mini">
+            <div><label class="form-label">Invoice number</label><input class="form-control" [(ngModel)]="e.inv.id"></div>
+            <div><label class="form-label">Status</label><select class="form-select" [(ngModel)]="e.inv.status"><option>Due</option><option>Paid</option><option>Overdue</option></select></div>
+            <div class="full"><label class="form-label">Item</label><input class="form-control" [(ngModel)]="e.inv.item" placeholder="Aptitude Benchmark — Cycle 2"></div>
+            <div><label class="form-label">Assessments</label><input type="number" min="1" class="form-control" [(ngModel)]="e.inv.tests"></div>
+            <div><label class="form-label">Licences</label><input type="number" min="1" class="form-control" [(ngModel)]="e.inv.licences"></div>
+            <div><label class="form-label">Amount (before GST)</label><input type="number" min="0" class="form-control" [(ngModel)]="e.inv.amount"></div>
+            <div><label class="form-label">Invoiced on</label><input type="date" class="form-control" [(ngModel)]="e.invoiced"></div>
+            <div><label class="form-label">Payment due</label><input type="date" class="form-control" [(ngModel)]="e.due"></div>
+            <div><label class="form-label">Paid on (if settled)</label><input type="date" class="form-control" [(ngModel)]="e.paid"></div>
+          </div>
+          @if (e.err) { <div class="err-msg">{{ e.err }}</div> }
+          <div class="d-flex gap-2 flex-wrap" style="margin-top:18px">
+            <button class="btn btn-primary" (click)="saveInv()">Save invoice</button>
+            <button class="btn btn-ghost" (click)="closeInv()">Close</button>
+            @if (e.ix > -1) { <button class="btn btn-danger-soft" (click)="cancelInv(c()!.commercial.items[e.ix])">Cancel this invoice</button> }
+          </div>
+        </div>
+      }
+
+      <div class="tbl-wrap"><table class="table tbl-min">
+        <thead><tr><th>Invoice</th><th>Item</th><th>Licences</th><th>Amount</th><th>Invoiced</th><th>Due</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          @for (i of t.items; track i.id; let ix = $index) {
+            <tr [class.is-inactive]="i.status === 'Cancelled'">
+              <td><b>{{ i.id }}</b></td><td class="wrap-cell">{{ i.item }}</td><td>{{ i.licences }}</td><td><b>{{ money(i.amount) }}</b></td>
+              <td>{{ i.invoiced || '—' }}</td><td>{{ i.due || '—' }}</td>
+              <td><span [class]="'badge ' + cls(i.status)">{{ i.status }}</span>
+                @if (i.paid) { <br><span class="xs mut">paid {{ i.paid }}</span> }
+                @if (i.cancelReason) { <br><span class="xs mut" [title]="i.cancelReason">{{ i.cancelReason }}</span> }</td>
+              <td><div class="d-flex gap-1">
+                <button class="btn btn-soft btn-sm" (click)="view.set(i)">View</button>
+                <button class="icon-btn sm" title="Download PDF" (click)="pdf(i)"><hb-icon name="down" /></button>
+                @if (isHQ()) {
+                  @if (i.status === 'Cancelled') { <button class="btn btn-ok-soft btn-sm" (click)="cancelInv(i)">Restore</button> }
+                  @else { <button class="icon-btn sm" title="Edit" (click)="openInv(ix)"><hb-icon name="edit" /></button> }
+                }
+              </div></td>
+            </tr>
+          } @empty { <tr><td colspan="8" class="center mut">No invoices yet.</td></tr> }
+        </tbody>
+      </table></div>
+    </section>
+  }
+
+  @if (view(); as it) {
+    <div class="modal hb-modal" tabindex="-1" (click)="view.set(null)">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" (click)="$event.stopPropagation()">
+        <div class="modal-content">
+          <div class="modal-header"><div><h3 class="modal-title">{{ it.id }}</h3><p class="xs mut">{{ c()?.commercial?.clientName || c()?.name }} · {{ it.item }}</p></div>
+            <button type="button" class="btn-close" (click)="view.set(null)"></button></div>
+          <div class="modal-body">
+            <div class="inv-sheet">
+              <div class="inv-top"><div><b>HITBULLSEYE</b><span>Campus Assessment Platform</span></div>
+                <div class="r"><b>TAX INVOICE</b><span>{{ it.id }}</span>@if (it.status === 'Cancelled') { <div class="mt-s"><span class="inv-stamp">CANCELLED</span></div> }</div></div>
+              <div class="inv-cols">
+                <div><em>Bill to</em><b>{{ c()?.commercial?.clientName || c()?.name }}</b><span>{{ c()?.campus }}</span>
+                  <span>Attn: {{ spoc()?.name || 'Placement Cell' }}</span><span>{{ spoc()?.email }}</span></div>
+                <div><em>Details</em>
+                  <div class="kv"><span>Date of issue</span><b>{{ it.invoiced || '—' }}</b></div>
+                  <div class="kv"><span>Payment due</span><b>{{ it.due || '—' }}</b></div>
+                  <div class="kv"><span>Contract</span><b>{{ c()?.commercial?.contract?.id || '—' }}</b></div>
+                  <div class="kv"><span>PO number</span><b>{{ c()?.commercial?.contract?.po || '—' }}</b></div>
+                  <div class="kv"><span>Status</span><b><span [class]="'badge ' + cls(it.status)">{{ it.status }}</span></b></div>
+                </div>
+              </div>
+              <div class="tbl-wrap"><table class="table" style="table-layout:fixed">
+                <thead><tr><th style="width:46%">Description</th><th class="text-end">Licences</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr></thead>
+                <tbody><tr><td class="wrap-cell"><b>{{ it.item }}</b><br><span class="xs mut">{{ it.tests || 1 }} assessment(s) · {{ c()?.shortName }}</span></td>
+                  <td class="text-end">{{ it.licences }}</td><td class="text-end">{{ money(c()?.commercial?.rate || 0) }}</td><td class="text-end"><b>{{ money(it.amount) }}</b></td></tr></tbody>
+              </table></div>
+              <div class="inv-tot">
+                <div class="kv"><span>Subtotal</span><b>{{ money(it.amount) }}</b></div>
+                <div class="kv"><span>GST 18%</span><b>{{ money(gst(it.amount)) }}</b></div>
+                <div class="kv grand"><span>Total payable</span><b>{{ money(it.amount + gst(it.amount)) }}</b></div>
+              </div>
+              <p class="xs mut" style="margin-top:16px">Prototype document — not a valid tax invoice. Licences cover one attempt per student per assessment for the contract period.</p>
+            </div>
+          </div>
+          <div class="modal-footer"><button class="btn btn-primary" (click)="pdf(it)">Download PDF</button><button class="btn btn-ghost" (click)="view.set(null)">Close</button></div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Demo figures. In production this comes from the billing system.</span></footer>
+</main>

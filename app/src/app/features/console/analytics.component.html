@@ -1,0 +1,114 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ sessions.isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Cohort analytics</h1>
+      <p class="sm mut">{{ ctx.campus()?.name }} · {{ ctx.batchLabel() }}</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      <button class="btn btn-ghost btn-sm" (click)="print()">Print / PDF</button>
+      <button class="btn btn-primary btn-sm" (click)="csv()"><hb-icon name="down" /> Export summary</button>
+    </div>
+  </div>
+
+  <!-- the sign-up funnel: estimate → list → signed in → registered → attempted -->
+  <section class="card card-body mt">
+    <div class="sec-head row-b">
+      <div><h2>Where the batch has got to</h2>
+        <p class="sm mut">Estimated by the college, on the master list, signed in, registered, attempted. Click any step to see those students.</p></div>
+      @if (funnel(); as f) {
+        <span class="badge brand">{{ f.onList ? (f.signedIn * 100 / f.onList | number:'1.0-0') : 0 }}% of the list signed in</span>
+      }
+    </div>
+    @if (funnel()) { <hb-funnel [f]="funnel()" (pick)="goRoster($event)" /> }
+    @else { <div class="loading-page" style="min-height:120px"><span class="spinner"></span></div> }
+  </section>
+
+  <section class="card card-body mt pad-s no-print">
+    <div class="toolbar" style="margin-bottom:0">
+      <select class="form-select" [ngModel]="test()?.id" (ngModelChange)="testId.set($event)">
+        @for (t of tests(); track t.id) { <option [value]="t.id">{{ t.name }}{{ t.status === 'inactive' ? ' (inactive)' : '' }}</option> }
+      </select>
+      <select class="form-select" [ngModel]="dept()" (ngModelChange)="dept.set($event)">
+        <option value="">All departments</option>
+        @for (d of depts(); track d) { <option [value]="d">{{ d }}</option> }
+      </select>
+      <select class="form-select" [ngModel]="sess()" (ngModelChange)="sess.set($event)">
+        <option value="">All sessions</option>
+        @for (s of sessionsList(); track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+      <button class="btn btn-ghost btn-sm" (click)="reset()">Clear filters</button>
+    </div>
+  </section>
+
+  <section class="stats mt">
+    <div class="stat"><div class="lbl">Eligible students</div><div class="val">{{ cohort().length }}</div><div class="sub">{{ test()?.name }}</div></div>
+    <div class="stat"><div class="lbl">Attempted</div><div class="val">{{ done().length }}</div><div class="sub">{{ cohort().length ? (done().length * 100 / cohort().length | number:'1.0-0') + '% of the cohort' : '—' }}</div></div>
+    <div class="stat"><div class="lbl">Average score</div><div class="val">{{ kpi().avg }}%</div><div class="sub">Percentile avg {{ kpi().avgP }}</div></div>
+    <div class="stat"><div class="lbl">Clearing 40%</div><div class="val">{{ done().length ? (kpi().pass * 100 / done().length | number:'1.0-0') + '%' : '—' }}</div><div class="sub">{{ kpi().pass }} of {{ done().length }} attempts</div></div>
+  </section>
+
+  <div class="media-split mt" style="align-items:stretch">
+    <section class="card card-body">
+      <div class="sec-head"><h2>Score distribution</h2><p class="sm mut">{{ done().length }} attempts · average {{ kpi().avg }}% · best {{ kpi().best }}%</p></div>
+      <div class="hist">
+        @for (b of hist(); track b.label) { <div class="col"><span class="n">{{ b.n }}</span><div class="bar-v" [class]="'bar-v ' + b.cls" [style.height.%]="b.h"></div></div> }
+      </div>
+      <div class="hist-axis">@for (b of hist(); track b.label) { <span>{{ b.label }}%</span> }</div>
+    </section>
+    <section class="card card-body">
+      <div class="sec-head"><h2>Section-wise average</h2><p class="sm mut">Where the whole cohort is strong and where it leaks marks.</p></div>
+      @for (s of sections(); track s.name) {
+        <div style="margin-bottom:16px">
+          <div class="row-b" style="margin-bottom:6px"><span class="sm fw-650 ink">{{ s.name }}</span><span class="sm mut">{{ s.p }}% avg · {{ s.acc }}% accuracy</span></div>
+          <div class="bar" [class]="'bar ' + (band(s.p).cls === 'brand' ? 'mid' : band(s.p).cls)"><i [style.width.%]="s.p"></i></div>
+        </div>
+      } @empty { <p class="sm mut">No attempts yet for this assessment.</p> }
+    </section>
+  </div>
+
+  <section class="card card-body mt">
+    <div class="sec-head"><h2>Department-wise performance</h2><p class="sm mut">Click a row to filter everything above by that department.</p></div>
+    <div class="tbl-wrap">
+      <table class="table table-hover">
+        <thead><tr><th>Department</th><th>Registered</th><th>Attempted</th><th>Average</th><th>Best</th><th>Weakest section</th></tr></thead>
+        <tbody>
+          @for (d of byDept(); track d.name) {
+            <tr class="clickable" (click)="pickDept(d.name)">
+              <td><b class="trunc" [title]="d.name" style="max-width:260px">{{ d.name }}</b></td><td>{{ d.n }}</td><td>{{ d.done }}</td>
+              <td>@if (d.avg !== null) { <span [class]="'badge ' + band(d.avg).cls">{{ d.avg }}%</span> } @else { <span class="mut">—</span> }</td>
+              <td>{{ d.best !== null ? d.best + '%' : '—' }}</td><td><span class="trunc" [title]="d.weakest">{{ d.weakest }}</span></td>
+            </tr>
+          } @empty { <tr><td colspan="6" class="center mut">No registered students in this filter.</td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="media-split mt" style="align-items:stretch">
+    <section class="card card-body">
+      <div class="sec-head"><h2>Top performers</h2><p class="sm mut">Best ten scores in the current filter.</p></div>
+      @for (x of top(); track x.id; let i = $index) {
+        <div class="rank-row" (click)="open(x)"><span class="rk">{{ i + 1 }}</span><span class="avatar">{{ initials(x.name) }}</span>
+          <span class="who"><b>{{ x.name }}</b><em>{{ x.department }}</em></span>
+          <span class="sc"><b>{{ resultOf(x)!.pct }}%</b><em>{{ resultOf(x)!.percentile }} %ile</em></span></div>
+      } @empty { <p class="sm mut">No attempts yet.</p> }
+    </section>
+    <section class="card card-body">
+      <div class="sec-head"><h2>Needs attention</h2><p class="sm mut">Below 40%, or registered but not attempted.</p></div>
+      @for (x of low(); track x.id) {
+        <div class="rank-row" (click)="open(x)"><span class="rk warn">!</span><span class="avatar">{{ initials(x.name) }}</span>
+          <span class="who"><b>{{ x.name }}</b><em>{{ x.department }}</em></span>
+          <span class="sc"><b class="err-t">{{ resultOf(x)!.pct }}%</b><em>below 40%</em></span></div>
+      }
+      @for (x of never(); track x.id) {
+        <div class="rank-row" (click)="open(x)"><span class="rk">·</span><span class="avatar">{{ initials(x.name) }}</span>
+          <span class="who"><b>{{ x.name }}</b><em>{{ x.department }}</em></span>
+          <span class="sc"><b class="mut">—</b><em>not attempted</em></span></div>
+      }
+      @if (!low().length && !never().length) { <p class="sm mut">Nobody in the danger zone.</p> }
+    </section>
+  </div>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Inactive students are left out of every number on this page.</span></footer>
+</main>

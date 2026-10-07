@@ -1,0 +1,89 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ sessions.isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Deep insights</h1>
+      <p class="sm mut">{{ ctx.campus()?.name }} · question quality, topic gaps and students who need a nudge</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap no-print">
+      <button class="btn btn-ghost btn-sm" (click)="print()">Print / PDF</button>
+      <button class="btn btn-primary btn-sm" (click)="csv()"><hb-icon name="down" /> Export question analysis</button>
+    </div>
+  </div>
+
+  <section class="card card-body mt pad-s">
+    <div class="toolbar" style="margin-bottom:0">
+      <select class="form-select" style="max-width:420px" [ngModel]="test()?.id" (ngModelChange)="testId.set($event)">
+        @for (t of tests(); track t.id) { <option [value]="t.id">{{ t.name }}{{ t.status === 'inactive' ? ' (inactive)' : '' }}</option> }
+      </select>
+      @if (analysis(); as a) { <span class="sm mut">{{ a.students.length }} students sat this paper ({{ regs().length }} registered here{{ ctx.batchId() ? ' in ' + ctx.batchLabel() : '' }}, the rest a simulated cohort)</span> }
+    </div>
+  </section>
+
+  @if (analysis(); as a) {
+    <section class="stats mt">
+      <div class="stat"><div class="lbl">Students on this paper</div><div class="val">{{ a.students.length }}</div><div class="sub">{{ num(a.rows.length) }} answers analysed</div></div>
+      <div class="stat"><div class="lbl">Average score</div><div class="val">{{ num(a.avg, 1) }}<small>/{{ a.max }}</small></div><div class="sub">{{ pct(a.avg / a.max) }} of full marks</div></div>
+      <div class="stat"><div class="lbl">Questions flagged</div><div class="val">{{ a.flagged }}<small>/{{ a.items.length }}</small></div><div class="sub">for the content team to review</div></div>
+      <div class="stat"><div class="lbl">Hardest topic</div><div class="val" style="font-size:19px">{{ hardest() }}</div><div class="sub">lowest solve rate</div></div>
+    </section>
+
+    <section class="an-sec">
+      <div class="an-head"><div><span class="an-kicker">Teaching priorities</span><h2>Where this campus loses the most marks</h2>
+        <p>Topics sorted by solve rate (share of students who saw a question and got it right). Start classroom revision at the top.</p></div></div>
+      <div class="an-rows">
+        <div class="an-row head"><span>Topic</span><span>Questions</span><span>Solve rate</span><span style="text-align:right">Attempted</span></div>
+        @for (t of a.topics; track t.name) {
+          <div class="an-row"><span class="nm"><span>{{ t.name }}<small>{{ t.sec }}</small></span></span><span class="num">{{ t.n }}</span>
+            <div class="an-meter"><i [style.width.%]="t.solve * 100 > 2 ? t.solve * 100 : 2"></i></div><span class="edge flat">{{ pct(t.attempt) }}</span></div>
+        }
+      </div>
+    </section>
+
+    <section class="an-sec">
+      <div class="an-head"><div><span class="an-kicker">Distribution</span><h2>How the whole paper scored</h2></div></div>
+      <div class="an-card"><hb-chart [draw]="distDraw()" /></div>
+    </section>
+
+    <section class="an-sec">
+      <div class="an-head"><div><span class="an-kicker">Question quality</span><h2>Item analysis for the content team</h2>
+        <p>Solve rate = how many of the students who saw the question got it right. Discrimination = how much better the top students did than the bottom students
+          (above 0.3 is good; below 0 means check the answer key). The bar shows how answers split across options (green = right).</p></div></div>
+      <div class="tbl-wrap"><table class="table qa-tbl">
+        <thead><tr><th style="width:44px">Q</th><th style="width:300px">Topic</th><th style="width:86px">Level</th><th style="width:88px">Solve rate</th><th style="width:126px">Discrimination</th><th style="width:80px">Avg time</th><th style="width:190px">Answer split</th><th>Flags</th></tr></thead>
+        <tbody>
+          @for (i of a.items; track i.q.questionId + i.q.qno) {
+            <tr>
+              <td><b>{{ i.q.qno }}</b></td>
+              <td class="qa-q">{{ i.q.subAreaName }}<small>{{ i.q.sectionName }} › {{ i.q.areaTitle }} · {{ i.q.questionId }}</small></td>
+              <td>{{ i.q.lod }}</td><td><b>{{ pct(i.solve) }}</b></td>
+              <td><b [style.color]="discColor(i.disc)">{{ i.disc.toFixed(2) }}</b></td>
+              <td>{{ dur(i.time) }}</td>
+              <td><div class="dist">@for (s of splitOf(i); track s.l) { <i [style.flex]="s.n" [style.background]="s.right ? 'var(--viz-ok)' : 'var(--viz-peer)'" [title]="'Option ' + s.l + ': ' + s.share + '%' + (s.right ? ' (right)' : '')"></i> }</div>
+                <span class="xs mut">{{ i.right ? 'Right: option ' + i.right : '' }}{{ i.lure ? ' · most-picked wrong: ' + i.lure.letter + ' (' + pct(i.lure.share) + ')' : '' }}</span></td>
+              <td>@for (f of i.flags; track f[1]) { <span [class]="'flag ' + f[0]">{{ f[1] }}</span> } @empty { <span class="xs mut">—</span> }</td>
+            </tr>
+          }
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="an-sec">
+      <div class="an-head"><div><span class="an-kicker">Needs a nudge</span><h2>Registered students to talk to</h2>
+        <p>Picked from each student's own answers, with the reason. Open the report before the conversation.</p></div></div>
+      <div class="an-card">
+        @for (n of notes(); track n.st.id) {
+          <div class="att-row">
+            <div><b>{{ n.st.name }}</b><div class="xs mut">{{ n.st.department }} · {{ (n.r.scorePct * 100).toFixed(0) }}% score</div></div>
+            <div>@for (w of n.why; track w) { <span class="flag warn">{{ w }}</span> }</div>
+            <a class="btn btn-ghost btn-sm" [routerLink]="['/console/report', n.st.id]" [queryParams]="{ test: test()?.id }">Open report <hb-icon name="arrow" /></a>
+          </div>
+        } @empty { <p class="sm mut">Nobody stands out on this paper.</p> }
+      </div>
+    </section>
+  } @else {
+    <div class="empty mt"><hb-icon name="target" /><h3>No paper to analyse</h3><p class="sm">This campus has no assessment yet.</p></div>
+  }
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Computed from every answer to this paper (student_question_analytics + test_question_analytics_v2).</span></footer>
+</main>

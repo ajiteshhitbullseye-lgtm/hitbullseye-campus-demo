@@ -1,3 +1,7 @@
+ANGULAR APP: the real portal (Angular 19.2 + Bootstrap 5.3) is in the app/
+folder - see app/README.md (run, demo logins) and app/docs/API.md (API contract).
+This prototype stays as it is.
+
 HITBULLSEYE — CAMPUS ONBOARDING & ASSESSMENT (PROTOTYPE)
 =========================================================
 

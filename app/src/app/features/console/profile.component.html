@@ -1,0 +1,187 @@
+<main class="console-main page">
+  @if (c(); as c) {
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">{{ isSuper() ? 'Hitbullseye HQ · all clients' : 'Placement cell console' }}</span>
+      <h1>Campus profile</h1>
+      <p class="sm mut">Tell us how your campus is organised and how many students to expect. Hitbullseye sees it as soon as you save.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center no-print">
+      <span class="badge" [class.ok]="c.profile.updatedAt">{{ c.profile.updatedAt ? 'saved ' + fmtDateTime(c.profile.updatedAt) + (c.profile.updatedBy ? ' by ' + c.profile.updatedBy : '') : 'not saved yet' }}</span>
+      <button class="btn btn-primary btn-sm" (click)="save()" [disabled]="saving()"><hb-icon name="save" /> Save profile</button>
+    </div>
+  </div>
+
+  <div class="alert alert-info mt"><hb-icon name="info" />
+    @if (isSuper()) {
+      <div>You are looking at what <b>{{ c.name }}</b> submitted. As HQ you can also change the <b>nomenclature</b> and the <b>programmes / courses</b> —
+        saving then rewrites their live student form, so edit with care.</div>
+    } @else {
+      <div>You fill the institute details, SPOCs, department strength and the <b>expected students per batch</b>.
+        What the form calls things and which programmes / courses it offers are managed by Hitbullseye — shown here read-only.
+        Need a change? Write to {{ campusesSupport() }}.</div>
+    }
+  </div>
+
+  @if (isSuper()) {
+    <section class="card card-body mt">
+      <div class="row-b sec-head">
+        <div><h2>Submitted by the campus</h2><p class="sm mut">{{ c.profile.updatedAt ? 'Last updated ' + fmtDateTime(c.profile.updatedAt) : 'Never saved by the campus yet' }} · {{ c.name }}</p></div>
+        <span class="badge" [class.ok]="c.profile.updatedAt" [class.warn]="!c.profile.updatedAt">{{ c.profile.updatedAt ? 'On record' : 'Pending' }}</span>
+      </div>
+      <div class="media-split" style="align-items:flex-start">
+        <div>
+          <div class="kv"><span>Website</span><b>{{ c.profile.website || '—' }}</b></div>
+          <div class="kv"><span>Established</span><b>{{ c.profile.established || '—' }}</b></div>
+          <div class="kv"><span>Departments</span><b>{{ totals().depts }}</b></div>
+          <div class="kv"><span>Total strength</span><b>{{ totals().total ? num(totals().total) : '—' }}</b></div>
+          <div class="kv"><span>Final year</span><b>{{ totals().finalYear ? num(totals().finalYear) : '—' }}</b></div>
+          <div class="kv"><span>Students expected (all batches)</span><b>{{ totals().estimated ? num(totals().estimated) : '—' }}</b></div>
+          <div class="kv"><span>They call the ID</span><b>{{ c.profile.nomenclature.uid || '—' }}</b></div>
+        </div>
+        <div>
+          <div class="caps" style="margin-bottom:10px">SPOCs on record</div>
+          @for (s of c.profile.spocs; track $index) {
+            <div class="rank-row static"><span class="avatar">{{ initials(s.name) }}</span>
+              <span class="who"><b>{{ s.name }}</b><em>{{ s.role }} · {{ s.email }}</em></span>
+              <span class="sc">@if (s.primary) { <span class="badge brand">Primary</span> } <hb-status [status]="s.status" [quiet]="true" /></span></div>
+          } @empty { <p class="sm mut">No SPOC submitted yet.</p> }
+          @if (offForm().length) {
+            <div class="alert alert-warning mt-s"><hb-icon name="alert" /><div><b>Not on the form yet:</b> {{ offFormNames() }}.
+              Fill their programmes and courses below and save — they are then added to the student form.</div></div>
+          }
+        </div>
+      </div>
+    </section>
+  }
+
+  <div class="split mt">
+    <!-- ============ LEFT ============ -->
+    <div>
+      <div class="panel">
+        <h3>Institute details</h3>
+        <div class="mini">
+          <div class="full"><label class="form-label">Official name</label><input class="form-control" [(ngModel)]="name"></div>
+          <div><label class="form-label">Short name</label><input class="form-control" [(ngModel)]="shortName"></div>
+          <div><label class="form-label">City</label><input class="form-control" [(ngModel)]="city"></div>
+          <div class="full"><label class="form-label">Website</label><input class="form-control" [(ngModel)]="website"></div>
+          <div class="full"><label class="form-label">Established</label><input class="form-control" [(ngModel)]="established"></div>
+        </div>
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">Expected students per batch</h3><span class="badge brand">batch-wise</span></div>
+        <p class="sm mut" style="margin-bottom:14px">How many students do you expect to register in each batch? This is the first step of the funnel — we compare sign-ins against it.</p>
+        @for (e of estimates(); track e.batchId) {
+          <div class="fl" style="padding:12px 14px" [class.off]="!e.active">
+            <div class="row-b"><b class="nm" style="font-size:14px">{{ e.name }}</b>@if (!e.active) { <span class="badge inactive">inactive</span> }</div>
+            <div class="d-flex gap-2 align-items-center mt-s">
+              <input type="number" min="0" class="form-control form-control-sm" style="max-width:150px" [(ngModel)]="e.estimated" (ngModelChange)="touch()" placeholder="e.g. 1300">
+              <span class="xs mut">{{ e.at ? 'last set ' + fmtDateTime(e.at) + (e.by ? ' by ' + e.by : '') : 'not filled yet' }}</span>
+            </div>
+          </div>
+        } @empty { <p class="sm mut">No batches yet — they come from the Hitbullseye admin panel.</p> }
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">SPOC contact details</h3><button class="btn btn-primary btn-sm" (click)="addSpoc()">+ Add SPOC</button></div>
+        <p class="sm mut" style="margin-bottom:14px">Your single points of contact. The primary one is the contact we bill and write to. A SPOC who leaves is made inactive, not removed.</p>
+        @for (s of spocs(); track $index; let i = $index) {
+          <div class="fl" style="padding:14px" [class.off]="s.status === 'inactive'">
+            <div class="row-b" style="margin-bottom:10px">
+              <span class="badge" [class.brand]="s.primary">{{ s.primary ? 'Primary SPOC' : 'SPOC ' + (i + 1) }}</span>
+              <div class="d-flex gap-1">
+                @if (!s.primary && s.status !== 'inactive') { <button class="icon-btn sm" title="Make primary" (click)="makePrimary(i)"><hb-icon name="up" /></button> }
+                @if (s.isNew) { <button class="icon-btn sm" title="Discard (not saved yet)" (click)="discardSpoc(i)"><hb-icon name="x" /></button> }
+                @else if (s.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggleSpoc(s)">Make active</button> }
+                @else { <button class="icon-btn sm danger" title="Make inactive" (click)="toggleSpoc(s)"><hb-icon name="power" /></button> }
+              </div>
+            </div>
+            <div class="mini">
+              <div class="full"><label class="form-label">Name</label><input class="form-control" [(ngModel)]="s.name" [disabled]="s.status === 'inactive'"></div>
+              <div class="full"><label class="form-label">Designation</label><input class="form-control" [(ngModel)]="s.role" [disabled]="s.status === 'inactive'"></div>
+              <div class="full"><label class="form-label">Email</label><input type="email" class="form-control" [(ngModel)]="s.email" [disabled]="s.status === 'inactive' || !s.isNew"></div>
+              <div class="full"><label class="form-label">Phone</label><input class="form-control" [(ngModel)]="s.phone" [disabled]="s.status === 'inactive'"></div>
+            </div>
+            @if (s.status === 'inactive' && s.statusReason) { <p class="xs mut mt-s">Inactive: {{ s.statusReason }}</p> }
+          </div>
+        }
+      </div>
+
+      <div class="panel mt">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">What do you call it?</h3>
+          @if (!isSuper()) { <span class="badge"><hb-icon name="lock" /> Set by Hitbullseye</span> }</div>
+        <p class="sm mut" style="margin-bottom:12px">These become the labels on the student form.</p>
+        <fieldset [disabled]="!isSuper()" [class.ro]="!isSuper()">
+          <div class="mini">
+            <div class="full"><label class="form-label">Student ID field</label><input class="form-control" [(ngModel)]="nom.uid"></div>
+            <div class="full"><label class="form-label">Department level</label><input class="form-control" [(ngModel)]="nom.department"></div>
+            <div class="full"><label class="form-label">Programme level</label><input class="form-control" [(ngModel)]="nom.programme"></div>
+            <div class="full"><label class="form-label">Course level</label><input class="form-control" [(ngModel)]="nom.course"></div>
+            <div class="full"><label class="form-label">Session / batch</label><input class="form-control" [(ngModel)]="nom.session"></div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT ============ -->
+    <div>
+      <div class="panel">
+        <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">Departments &amp; strength</h3><button class="btn btn-primary btn-sm" (click)="addDept()">+ Add department</button></div>
+        <p class="sm mut" style="margin-bottom:14px">Strength is what we use to size your licences.
+          @if (isSuper()) { Programmes and courses feed the dependent dropdowns on the form. } @else { Programmes and courses on the form are managed by Hitbullseye. }</p>
+        @for (d of depts(); track $index; let i = $index) {
+          <div class="fl" [class.off]="d.status === 'inactive'">
+            <div class="fl-head">
+              <span class="nm">{{ d.name || 'New department' }}</span>
+              @if (!d.onForm && d.status !== 'inactive') { <span class="badge warn">not on form</span> }
+              <span class="badge">{{ (d.programmes ? d.programmes.split(',').length : 0) }} prog</span>
+              <span class="badge" [class.ok]="d.total" [class.warn]="!d.total">{{ d.total ? num(d.total) + ' students' : 'strength?' }}</span>
+              <hb-status [status]="d.status" [reason]="d.statusReason" [quiet]="true" />
+              <button class="icon-btn sm" title="Edit" (click)="toggleOpen(i)"><hb-icon name="edit" /></button>
+              @if (d.isNew) { <button class="icon-btn sm" title="Discard (not saved yet)" (click)="discardDept(i)"><hb-icon name="x" /></button> }
+              @else if (d.status === 'inactive') { <button class="btn btn-ok-soft btn-sm" (click)="toggleDept(d)">Make active</button> }
+              @else { <button class="icon-btn sm danger" title="Make inactive" (click)="toggleDept(d)"><hb-icon name="power" /></button> }
+            </div>
+            @if (d.open) {
+              <div class="fl-body"><div class="mini mt-s">
+                <div class="full"><label class="form-label">Department / school name</label><input class="form-control" [(ngModel)]="d.name" (ngModelChange)="touch()" [disabled]="!d.isNew && !isSuper()"></div>
+                <div><label class="form-label">Total students</label><input type="number" class="form-control" [(ngModel)]="d.total" (ngModelChange)="touch()"></div>
+                <div><label class="form-label">Final-year students</label><input type="number" class="form-control" [(ngModel)]="d.finalYear" (ngModelChange)="touch()"></div>
+                <div class="full"><label class="form-label">Programmes on the form (comma separated)</label><input class="form-control" [(ngModel)]="d.programmes" (ngModelChange)="touch()" [disabled]="!isSuper()"></div>
+                <div class="full"><label class="form-label">Courses / branches on the form (comma separated)</label><input class="form-control" [(ngModel)]="d.courses" (ngModelChange)="touch()" [disabled]="!isSuper()"></div>
+              </div></div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (isSuper()) {
+        <div class="panel mt">
+          <h3>Sessions on the form</h3>
+          <p class="sm mut" style="margin-bottom:12px">Comma separated, e.g. <code>2022-2026, 2023-2027</code></p>
+          <input class="form-control" [(ngModel)]="sessionsCsv">
+        </div>
+      }
+
+      <div class="panel mt">
+        <h3>Snapshot</h3>
+        <div class="stats" style="grid-template-columns:1fr 1fr">
+          <div class="stat" style="padding:15px"><div class="lbl">Departments</div><div class="val" style="font-size:23px">{{ totals().depts }}</div></div>
+          <div class="stat" style="padding:15px"><div class="lbl">Programmes</div><div class="val" style="font-size:23px">{{ totals().programmes }}</div></div>
+          <div class="stat" style="padding:15px"><div class="lbl">Total strength</div><div class="val" style="font-size:23px">{{ totals().total ? num(totals().total) : '—' }}</div></div>
+          <div class="stat" style="padding:15px"><div class="lbl">Final year</div><div class="val" style="font-size:23px">{{ totals().finalYear ? num(totals().finalYear) : '—' }}</div></div>
+          <div class="stat" style="padding:15px"><div class="lbl">Expected (batches)</div><div class="val" style="font-size:23px">{{ totals().estimated ? num(totals().estimated) : '—' }}</div></div>
+          <div class="stat" style="padding:15px"><div class="lbl">Active SPOCs</div><div class="val" style="font-size:23px">{{ totals().spocs }}</div></div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap mt">
+        <button class="btn btn-primary btn-lg grow" style="min-width:230px" (click)="save()" [disabled]="saving()">Save profile</button>
+        <a class="btn btn-ghost" [routerLink]="['/c', c.id, 'verify']">See the student form</a>
+      </div>
+    </div>
+  </div>
+  }
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Nothing here is deleted — departments and SPOCs are made inactive.</span></footer>
+</main>

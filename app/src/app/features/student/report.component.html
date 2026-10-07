@@ -1,0 +1,76 @@
+@if (!isAdmin()) { <hb-student-nav [campus]="c()" /> }
+
+@if (notFound()) {
+  <div class="wrap" style="padding-top:30px"><div class="card card-body center"><h2>Report not found</h2>
+    <p class="mut mt-s">This student does not exist, or is not on your campus.</p></div></div>
+} @else {
+@if (st(); as st) {
+<header class="pband report-band">
+  <div class="wrap pband-in">
+    <div class="d-flex gap-3 align-items-center">
+      <div class="avatar pband-av">{{ initials(st.name) }}</div>
+      <div>
+        <span class="eyebrow">Performance report</span>
+        <h1>{{ st.name }}</h1>
+        <p class="sm">{{ st.regNo }} · {{ c()?.name }} · {{ batchName() }}{{ st.course ? ' · ' + st.course : '' }}</p>
+      </div>
+    </div>
+    <div class="pband-side no-print">
+      @if (st.status === 'inactive') { <span class="badge light">Inactive account</span> }
+      @if (isAdmin()) { <a class="btn btn-line btn-sm" routerLink="/console/students"><hb-icon name="back" /> All students</a> }
+      <button class="btn btn-line btn-sm" (click)="print()"><hb-icon name="file" /> Download / print</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap pband-stats" style="padding-bottom:60px">
+  @if (empty()) {
+    <div class="card card-body center an-empty">
+      <div class="mx-auto" style="width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn)"><hb-icon name="alert" [size]="23" /></div>
+      <h2 style="margin-top:14px">No attempt yet</h2>
+      <p class="mut" style="margin-top:8px">{{ st.name }} has not attempted any assessment so far. The report is built the moment a test is submitted.</p>
+      @if (isAdmin()) { <a class="btn btn-ghost mt" routerLink="/console/students">Back to all students</a> }
+      @else { <a class="btn btn-primary mt" routerLink="/me">Go to my assessments</a> }
+    </div>
+  } @else {
+    <nav class="an-topbar no-print" aria-label="Reports">
+      <a class="an-tab" [class.on]="showOverview()" [href]="href({})" (click)="$event.preventDefault(); open({})"><hb-icon name="grid" />Overview</a>
+      @if (rep()?.mode === 'journey') {
+        <a class="an-tab" [class.on]="showProgress()" [href]="href({ view: 'progress' })" (click)="$event.preventDefault(); open({ view: 'progress' })">
+          <hb-icon name="chart" />Progress<span>{{ rep().tests.length }} tests</span></a>
+      }
+      <label class="an-pick" [class.on]="curId()"><hb-icon name="file" />
+        <select aria-label="Open a test report" (change)="pick($any($event.target).value)">
+          <option value="">{{ curId() ? 'Switch test…' : 'Open a test report…' }}</option>
+          @if (testsDesc().length) {
+            <optgroup label="Tests">
+              @for (t of testsDesc(); track t.testId) { <option [value]="t.testId" [selected]="t.testId === curId()">{{ label(t, false) }}</option> }
+            </optgroup>
+          }
+          @if (practiceDesc().length) {
+            <optgroup label="Quick practice">
+              @for (t of practiceDesc(); track t.testId) { <option [value]="t.testId" [selected]="t.testId === curId()">{{ label(t, true) }}</option> }
+            </optgroup>
+          }
+        </select>
+      </label>
+    </nav>
+
+    @if (simOffer()) {
+      <div class="an-sim no-print mt"><div class="grow"><b>One test so far.</b>
+        <span class="sm mut">Your progress report appears after your second test. Want to preview it? We can simulate 5 practice mocks starting from your level.</span></div>
+        <button class="btn btn-primary btn-sm" (click)="simulate()"><hb-icon name="chart" /> Simulate my journey</button></div>
+    }
+
+    <hb-legacy-view [view]="legacy()" />
+  }
+
+  <footer class="foot row-b no-print">
+    <span>© 2026 Hitbullseye · Campus Assessment Platform</span>
+    <span>Report generated automatically from the student's answers.</span>
+  </footer>
+</div>
+} @else {
+  <div class="loading-page"><span class="spinner"></span></div>
+}
+}

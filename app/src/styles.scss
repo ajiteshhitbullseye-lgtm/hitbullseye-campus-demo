@@ -1,0 +1,11 @@
+/* =====================================================================
+   Global styles. Bootstrap 5.3.3 is loaded first (angular.json); this
+   file themes it and adds the Hitbullseye components.
+   Order matters: the scoped prototype CSS for the report renderer comes
+   before analytics.css, exactly as app.css came before it in the prototype.
+   ===================================================================== */
+@use 'styles/tokens';
+@use 'styles/base';
+@use 'styles/bootstrap-theme';
+@use 'styles/public';
+@use 'styles/console';

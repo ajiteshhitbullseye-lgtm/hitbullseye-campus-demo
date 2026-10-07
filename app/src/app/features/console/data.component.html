@@ -1,0 +1,112 @@
+<main class="console-main page">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">Hitbullseye HQ</span>
+      <h1>Data &amp; sync</h1>
+      <p class="sm mut">How this portal talks to the Hitbullseye admin panel: what comes in, what goes back, and every sync so far.</p>
+    </div>
+    <button class="btn btn-primary btn-sm" (click)="syncAll()" [disabled]="syncing()"><hb-icon name="sync" /> Sync all clients now</button>
+  </div>
+
+  <div class="split mt">
+    <div>
+      <div class="panel">
+        <h3>Connection</h3>
+        <div class="kv"><span>Mode</span><b>@if (env.useMockApi) { <span class="badge warn">Demo (mock APIs in this browser)</span> } @else { <span class="badge ok">Live APIs</span> }</b></div>
+        <div class="kv"><span>Admin panel API</span><b><code>{{ env.panelApiBase }}</code></b></div>
+        <div class="kv"><span>Portal API</span><b><code>{{ env.portalApiBase }}</code></b></div>
+        <p class="xs mut mt-s">Switch in <code>src/environments/environment*.ts</code>. Every endpoint, payload and error code is listed in <code>app/docs/API.md</code>.</p>
+      </div>
+
+      <div class="panel mt">
+        <h3>What comes from the admin panel</h3>
+        <ul class="plist sm">
+          <li><hb-icon name="check" /><span>Clients (active / inactive) and their client ids</span></li>
+          <li><hb-icon name="check" /><span>Batches and batch ids</span></li>
+          <li><hb-icon name="check" /><span>Students added one by one or from Excel</span></li>
+          <li><hb-icon name="check" /><span>Logins: students and placement cells (passwords never leave the panel)</span></li>
+        </ul>
+        <h3 class="mt">What goes back</h3>
+        <ul class="plist sm">
+          <li><hb-icon name="arrow" /><span>A registration is completed</span></li>
+          <li><hb-icon name="arrow" /><span>Anyone is made active / inactive, with the reason</span></li>
+        </ul>
+      </div>
+
+      <div class="panel mt">
+        <h3>Download ({{ ctx.campus()?.shortName }})</h3>
+        <div class="d-grid gap-2">
+          <button class="btn btn-ghost btn-sm" (click)="download('config')">Campus config (JSON)</button>
+          <button class="btn btn-ghost btn-sm" (click)="download('roster')">Master list (JSON)</button>
+          <button class="btn btn-ghost btn-sm" (click)="download('registrations')">Registrations + results (JSON)</button>
+          <button class="btn btn-ghost btn-sm" (click)="download('drafts')">Drafts (JSON)</button>
+          <button class="btn btn-ghost btn-sm" (click)="download('audit')">Activity log (JSON)</button>
+          <button class="btn btn-ghost btn-sm" (click)="download('all')">Everything, all clients (JSON)</button>
+        </div>
+      </div>
+
+      @if (env.useMockApi) {
+        <div class="panel mt" style="border-color:#f3c9c9">
+          <h3>Demo data</h3>
+          <p class="sm mut" style="margin-bottom:12px">Start the demo again from the seed (5 campuses, 25 registered students, drafts, attempts).</p>
+          <button class="btn btn-danger-soft btn-sm w-100" (click)="reset()">Reset demo data</button>
+        </div>
+      }
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="row-b" style="margin-bottom:14px"><h3 style="margin:0">Sync history</h3><span class="badge">{{ runs().length }} runs</span></div>
+        <div class="tbl-wrap"><table class="table">
+          <thead><tr><th>When</th><th>Scope</th><th>New</th><th>Changed</th><th title="On our list but no longer in the admin panel">→ Inactive</th><th>Result</th></tr></thead>
+          <tbody>
+            @for (r of runs(); track r.id) {
+              <tr><td>{{ fmtDateTime(r.at) }}<br><span class="xs mut">{{ ago(r.at) }}</span></td><td>{{ r.scope }}<br><span class="xs mut">by {{ r.by }}</span></td>
+                <td>{{ r.added }}</td><td>{{ r.updated }}</td><td>{{ r.deactivated }}</td>
+                <td>@if (r.ok) { <span class="badge ok">OK</span> } @else { <span class="badge err" [title]="r.error || ''">Failed</span> }</td></tr>
+            } @empty { <tr><td colspan="6" class="center mut">No sync yet.</td></tr> }
+          </tbody>
+        </table></div>
+      </div>
+
+      @if (env.useMockApi) {
+        <div class="panel mt">
+          <div class="row-b" style="margin-bottom:10px"><h3 style="margin:0">Sent to the admin panel</h3><span class="badge">this session</span></div>
+          <div class="log">
+            @for (o of outbox(); track $index) { <div class="line ok"><b>{{ fmtDateTime(o.at) }}</b>{{ o.type }} · {{ json(o.payload) }}</div> }
+            @empty { <div class="line mut">Nothing sent yet — register a student or make someone inactive.</div> }
+          </div>
+        </div>
+
+        <div class="panel mt" style="border-style:dashed">
+          <div class="row-b" style="margin-bottom:6px"><h3 style="margin:0">Demo: Excel upload in the admin panel</h3><span class="badge warn">plays the admin panel</span></div>
+          <p class="sm mut" style="margin-bottom:14px">In production students are added in the Hitbullseye admin panel. This box stands in for that screen so the flow can be shown end to end:
+            add rows here (to the demo panel) → <b>Sync</b> → they appear on the master list and can register.</p>
+          <div class="mini" style="margin-bottom:12px">
+            <div><label class="form-label">Client</label><input class="form-control" [value]="ctx.campus()?.name + ' (' + ctx.campus()?.externalClientId + ')'" disabled></div>
+            <div><label class="form-label">Batch</label><select class="form-select" [(ngModel)]="batchId">@for (b of batches(); track b.batchId) { <option [value]="b.batchId">{{ b.name }}</option> }</select></div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap mb-2">
+            <label class="btn btn-ghost btn-sm mb-0">Choose CSV file <input type="file" accept=".csv,.txt" (change)="file($event)" hidden></label>
+            <button class="btn btn-ghost btn-sm" (click)="sample()">Load a sample</button>
+          </div>
+          <textarea class="form-control mono" rows="6" style="font-size:12.5px" [(ngModel)]="csvText" (ngModelChange)="check()"
+            placeholder="University ID, Email, Name, Department, Programme, Course, Session"></textarea>
+          @if (plan(); as p) {
+            <div class="stats mt" style="grid-template-columns:repeat(3,1fr)">
+              <div class="stat" style="padding:14px"><div class="lbl">Will be added</div><div class="val" style="font-size:24px">{{ p.rows.length }}</div><div class="sub">{{ p.header ? 'header row detected' : 'no header, positional' }}</div></div>
+              <div class="stat" style="padding:14px"><div class="lbl">Already there</div><div class="val" style="font-size:24px">{{ p.dupes }}</div><div class="sub">skipped</div></div>
+              <div class="stat" style="padding:14px"><div class="lbl">Rejected</div><div class="val" style="font-size:24px">{{ p.bad.length }}</div><div class="sub">see below</div></div>
+            </div>
+            @if (p.bad.length) {
+              <div class="alert alert-warning mt-s"><hb-icon name="alert" /><div>@for (b of p.bad.slice(0, 10); track b.line) { <span class="xs">line {{ b.line }} — {{ b.why }}</span><br> }</div></div>
+            }
+          }
+          <button class="btn btn-primary mt" [disabled]="!plan()?.rows?.length" (click)="uploadToPanel()">Add to the (demo) admin panel</button>
+        </div>
+      }
+    </div>
+  </div>
+
+  <footer class="foot row-b"><span>© 2026 Hitbullseye · Campus Assessment Platform</span><span>Students, batches and logins are owned by the admin panel.</span></footer>
+</main>
